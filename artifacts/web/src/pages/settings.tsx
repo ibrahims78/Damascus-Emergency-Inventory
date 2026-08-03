@@ -1,25 +1,39 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useGetCurrentUser } from '@workspace/api-client-react';
-import { Settings2, KeyRound, Building2, Save, User as UserIcon } from 'lucide-react';
+import {
+  Settings2,
+  KeyRound,
+  Building2,
+  Save,
+  User as UserIcon,
+  DatabaseBackup,
+  Download,
+  Ruler,
+  Plus,
+  X,
+  CheckCircle2,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 
-// ─── Types ──────────────────────────────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface SystemSettings {
   id: number;
   orgName: string;
   orgSubtitle?: string | null;
   expiryAlertDays: number;
+  unitsList?: string | null;
   setupCompleted: boolean;
   updatedAt: string;
 }
 
-// ─── API helpers ─────────────────────────────────────────────────────────────
+// ─── API helpers ──────────────────────────────────────────────────────────────
 
 async function fetchSettings(): Promise<SystemSettings> {
   const res = await fetch('/api/settings', { credentials: 'include' });
@@ -27,7 +41,9 @@ async function fetchSettings(): Promise<SystemSettings> {
   return res.json() as Promise<SystemSettings>;
 }
 
-async function saveSettings(data: Partial<Pick<SystemSettings, 'orgName' | 'orgSubtitle' | 'expiryAlertDays'>>): Promise<SystemSettings> {
+async function saveSettings(
+  data: Partial<Pick<SystemSettings, 'orgName' | 'orgSubtitle' | 'expiryAlertDays' | 'unitsList'>>,
+): Promise<SystemSettings> {
   const res = await fetch('/api/settings', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -35,13 +51,16 @@ async function saveSettings(data: Partial<Pick<SystemSettings, 'orgName' | 'orgS
     body: JSON.stringify(data),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { error?: string };
+    const err = (await res.json().catch(() => ({}))) as { error?: string };
     throw new Error(err.error || 'فشل حفظ الإعدادات');
   }
   return res.json() as Promise<SystemSettings>;
 }
 
-async function changePassword(data: { currentPassword: string; newPassword: string }): Promise<void> {
+async function changePassword(data: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<void> {
   const res = await fetch('/api/settings/change-password', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -49,39 +68,50 @@ async function changePassword(data: { currentPassword: string; newPassword: stri
     body: JSON.stringify(data),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { error?: string };
+    const err = (await res.json().catch(() => ({}))) as { error?: string };
     throw new Error(err.error || 'فشل تغيير كلمة المرور');
   }
 }
+
+const DEFAULT_UNITS = [
+  'قطعة', 'علبة', 'لتر', 'مل', 'كيس', 'زجاجة', 'برميل',
+  'رول', 'كرتون', 'طرد', 'حبة', 'زوج', 'مجموعة', 'جرام', 'كيلوغرام',
+];
 
 // ─── Settings Page ────────────────────────────────────────────────────────────
 
 export function SettingsPage() {
   const { data: currentUser } = useGetCurrentUser();
+  const isAdmin = currentUser?.role === 'admin';
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-3xl">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">الإعدادات</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          إعدادات المنظومة والملف الشخصي
-        </p>
+        <p className="text-sm text-muted-foreground mt-1">إعدادات المنظومة والملف الشخصي</p>
       </div>
 
       <Tabs defaultValue="profile" dir="rtl">
-        <TabsList className="mb-6">
+        <TabsList className="mb-6 flex-wrap h-auto gap-1">
           <TabsTrigger value="profile" className="gap-2">
-            <UserIcon className="h-4 w-4" />
-            الملف الشخصي
+            <UserIcon className="h-4 w-4" />الملف الشخصي
           </TabsTrigger>
           <TabsTrigger value="password" className="gap-2">
-            <KeyRound className="h-4 w-4" />
-            كلمة المرور
+            <KeyRound className="h-4 w-4" />كلمة المرور
           </TabsTrigger>
-          {currentUser?.role === 'admin' && (
+          {isAdmin && (
             <TabsTrigger value="org" className="gap-2">
-              <Building2 className="h-4 w-4" />
-              إعدادات المنظومة
+              <Building2 className="h-4 w-4" />إعدادات المنظومة
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="units" className="gap-2">
+              <Ruler className="h-4 w-4" />وحدات القياس
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="backup" className="gap-2">
+              <DatabaseBackup className="h-4 w-4" />النسخ الاحتياطي
             </TabsTrigger>
           )}
         </TabsList>
@@ -94,9 +124,19 @@ export function SettingsPage() {
           <PasswordTab />
         </TabsContent>
 
-        {currentUser?.role === 'admin' && (
+        {isAdmin && (
           <TabsContent value="org">
             <OrgTab />
+          </TabsContent>
+        )}
+        {isAdmin && (
+          <TabsContent value="units">
+            <UnitsTab />
+          </TabsContent>
+        )}
+        {isAdmin && (
+          <TabsContent value="backup">
+            <BackupTab />
           </TabsContent>
         )}
       </Tabs>
@@ -106,7 +146,11 @@ export function SettingsPage() {
 
 // ─── Profile Tab ──────────────────────────────────────────────────────────────
 
-function ProfileTab({ user }: { user?: { fullName?: string; username?: string; role?: string } | null }) {
+function ProfileTab({
+  user,
+}: {
+  user?: { fullName?: string; username?: string; role?: string } | null;
+}) {
   const roleLabel: Record<string, string> = {
     admin: 'مدير نظام',
     warehouse_manager: 'أمين مستودع',
@@ -114,243 +158,331 @@ function ProfileTab({ user }: { user?: { fullName?: string; username?: string; r
   };
 
   return (
-    <div className="bg-card border rounded-lg shadow-sm p-6 space-y-5">
-      <div className="flex items-center gap-2 mb-2">
-        <Settings2 className="h-5 w-5 text-muted-foreground" />
-        <h2 className="font-semibold text-base">معلومات الحساب</h2>
-      </div>
-
-      <div className="grid gap-5">
+    <div className="bg-card border rounded-lg p-6 space-y-5">
+      <h2 className="font-semibold text-lg">معلومات الحساب</h2>
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label>الاسم الكامل</Label>
-          <Input value={user?.fullName ?? ''} disabled className="bg-muted/50 cursor-not-allowed" />
-          <p className="text-xs text-muted-foreground">لتعديل الاسم يُرجى التواصل مع مدير النظام</p>
+          <Label className="text-muted-foreground text-xs">الاسم الكامل</Label>
+          <p className="font-medium">{user?.fullName || '—'}</p>
         </div>
-
         <div className="space-y-1.5">
-          <Label>اسم المستخدم</Label>
-          <Input value={user?.username ?? ''} disabled dir="ltr" className="bg-muted/50 cursor-not-allowed" />
+          <Label className="text-muted-foreground text-xs">اسم المستخدم</Label>
+          <p className="font-mono font-medium">{user?.username || '—'}</p>
         </div>
-
         <div className="space-y-1.5">
-          <Label>الدور الحالي</Label>
-          <Input
-            value={roleLabel[user?.role ?? ''] ?? user?.role ?? ''}
-            disabled
-            className="bg-muted/50 cursor-not-allowed"
-          />
+          <Label className="text-muted-foreground text-xs">الدور</Label>
+          <Badge variant="secondary">{roleLabel[user?.role ?? ''] || user?.role || '—'}</Badge>
         </div>
       </div>
+      <p className="text-xs text-muted-foreground border-t pt-4">
+        لتعديل الاسم أو الدور، تواصل مع مدير النظام.
+      </p>
     </div>
   );
 }
 
-// ─── Password Tab ──────────────────────────────────────────────────────────────
+// ─── Password Tab ─────────────────────────────────────────────────────────────
 
 function PasswordTab() {
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [errors, setErrors] = useState<{ current?: string; new?: string; confirm?: string }>({});
+  const [current, setCurrent] = useState('');
+  const [next, setNext]       = useState('');
+  const [confirm, setConfirm] = useState('');
 
   const mutation = useMutation({
     mutationFn: changePassword,
     onSuccess: () => {
       toast.success('تم تغيير كلمة المرور بنجاح');
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setErrors({});
+      setCurrent(''); setNext(''); setConfirm('');
     },
-    onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : 'حدث خطأ';
-      if (msg.includes('الحالية') || msg.includes('current') || msg.includes('401')) {
-        setErrors((e) => ({ ...e, current: msg }));
-      } else {
-        toast.error(msg);
-      }
-    },
+    onError: (err: Error) => toast.error(err.message),
   });
 
-  const handleSubmit = () => {
-    const errs: typeof errors = {};
-    if (!currentPassword) errs.current = 'كلمة المرور الحالية مطلوبة';
-    if (!newPassword) errs.new = 'كلمة المرور الجديدة مطلوبة';
-    else if (newPassword.length < 8) errs.new = 'كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل';
-    if (!confirmPassword) errs.confirm = 'تأكيد كلمة المرور مطلوب';
-    else if (newPassword !== confirmPassword) errs.confirm = 'كلمتا المرور غير متطابقتين';
-    setErrors(errs);
-    if (Object.keys(errs).length > 0) return;
-    mutation.mutate({ currentPassword, newPassword });
+  const handleSave = () => {
+    if (!current || !next || !confirm) { toast.error('يرجى تعبئة جميع الحقول'); return; }
+    if (next.length < 8) { toast.error('كلمة المرور يجب أن تكون 8 أحرف على الأقل'); return; }
+    if (next !== confirm) { toast.error('كلمتا المرور غير متطابقتين'); return; }
+    mutation.mutate({ currentPassword: current, newPassword: next });
   };
 
   return (
-    <div className="bg-card border rounded-lg shadow-sm p-6 space-y-5">
-      <div className="flex items-center gap-2 mb-2">
-        <KeyRound className="h-5 w-5 text-muted-foreground" />
-        <h2 className="font-semibold text-base">تغيير كلمة المرور</h2>
+    <div className="bg-card border rounded-lg p-6 space-y-5 max-w-sm">
+      <h2 className="font-semibold text-lg">تغيير كلمة المرور</h2>
+      <div className="space-y-1.5">
+        <Label htmlFor="cur">كلمة المرور الحالية</Label>
+        <Input id="cur" type="password" value={current} onChange={(e) => setCurrent(e.target.value)} />
       </div>
-
-      <div className="grid gap-5">
-        <div className="space-y-1.5">
-          <Label htmlFor="cur-pw">كلمة المرور الحالية <span className="text-destructive">*</span></Label>
-          <Input
-            id="cur-pw"
-            type="password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            dir="ltr"
-          />
-          {errors.current && <p className="text-xs text-destructive">{errors.current}</p>}
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="new-pw">كلمة المرور الجديدة <span className="text-destructive">*</span></Label>
-          <Input
-            id="new-pw"
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            dir="ltr"
-          />
-          {errors.new && <p className="text-xs text-destructive">{errors.new}</p>}
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="conf-pw">تأكيد كلمة المرور الجديدة <span className="text-destructive">*</span></Label>
-          <Input
-            id="conf-pw"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            dir="ltr"
-          />
-          {errors.confirm && <p className="text-xs text-destructive">{errors.confirm}</p>}
-        </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="nxt">كلمة المرور الجديدة</Label>
+        <Input id="nxt" type="password" value={next} onChange={(e) => setNext(e.target.value)} />
+        <p className="text-xs text-muted-foreground">8 أحرف على الأقل</p>
       </div>
-
-      <div className="flex justify-end pt-2">
-        <Button onClick={handleSubmit} disabled={mutation.isPending} className="gap-2">
-          <Save className="h-4 w-4" />
-          {mutation.isPending ? 'جاري الحفظ...' : 'تغيير كلمة المرور'}
-        </Button>
+      <div className="space-y-1.5">
+        <Label htmlFor="cnf">تأكيد كلمة المرور</Label>
+        <Input id="cnf" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
       </div>
+      <Button onClick={handleSave} disabled={mutation.isPending} className="gap-2 w-full">
+        <Save className="h-4 w-4" />
+        {mutation.isPending ? 'جاري الحفظ...' : 'حفظ كلمة المرور'}
+      </Button>
     </div>
   );
 }
 
-// ─── Org Settings Tab ─────────────────────────────────────────────────────────
+// ─── Org Tab ──────────────────────────────────────────────────────────────────
 
 function OrgTab() {
-  const queryClient = useQueryClient();
+  const qc = useQueryClient();
+  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: fetchSettings });
 
-  const { data: settings, isLoading } = useQuery({
-    queryKey: ['settings'],
-    queryFn: fetchSettings,
-  });
-
-  const [orgName, setOrgName] = useState('');
+  const [orgName, setOrgName]         = useState('');
   const [orgSubtitle, setOrgSubtitle] = useState('');
-  const [expiryAlertDays, setExpiryAlertDays] = useState('30');
+  const [expiryAlertDays, setDays]    = useState('30');
 
-  // Populate form when data loads
   useEffect(() => {
     if (settings) {
       setOrgName(settings.orgName);
       setOrgSubtitle(settings.orgSubtitle ?? '');
-      setExpiryAlertDays(String(settings.expiryAlertDays));
+      setDays(String(settings.expiryAlertDays));
     }
   }, [settings]);
 
   const mutation = useMutation({
     mutationFn: saveSettings,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['settings'] });
-      toast.success('تم حفظ الإعدادات بنجاح');
+      qc.invalidateQueries({ queryKey: ['settings'] });
+      toast.success('تم حفظ الإعدادات');
     },
-    onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : 'حدث خطأ';
-      toast.error(msg);
-    },
+    onError: (err: Error) => toast.error(err.message),
   });
 
-  const handleSave = () => {
-    const days = parseInt(expiryAlertDays, 10);
-    if (!orgName.trim()) { toast.error('اسم المنظومة مطلوب'); return; }
-    if (isNaN(days) || days < 1 || days > 365) { toast.error('عدد الأيام يجب أن يكون بين 1 و 365'); return; }
-    mutation.mutate({ orgName: orgName.trim(), orgSubtitle: orgSubtitle.trim() || undefined, expiryAlertDays: days });
-  };
-
-  if (isLoading) {
-    return (
-      <div className="bg-card border rounded-lg shadow-sm p-6 flex items-center justify-center py-12">
-        <div className="flex flex-col items-center gap-2 text-muted-foreground">
-          <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
-          <span className="text-sm">جاري التحميل...</span>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="bg-card border rounded-lg shadow-sm p-6 space-y-5">
-      <div className="flex items-center gap-2 mb-2">
-        <Building2 className="h-5 w-5 text-muted-foreground" />
-        <h2 className="font-semibold text-base">إعدادات المنظومة</h2>
+    <div className="bg-card border rounded-lg p-6 space-y-5">
+      <h2 className="font-semibold text-lg">إعدادات المنظومة</h2>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="orgName">اسم المنظومة <span className="text-destructive">*</span></Label>
+        <Input id="orgName" value={orgName} onChange={(e) => setOrgName(e.target.value)}
+          placeholder="مديرية الاحالة والإسعاف والطوارئ - دمشق" />
+        <p className="text-xs text-muted-foreground">يظهر في رأس سندات الإدخال والإخراج</p>
       </div>
 
-      <div className="grid gap-5">
-        <div className="space-y-1.5">
-          <Label htmlFor="orgName">
-            اسم المنظومة الرسمي <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="orgName"
-            value={orgName}
-            onChange={(e) => setOrgName(e.target.value)}
-            placeholder="مديرية الاحالة والإسعاف والطوارئ - دمشق"
-          />
-          <p className="text-xs text-muted-foreground">يظهر هذا الاسم في رأس سندات الإدخال والإخراج</p>
-        </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="orgSubtitle">العنوان الفرعي (اختياري)</Label>
+        <Input id="orgSubtitle" value={orgSubtitle} onChange={(e) => setOrgSubtitle(e.target.value)}
+          placeholder="مثال: مستودع مواد الإسعاف" />
+      </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="orgSubtitle">العنوان الفرعي (اختياري)</Label>
-          <Input
-            id="orgSubtitle"
-            value={orgSubtitle}
-            onChange={(e) => setOrgSubtitle(e.target.value)}
-            placeholder="مثال: مستودع مواد الإسعاف"
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="expiryDays">
-            عدد أيام التنبيه قبل انتهاء الصلاحية <span className="text-destructive">*</span>
-          </Label>
-          <div className="flex items-center gap-3">
-            <Input
-              id="expiryDays"
-              type="number"
-              min={1}
-              max={365}
-              value={expiryAlertDays}
-              onChange={(e) => setExpiryAlertDays(e.target.value)}
-              className="w-32"
-              dir="ltr"
-            />
-            <span className="text-sm text-muted-foreground">يوماً</span>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            تُعرض التنبيهات للأصناف التي ستنتهي صلاحيتها خلال هذه الفترة
-          </p>
+      <div className="space-y-1.5">
+        <Label htmlFor="expiryDays">
+          أيام التنبيه قبل انتهاء الصلاحية <span className="text-destructive">*</span>
+        </Label>
+        <div className="flex items-center gap-3">
+          <Input id="expiryDays" type="number" min={1} max={365} value={expiryAlertDays}
+            onChange={(e) => setDays(e.target.value)} className="w-28" dir="ltr" />
+          <span className="text-sm text-muted-foreground">يوماً</span>
         </div>
       </div>
 
       <div className="flex justify-end pt-2">
-        <Button onClick={handleSave} disabled={mutation.isPending} className="gap-2">
+        <Button onClick={() => mutation.mutate({ orgName, orgSubtitle, expiryAlertDays: Number(expiryAlertDays) })}
+          disabled={mutation.isPending} className="gap-2">
           <Save className="h-4 w-4" />
           {mutation.isPending ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
         </Button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Units Tab ────────────────────────────────────────────────────────────────
+
+function UnitsTab() {
+  const qc = useQueryClient();
+  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: fetchSettings });
+
+  const [units, setUnits] = useState<string[]>(DEFAULT_UNITS);
+  const [newUnit, setNewUnit] = useState('');
+
+  useEffect(() => {
+    if (settings?.unitsList) {
+      try {
+        const parsed = JSON.parse(settings.unitsList);
+        if (Array.isArray(parsed) && parsed.length > 0) setUnits(parsed);
+      } catch { /* keep defaults */ }
+    }
+  }, [settings]);
+
+  const mutation = useMutation({
+    mutationFn: (u: string[]) => saveSettings({ unitsList: JSON.stringify(u) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['settings'] });
+      toast.success('تم حفظ وحدات القياس');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const addUnit = () => {
+    const trimmed = newUnit.trim();
+    if (!trimmed) return;
+    if (units.includes(trimmed)) { toast.error('الوحدة موجودة مسبقاً'); return; }
+    const updated = [...units, trimmed];
+    setUnits(updated);
+    setNewUnit('');
+    mutation.mutate(updated);
+  };
+
+  const removeUnit = (u: string) => {
+    const updated = units.filter((x) => x !== u);
+    setUnits(updated);
+    mutation.mutate(updated);
+  };
+
+  return (
+    <div className="bg-card border rounded-lg p-6 space-y-5">
+      <div>
+        <h2 className="font-semibold text-lg">وحدات القياس</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          الوحدات المتاحة عند إضافة مواد جديدة
+        </p>
+      </div>
+
+      {/* Add new unit */}
+      <div className="flex gap-2 max-w-sm">
+        <Input
+          placeholder="أضف وحدة جديدة..."
+          value={newUnit}
+          onChange={(e) => setNewUnit(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && addUnit()}
+        />
+        <Button onClick={addUnit} className="gap-2 flex-shrink-0">
+          <Plus className="h-4 w-4" />
+          إضافة
+        </Button>
+      </div>
+
+      {/* Units list */}
+      <div className="flex flex-wrap gap-2">
+        {units.map((u) => (
+          <span
+            key={u}
+            className="inline-flex items-center gap-1.5 bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm font-medium"
+          >
+            {u}
+            <button
+              onClick={() => removeUnit(u)}
+              className="text-muted-foreground hover:text-destructive transition-colors"
+              title={`حذف ${u}`}
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </span>
+        ))}
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        {units.length} وحدة مسجّلة — التغييرات تُحفظ فوراً
+      </p>
+    </div>
+  );
+}
+
+// ─── Backup Tab ───────────────────────────────────────────────────────────────
+
+function BackupTab() {
+  const [downloading, setDownloading] = useState(false);
+
+  const { data: info, isLoading: infoLoading, refetch } = useQuery({
+    queryKey: ['backup-info'],
+    queryFn: async () => {
+      const res = await fetch('/api/backup/info', { credentials: 'include' });
+      if (!res.ok) throw new Error('فشل جلب معلومات قاعدة البيانات');
+      return res.json() as Promise<Record<string, number>>;
+    },
+  });
+
+  const handleExport = async () => {
+    setDownloading(true);
+    try {
+      const res = await fetch('/api/backup/export', { credentials: 'include' });
+      if (!res.ok) throw new Error('فشل تصدير البيانات');
+      const blob = await res.blob();
+      const dateStr = new Date().toISOString().split('T')[0];
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ems-warehouse-backup-${dateStr}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('تم تصدير النسخة الاحتياطية بنجاح');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'حدث خطأ');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const infoRows: [string, string][] = info
+    ? [
+        ['التصنيفات',        String(info.categories ?? 0)],
+        ['المواد والمستهلكات', String(info.items ?? 0)],
+        ['التجهيزات',         String(info.equipment ?? 0)],
+        ['العمليات (إدخال/إخراج)', String(info.transactions ?? 0)],
+        ['الجهات المستلمة',   String(info.recipients ?? 0)],
+        ['المستخدمون',        String(info.users ?? 0)],
+      ]
+    : [];
+
+  return (
+    <div className="space-y-6">
+      {/* Stats card */}
+      <div className="bg-card border rounded-lg p-6 space-y-4">
+        <h2 className="font-semibold text-lg">محتويات قاعدة البيانات</h2>
+        {infoLoading ? (
+          <p className="text-sm text-muted-foreground">جاري التحميل...</p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {infoRows.map(([label, value]) => (
+              <div key={label} className="bg-muted/40 rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold">{Number(value).toLocaleString('ar')}</p>
+                <p className="text-xs text-muted-foreground mt-1">{label}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Export card */}
+      <div className="bg-card border rounded-lg p-6 space-y-4">
+        <div className="flex items-start gap-4">
+          <div className="p-3 bg-primary/10 rounded-lg flex-shrink-0">
+            <Download className="w-6 h-6 text-primary" />
+          </div>
+          <div>
+            <h3 className="font-semibold">تصدير نسخة احتياطية</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              يُصدَّر ملف JSON يحتوي على جميع بيانات المستودع (المواد، التجهيزات، العمليات، المستخدمون).
+              احفظه في مكان آمن وقم بتحديثه بانتظام.
+            </p>
+          </div>
+        </div>
+        <Button onClick={handleExport} disabled={downloading} className="gap-2">
+          <Download className="h-4 w-4" />
+          {downloading ? 'جاري التصدير...' : 'تصدير نسخة احتياطية الآن'}
+        </Button>
+      </div>
+
+      {/* Info card */}
+      <div className="bg-muted/30 border border-dashed rounded-lg p-5 space-y-2">
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+          <p className="text-sm font-medium">توصيات النسخ الاحتياطي</p>
+        </div>
+        <ul className="text-sm text-muted-foreground space-y-1.5 pr-6 list-disc">
+          <li>قم بتصدير نسخة احتياطية أسبوعياً على الأقل</li>
+          <li>احفظ الملف على قرص خارجي أو مشاركة شبكية</li>
+          <li>للاستعادة من نسخة احتياطية، تواصل مع مسؤول النظام التقني</li>
+          <li>الملف المُصدَّر بصيغة JSON — لا يحتوي على كلمات مرور</li>
+        </ul>
       </div>
     </div>
   );

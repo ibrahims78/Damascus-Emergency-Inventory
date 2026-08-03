@@ -9,6 +9,7 @@ export const systemSettingsTable = pgTable("system_settings", {
   orgName: text("org_name").notNull().default("مديرية الاحالة و الاسعاف و الطوارئ - دمشق"),
   orgSubtitle: text("org_subtitle"),
   expiryAlertDays: integer("expiry_alert_days").notNull().default(30),
+  unitsList: text("units_list"), // JSON array of unit strings e.g. '["قطعة","علبة","لتر"]'
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

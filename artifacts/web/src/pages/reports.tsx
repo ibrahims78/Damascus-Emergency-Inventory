@@ -44,16 +44,15 @@ import { formatDateTime, formatDate } from '@/lib/utils';
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 
-function exportCsv(filename: string, headers: string[], rows: string[][]) {
-  const bom = '\uFEFF'; // UTF-8 BOM for Excel Arabic support
-  const lines = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-  const blob = new Blob([bom + lines], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function exportXlsx(filename: string, headers: string[], rows: (string | number)[][]) {
+  const XLSX = await import('xlsx');
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  // RTL column widths
+  ws['!cols'] = headers.map(() => ({ wch: 22 }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'البيانات');
+  XLSX.writeFile(wb, filename);
 }
 
 function SummaryCard({
@@ -127,8 +126,8 @@ function StockTab() {
   const totalStock = items.reduce((s, i) => s + i.currentStock, 0);
   const belowMin = items.filter((i) => i.currentStock <= i.minStock).length;
 
-  const handleExport = () => {
-    exportCsv(
+  const handleExport = async () => {
+    exportXlsx(
       'جرد-المخزون.csv',
       ['الكود', 'الاسم', 'الرصيد الحالي', 'الحد الأدنى', 'الوحدة', 'تاريخ الانتهاء', 'الموقع'],
       items.map((i: Item) => [
@@ -159,7 +158,7 @@ function StockTab() {
         </Button>
         <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>
           <Download className="w-4 h-4" />
-          تصدير CSV
+          تصدير Excel
         </Button>
       </div>
 
@@ -243,8 +242,8 @@ function MovementsTab() {
 
   const hasFilters = from !== '' || to !== '' || type !== 'all';
 
-  const handleExport = () => {
-    exportCsv(
+  const handleExport = async () => {
+    exportXlsx(
       'حركة-المواد.csv',
       ['رقم السند', 'التاريخ', 'النوع', 'الصنف', 'الكمية', 'الجهة', 'المستخدم'],
       txs.map((t: Transaction) => [
@@ -308,7 +307,7 @@ function MovementsTab() {
           <Printer className="w-4 h-4" />طباعة
         </Button>
         <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>
-          <Download className="w-4 h-4" />تصدير CSV
+          <Download className="w-4 h-4" />تصدير Excel
         </Button>
       </div>
 
@@ -374,8 +373,8 @@ function ExpiryTab() {
   ).length;
   const nearExpiry = items.length - expired;
 
-  const handleExport = () => {
-    exportCsv(
+  const handleExport = async () => {
+    exportXlsx(
       'قرب-انتهاء-الصلاحية.csv',
       ['الاسم', 'الرصيد', 'الوحدة', 'تاريخ الانتهاء', 'الأيام المتبقية'],
       items.map((i: Item) => {
@@ -400,7 +399,7 @@ function ExpiryTab() {
           <Printer className="w-4 h-4" />طباعة
         </Button>
         <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>
-          <Download className="w-4 h-4" />تصدير CSV
+          <Download className="w-4 h-4" />تصدير Excel
         </Button>
       </div>
 
@@ -467,8 +466,8 @@ function BelowMinTab() {
 
   const critical = items.filter((i) => i.currentStock === 0).length;
 
-  const handleExport = () => {
-    exportCsv(
+  const handleExport = async () => {
+    exportXlsx(
       'أقل-من-الحد-الأدنى.csv',
       ['الاسم', 'الرصيد الحالي', 'الحد الأدنى', 'الفرق', 'الوحدة'],
       items.map((i: Item) => [
@@ -494,7 +493,7 @@ function BelowMinTab() {
           <Printer className="w-4 h-4" />طباعة
         </Button>
         <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>
-          <Download className="w-4 h-4" />تصدير CSV
+          <Download className="w-4 h-4" />تصدير Excel
         </Button>
       </div>
 
@@ -567,8 +566,8 @@ function EquipmentTab() {
     return acc;
   }, {});
 
-  const handleExport = () => {
-    exportCsv(
+  const handleExport = async () => {
+    exportXlsx(
       'حالة-التجهيزات.csv',
       ['الاسم', 'الرقم التسلسلي', 'الموديل', 'الحالة', 'الحائز', 'ملاحظات'],
       equipment.map((e: Equipment) => [
@@ -599,7 +598,7 @@ function EquipmentTab() {
           <Printer className="w-4 h-4" />طباعة
         </Button>
         <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>
-          <Download className="w-4 h-4" />تصدير CSV
+          <Download className="w-4 h-4" />تصدير Excel
         </Button>
       </div>
 

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -19,6 +20,7 @@ import { TransactionsPage } from '@/pages/transactions';
 import { ReportsPage } from '@/pages/reports';
 import { UsersPage } from '@/pages/users';
 import { SettingsPage } from '@/pages/settings';
+import { AuditPage } from '@/pages/audit';
 import { PrintTransactionPage } from '@/pages/print-transaction';
 
 const queryClient = new QueryClient({
@@ -30,9 +32,22 @@ const queryClient = new QueryClient({
   },
 });
 
-function ProtectedRoute({ component: Component, adminOnly = false }: { component: any; adminOnly?: boolean }) {
+function ProtectedRoute({
+  component: Component,
+  adminOnly = false,
+}: {
+  component: React.ComponentType;
+  adminOnly?: boolean;
+}) {
   const [, setLocation] = useLocation();
   const { data: user, isLoading, isError } = useGetCurrentUser();
+
+  // Must be called unconditionally before any early returns
+  useEffect(() => {
+    if (!isLoading && (isError || !user)) {
+      setLocation('/login');
+    }
+  }, [isLoading, isError, user, setLocation]);
 
   if (isLoading) {
     return (
@@ -42,10 +57,7 @@ function ProtectedRoute({ component: Component, adminOnly = false }: { component
     );
   }
 
-  if (isError || !user) {
-    setLocation('/login');
-    return null;
-  }
+  if (isError || !user) return null;
 
   if (adminOnly && user.role !== 'admin') {
     return (
@@ -68,28 +80,31 @@ function Router() {
     <Switch>
       <Route path="/setup" component={SetupPage} />
       <Route path="/login" component={LoginPage} />
-      
+
       {/* Protected Routes */}
       <Route path="/"><ProtectedRoute component={DashboardPage} /></Route>
       <Route path="/items"><ProtectedRoute component={ItemsPage} /></Route>
       <Route path="/items/new"><ProtectedRoute component={ItemsPage} /></Route>
       <Route path="/items/:id/edit"><ProtectedRoute component={ItemsPage} /></Route>
-      
+
       <Route path="/equipment"><ProtectedRoute component={EquipmentPage} /></Route>
       <Route path="/equipment/new"><ProtectedRoute component={EquipmentPage} /></Route>
       <Route path="/equipment/:id/edit"><ProtectedRoute component={EquipmentPage} /></Route>
-      
+
       <Route path="/transactions"><ProtectedRoute component={TransactionsPage} /></Route>
       <Route path="/transactions/in/new"><ProtectedRoute component={TransactionsPage} /></Route>
       <Route path="/transactions/out/new"><ProtectedRoute component={TransactionsPage} /></Route>
-      
+
       <Route path="/reports"><ProtectedRoute component={ReportsPage} /></Route>
+
+      {/* Admin-only routes */}
       <Route path="/users"><ProtectedRoute component={UsersPage} adminOnly /></Route>
+      <Route path="/audit"><ProtectedRoute component={AuditPage} adminOnly /></Route>
       <Route path="/settings"><ProtectedRoute component={SettingsPage} /></Route>
-      
+
       {/* Print Route (No shell) */}
       <Route path="/print/:id" component={PrintTransactionPage} />
-      
+
       <Route component={NotFound} />
     </Switch>
   );

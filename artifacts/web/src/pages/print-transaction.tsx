@@ -1,8 +1,9 @@
 import { useRoute, useLocation } from 'wouter';
 import { useGetTransactionPrint } from '@workspace/api-client-react';
-import { Printer, ArrowRight } from 'lucide-react';
+import { Printer, ArrowRight, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatDateTime } from '@/lib/utils';
+import logoUrl from '@assets/WhatsApp_Image_2026-08-03_at_9.29.40_AM_1785738967367.jpeg';
 
 export function PrintTransactionPage() {
   const [, params] = useRoute('/print/:id');
@@ -35,35 +36,37 @@ export function PrintTransactionPage() {
   }
 
   const { transaction: tx, organizationName, printedAt } = data;
-  const isIn = tx.type === 'in';
-  const isOut = tx.type === 'out';
-  const isInit = tx.type === 'init';
+  const isIn   = tx.type === 'in';
+  const isOut  = tx.type === 'out';
 
-  const typeLabel = isIn
-    ? 'سند إدخال'
-    : isOut
-      ? 'سند إخراج'
-      : 'رصيد افتتاحي';
+  const typeLabel =
+    isIn  ? 'سند إدخال' :
+    isOut ? 'سند إخراج' :
+            'رصيد افتتاحي';
 
   const typeColor = isIn ? '#16a34a' : isOut ? '#dc2626' : '#6b7280';
-  const itemName = tx.itemType === 'equipment' ? tx.equipmentName : tx.itemName;
-  const itemUnit = tx.itemUnit;
+  const itemName  = tx.itemType === 'equipment' ? tx.equipmentName : tx.itemName;
+  const itemUnit  = tx.itemUnit;
+
+  const handlePdf = () => {
+    window.print();
+  };
 
   return (
     <div dir="rtl" style={{ fontFamily: "'Cairo', sans-serif" }} className="min-h-screen bg-gray-100 print:bg-white">
-      {/* Print Controls — hidden when printing */}
+
+      {/* ─── Toolbar (hidden on print) ─── */}
       <div className="print-hidden bg-white border-b shadow-sm px-4 py-3 flex items-center justify-between sticky top-0 z-10">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setLocation('/transactions')}
-          className="gap-2"
-        >
+        <Button variant="ghost" size="sm" onClick={() => setLocation('/transactions')} className="gap-2">
           <ArrowRight className="h-4 w-4" />
           العودة
         </Button>
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-500">سند رقم: {tx.documentNumber}</span>
+          <Button variant="outline" onClick={handlePdf} className="gap-2">
+            <FileDown className="h-4 w-4" />
+            تحميل PDF
+          </Button>
           <Button onClick={() => window.print()} className="gap-2">
             <Printer className="h-4 w-4" />
             طباعة السند
@@ -71,7 +74,7 @@ export function PrintTransactionPage() {
         </div>
       </div>
 
-      {/* A4 Page Container */}
+      {/* ─── A4 Container ─── */}
       <div
         className="mx-auto my-8 bg-white shadow-lg print:shadow-none print:my-0"
         style={{ width: '210mm', minHeight: '297mm' }}
@@ -79,14 +82,9 @@ export function PrintTransactionPage() {
         <div style={{ padding: '15mm' }}>
 
           {/* ===== HEADER ===== */}
-          <div
-            style={{
-              borderBottom: '2.5px solid #1e3a5f',
-              paddingBottom: '12px',
-              marginBottom: '20px',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div style={{ borderBottom: '2.5px solid #1e3a5f', paddingBottom: '12px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+
               {/* Right: Organization info */}
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '10px', color: '#6b7280', marginBottom: '1px' }}>
@@ -100,113 +98,107 @@ export function PrintTransactionPage() {
                 </div>
               </div>
 
+              {/* Center: Logo */}
+              <div style={{ textAlign: 'center', flex: '0 0 auto' }}>
+                <img
+                  src={logoUrl}
+                  alt="شعار المنظومة"
+                  style={{ width: '72px', height: '72px', objectFit: 'contain', borderRadius: '50%' }}
+                />
+              </div>
+
               {/* Left: Document type badge */}
-              <div style={{ textAlign: 'center' }}>
+              <div style={{ textAlign: 'center', minWidth: '110px' }}>
                 <div
                   style={{
-                    fontSize: '20px',
-                    fontWeight: 800,
-                    color: typeColor,
-                    border: `2px solid ${typeColor}`,
-                    borderRadius: '8px',
-                    padding: '6px 20px',
                     display: 'inline-block',
+                    padding: '6px 18px',
+                    borderRadius: '6px',
+                    border: `2px solid ${typeColor}`,
+                    color: typeColor,
+                    fontWeight: 800,
+                    fontSize: '15px',
+                    marginBottom: '6px',
                   }}
                 >
                   {typeLabel}
                 </div>
-                <div
-                  style={{
-                    marginTop: '6px',
-                    fontSize: '13px',
-                    color: '#374151',
-                  }}
-                >
-                  رقم السند:{' '}
-                  <strong style={{ fontFamily: 'monospace', letterSpacing: '0.5px' }}>
-                    {tx.documentNumber}
-                  </strong>
+                <div style={{ fontSize: '12px', color: '#374151', fontWeight: 700 }}>
+                  {tx.documentNumber}
+                </div>
+                <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>
+                  {tx.createdAt ? new Date(tx.createdAt).toLocaleDateString('ar-SY') : ''}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* ===== INFO GRID ===== */}
+          {/* ===== TRANSACTION INFO ===== */}
           <div
             style={{
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
-              gap: '12px',
+              gap: '8px 24px',
+              padding: '12px 14px',
+              backgroundColor: '#f9fafb',
+              borderRadius: '6px',
               marginBottom: '20px',
-              fontSize: '13px',
+              border: '1px solid #e5e7eb',
             }}
           >
-            {/* Left column */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <InfoRow label="التاريخ والوقت" value={formatDateTime(tx.createdAt)} />
-              <InfoRow label="أمين المستودع" value={tx.createdByName || '—'} />
-              {!isInit && !isOut && tx.notes && (
-                <InfoRow label="ملاحظات" value={tx.notes} />
-              )}
-            </div>
-
-            {/* Right column (for out transactions) */}
-            {isOut && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <InfoRow label="الجهة المستلمة" value={tx.recipientName || '—'} bold />
-                {tx.recipientPerson && (
-                  <InfoRow label="اسم المستلم" value={tx.recipientPerson} />
-                )}
-                {tx.exitReason && (
-                  <InfoRow label="سبب الإخراج" value={tx.exitReason} />
-                )}
-                {tx.notes && <InfoRow label="ملاحظات" value={tx.notes} />}
-              </div>
+            <InfoRow label="الصنف / الجهاز" value={itemName ?? '—'} bold />
+            <InfoRow label="رقم السند"       value={tx.documentNumber ?? '—'} bold />
+            {tx.quantity != null && (
+              <InfoRow label="الكمية" value={`${tx.quantity} ${itemUnit ?? ''}`} bold />
             )}
+            {isOut && tx.recipientName && (
+              <InfoRow label="الجهة المستلمة" value={tx.recipientName} />
+            )}
+            {isOut && tx.recipientPerson && (
+              <InfoRow label="اسم المستلم" value={tx.recipientPerson} />
+            )}
+            {isOut && tx.exitReasonName && (
+              <InfoRow label="سبب الإخراج" value={tx.exitReasonName} />
+            )}
+            {(isIn || !isOut) && tx.supplier && (
+              <InfoRow label="المورد" value={tx.supplier} />
+            )}
+            {tx.batchNumber && (
+              <InfoRow label="رقم الدفعة / اللوت" value={tx.batchNumber} />
+            )}
+            {tx.expiryDate && (
+              <InfoRow label="تاريخ انتهاء الصلاحية" value={tx.expiryDate.substring(0, 10)} />
+            )}
+            <InfoRow label="المسجِّل" value={tx.createdByName ?? '—'} />
           </div>
 
           {/* ===== ITEMS TABLE ===== */}
-          <table
-            style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              fontSize: '13px',
-              marginBottom: '32px',
-            }}
-          >
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '28px' }}>
             <thead>
-              <tr style={{ backgroundColor: '#f3f4f6' }}>
-                <th style={thStyle('center', '32px')}>#</th>
-                <th style={thStyle('right')}>اسم الصنف</th>
-                <th style={thStyle('center', '72px')}>النوع</th>
+              <tr>
+                <th style={thStyle('center', '40px')}>م</th>
+                <th style={thStyle('right')}>المادة / الجهاز</th>
+                <th style={thStyle('center', '90px')}>النوع</th>
                 {tx.quantity != null && (
                   <>
-                    <th style={thStyle('center', '60px')}>الوحدة</th>
-                    <th style={thStyle('center', '72px')}>الكمية</th>
+                    <th style={thStyle('center', '70px')}>الوحدة</th>
+                    <th style={thStyle('center', '70px')}>الكمية</th>
                   </>
                 )}
                 <th style={thStyle('right')}>ملاحظات</th>
               </tr>
             </thead>
             <tbody>
-              {/* Main row */}
               <tr>
-                <td style={tdStyle('center')}>1</td>
-                <td style={{ ...tdStyle('right'), fontWeight: 600 }}>{itemName || '—'}</td>
-                <td style={{ ...tdStyle('center'), fontSize: '11px', color: '#6b7280' }}>
-                  {tx.itemType === 'equipment' ? 'تجهيز' : 'مادة'}
+                <td style={{ ...tdStyle('center'), fontWeight: 700 }}>1</td>
+                <td style={{ ...tdStyle('right'), fontWeight: 700 }}>{itemName ?? '—'}</td>
+                <td style={{ ...tdStyle('center'), fontSize: '12px', color: typeColor, fontWeight: 700 }}>
+                  {typeLabel}
                 </td>
                 {tx.quantity != null && (
                   <>
                     <td style={tdStyle('center')}>{itemUnit || '—'}</td>
-                    <td
-                      style={{
-                        ...tdStyle('center'),
-                        fontSize: '18px',
-                        fontWeight: 700,
-                        color: typeColor,
-                      }}
-                    >
+                    <td style={{ ...tdStyle('center'), fontSize: '18px', fontWeight: 700, color: typeColor }}>
                       {tx.quantity}
                     </td>
                   </>
@@ -215,8 +207,6 @@ export function PrintTransactionPage() {
                   {tx.notes || ''}
                 </td>
               </tr>
-
-              {/* Extra blank rows for manual additions */}
               {[2, 3, 4].map((n) => (
                 <tr key={n}>
                   <td style={{ ...tdStyle('center'), color: '#d1d5db' }}>{n}</td>
@@ -238,25 +228,21 @@ export function PrintTransactionPage() {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: isOut ? '1fr 1fr 1fr' : '1fr 1fr',
+              gridTemplateColumns: isOut ? '1fr 1fr 1fr 1fr' : '1fr 1fr',
               gap: '24px',
               marginTop: '40px',
             }}
           >
-            {/* Warehouse keeper */}
             <SignatureBox
               title="أمين المستودع"
               name={tx.createdByName || undefined}
             />
 
-            {isOut && (
-              /* Responsible supervisor */
-              <SignatureBox title="المسؤول المرسل" />
-            )}
+            {isOut && <SignatureBox title="المسؤول المرسل" />}
+            {isOut && <SignatureBox title="المشرف" />}
 
-            {/* Recipient / Supplier */}
             <SignatureBox
-              title={isOut ? 'المستلم' : isIn ? 'المورد' : 'المسؤول'}
+              title={isOut ? 'المستلم' : isIn ? 'المورد / المسلِّم' : 'المسؤول'}
               name={isOut && tx.recipientPerson ? tx.recipientPerson : undefined}
             />
           </div>
@@ -274,12 +260,15 @@ export function PrintTransactionPage() {
             }}
           >
             <span>طُبع في: {formatDateTime(printedAt)}</span>
-            <span>
-              {organizationName} — {typeLabel} رقم {tx.documentNumber}
-            </span>
+            <span>{organizationName} — {typeLabel} رقم {tx.documentNumber}</span>
           </div>
 
         </div>
+      </div>
+
+      {/* PDF tip (visible on screen only) */}
+      <div className="print-hidden text-center text-xs text-gray-400 mb-4">
+        لتحميل PDF: اضغط "تحميل PDF" ثم اختر "حفظ كـ PDF" من نافذة الطباعة
       </div>
     </div>
   );
@@ -287,21 +276,11 @@ export function PrintTransactionPage() {
 
 /* ─── Helper Components ─── */
 
-function InfoRow({
-  label,
-  value,
-  bold,
-}: {
-  label: string;
-  value: string;
-  bold?: boolean;
-}) {
+function InfoRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
     <div style={{ display: 'flex', gap: '6px', alignItems: 'baseline' }}>
-      <span style={{ color: '#6b7280', minWidth: '110px', flexShrink: 0 }}>
-        {label}:
-      </span>
-      <span style={{ fontWeight: bold ? 700 : 500 }}>{value}</span>
+      <span style={{ color: '#6b7280', minWidth: '130px', flexShrink: 0, fontSize: '12px' }}>{label}:</span>
+      <span style={{ fontWeight: bold ? 700 : 500, fontSize: '13px' }}>{value}</span>
     </div>
   );
 }
@@ -309,23 +288,13 @@ function InfoRow({
 function SignatureBox({ title, name }: { title: string; name?: string }) {
   return (
     <div style={{ textAlign: 'center' }}>
-      {/* Blank space for handwritten signature */}
       <div style={{ height: '50px' }} />
-      <div
-        style={{
-          borderTop: '1.5px solid #374151',
-          paddingTop: '8px',
-        }}
-      >
+      <div style={{ borderTop: '1.5px solid #374151', paddingTop: '8px' }}>
         <div style={{ fontWeight: 700, fontSize: '13px' }}>{title}</div>
         {name && (
-          <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>
-            {name}
-          </div>
+          <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>{name}</div>
         )}
-        <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px' }}>
-          التوقيع والختم
-        </div>
+        <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px' }}>التوقيع والختم</div>
       </div>
     </div>
   );

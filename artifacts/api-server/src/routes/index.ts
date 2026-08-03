@@ -1,6 +1,4 @@
 import { Router } from "express";
-import { createReadStream } from "fs";
-import { join } from "path";
 import healthRouter from "./health";
 import authRouter from "./auth";
 import categoriesRouter from "./categories";
@@ -14,6 +12,8 @@ import alertsRouter from "./alerts";
 import reportsRouter from "./reports";
 import usersRouter from "./users";
 import settingsRouter from "./settings";
+import auditRouter from "./audit";
+import backupRouter from "./backup";
 
 const router = Router();
 
@@ -30,5 +30,7 @@ router.use("/alerts", alertsRouter);
 router.use("/reports", reportsRouter);
 router.use("/users", usersRouter);
 router.use("/settings", settingsRouter);
+router.use("/audit", auditRouter);
+router.use("/backup", backupRouter);
 
 export default router;

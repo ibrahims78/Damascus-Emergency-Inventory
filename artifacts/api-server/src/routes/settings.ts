@@ -29,14 +29,31 @@ router.get("/", requireAuth, async (_req, res) => {
 // PUT /api/settings
 router.put("/", requireAuth, requireRole("admin"), async (req, res) => {
   try {
-    const { orgName, orgSubtitle, expiryAlertDays } = req.body;
+    const { orgName, orgSubtitle, expiryAlertDays, unitsList } = req.body;
     const settings = await getOrCreateSettings();
+
+    // Validate unitsList if provided
+    if (unitsList !== undefined) {
+      if (typeof unitsList !== "string") {
+        res.status(400).json({ error: "unitsList must be a JSON string" });
+        return;
+      }
+      try {
+        const parsed = JSON.parse(unitsList);
+        if (!Array.isArray(parsed)) throw new Error();
+      } catch {
+        res.status(400).json({ error: "unitsList must be a valid JSON array string" });
+        return;
+      }
+    }
+
     const [updated] = await db
       .update(systemSettingsTable)
       .set({
         ...(orgName !== undefined && { orgName }),
         ...(orgSubtitle !== undefined && { orgSubtitle }),
         ...(expiryAlertDays !== undefined && { expiryAlertDays: Number(expiryAlertDays) }),
+        ...(unitsList !== undefined && { unitsList }),
         updatedAt: new Date(),
       })
       .where(eq(systemSettingsTable.id, settings.id))
@@ -61,7 +78,6 @@ router.post("/change-password", requireAuth, async (req, res) => {
       res.status(400).json({ error: "كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل" });
       return;
     }
-    // Fetch full user with hash
     const fullUser = await db.query.usersTable.findFirst({
       where: eq(usersTable.id, user.id),
     });

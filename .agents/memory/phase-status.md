@@ -1,26 +1,30 @@
 ---
 name: Phase completion status
-description: Verified implementation status of all 7 phases in IMPLEMENTATION_PLAN.md
+description: Tracks which implementation phases are done and which remain
 ---
 
-All checked against actual code on 3 August 2026.
+## Phases 1–6 — Complete ✅
+All six functional phases verified working before August 2026 review.
 
-| Phase | Status | Notes |
-|---|---|---|
-| 1 — Transactions + Print | ✅ Complete | 340/438/543/354 lines; pagination, validation, A4 RTL print |
-| 2 — Reports | ✅ Complete | 715 lines; 5 tabs, CSV export, print, filters |
-| 3 — Users | ✅ Complete | 493 lines; CRUD, 3 roles, activate/deactivate, admin-only guard |
-| 4 — Settings | ✅ Complete | 357 lines; profile (read-only), password change, org settings (admin) |
-| 5 — Alerts Bell | ✅ Fixed | 3 bugs fixed: number badge, refetchInterval 5min, "عرض الكل" button |
-| 6 — Audit Log + Excel | ✅ Complete | audit_log schema + auditLog middleware (auth/items/transactions/users) + import-excel.mjs (269 lines) |
-| 7 — Review + Deploy | ⏳ Pending | typecheck passes; build & deploy not yet done |
+## August 2026 Review — 10-gap remediation ✅ Complete
 
-## Profile tab note
-Phase 4 spec says fullName "قابل للتعديل" but implementation has it read-only with message to contact admin.
-This is a deliberate design decision (no self-service name-change endpoint exists). Minor deviation, acceptable.
+All 10 gaps from the Excel/brief review have been implemented:
 
-## Phase 5 fixes applied
-In `artifacts/web/src/components/layout/header.tsx`:
-- Replaced animated dot with numeric badge (red for critical, amber for warning, "99+" overflow)
-- Added `refetchInterval: 5 * 60 * 1000` via `useQuery({ ...getListAlertsQueryOptions(), refetchInterval })` pattern
-- Added "عرض الكل في التقارير" DropdownMenuItem linking to `/reports`
+1. **Backup/Restore** — `GET /api/backup/export` (JSON download) + `GET /api/backup/info` + BackupTab in settings.tsx
+2. **Audit Log page** — `GET /api/audit` (paginated, filtered) + full audit.tsx viewer with date/action/entity filters + CSV export; admin-only route `/audit`
+3. **Logo in print** — org logo added to print-transaction.tsx header (center position, 72px circle)
+4. **4th signature block** — out transactions now show 4 blocks: أمين المستودع، المسؤول المرسل، المشرف، المستلم
+5. **Row color-coding** — red bg for belowMin/expired rows, amber bg for nearExpiry rows in items.tsx
+6. **Filter buttons** — category dropdown + "نقص بالمخزون" + "قرب انتهاء الصلاحية" quick filters in items.tsx; uses direct useQuery + fetch with URLSearchParams
+7. **XLSX export** — replaced exportCsv with async exportXlsx (SheetJS/xlsx ^0.18.5) in reports.tsx; all 5 tabs now export .xlsx
+8. **Dashboard 4th KPI** — changed from totalEquipment to "آخر عملية مسجلة" showing type/item/date; equipment count moved to mini-card
+9. **Units management** — UnitsTab in settings.tsx; unitsList stored as JSON string in system_settings.unitsList column (DB pushed); default 15 Arabic units
+10. **PDF download button** — "تحميل PDF" button added to print toolbar; uses window.print() with PDF tip shown below A4 container
+
+## Phase 7 (Deploy) — Pending
+User has not yet requested deployment.
+
+## Key fix applied post-implementation
+- ProtectedRoute: useEffect must be called BEFORE early returns (Rules of Hooks) — moved useEffect above `if (isLoading)` block
+- `handleExport` in reports.tsx must be `async` because exportXlsx is async (dynamic import of xlsx)
+- Added `useEffect` import to App.tsx
