@@ -4,12 +4,18 @@
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- API server runs on port 8080 via workflow `artifacts/api-server: API Server`
+- Web frontend runs on port 22333 via workflow `artifacts/web: web`
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `DATABASE_URL` is provisioned automatically by Replit (runtime-managed)
+- `SESSION_SECRET` is set as a Replit Secret
+
+## Default credentials
+
+- Username: `admin` / Password: `Admin@1234` (admin role — change after first login)
 
 ## Stack
 

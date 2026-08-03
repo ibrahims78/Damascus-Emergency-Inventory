@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { 
   useListItems, 
@@ -49,7 +49,7 @@ function ItemsList() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   
   // Custom simple debounce
-  useState(() => {
+  useEffect(() => {
     const handler = setTimeout(() => setDebouncedSearch(search), 500);
     return () => clearTimeout(handler);
   }, [search]);

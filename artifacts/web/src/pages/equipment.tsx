@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { 
   useListEquipment, 
@@ -55,7 +55,7 @@ function EquipmentList() {
   const [condition, setCondition] = useState<string>('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   
-  useState(() => {
+  useEffect(() => {
     const handler = setTimeout(() => setDebouncedSearch(search), 500);
     return () => clearTimeout(handler);
   }, [search]);

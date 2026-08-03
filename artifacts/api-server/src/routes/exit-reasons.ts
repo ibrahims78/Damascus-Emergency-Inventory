@@ -38,7 +38,7 @@ router.post("/", requireAuth, requireRole("admin"), async (req, res) => {
 // PATCH /api/exit-reasons/:id/toggle
 router.patch("/:id/toggle", requireAuth, requireRole("admin"), async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     const current = await db.query.exitReasonsTable.findFirst({ where: eq(exitReasonsTable.id, id) });
     if (!current) { res.status(404).json({ error: "Not found" }); return; }
     if (current.isSystem) { res.status(400).json({ error: "لا يمكن تعطيل الأسباب الافتراضية للنظام" }); return; }

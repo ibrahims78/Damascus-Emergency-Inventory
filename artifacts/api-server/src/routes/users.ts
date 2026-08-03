@@ -66,7 +66,7 @@ router.post("/", requireAuth, requireRole("admin"), async (req, res) => {
 // PUT /api/users/:id
 router.put("/:id", requireAuth, requireRole("admin"), async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     const { fullName, role, password, isActive } = req.body;
     const updates: Partial<typeof usersTable.$inferInsert> = {};
     if (fullName !== undefined) updates.fullName = fullName;
@@ -100,7 +100,7 @@ router.put("/:id", requireAuth, requireRole("admin"), async (req, res) => {
 // DELETE /api/users/:id (soft delete)
 router.delete("/:id", requireAuth, requireRole("admin"), async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     const user = res.locals.user;
     if (user.id === id) {
       res.status(400).json({ error: "Cannot delete your own account" });

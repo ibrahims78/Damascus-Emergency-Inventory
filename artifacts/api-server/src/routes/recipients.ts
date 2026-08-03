@@ -44,7 +44,7 @@ router.post("/", requireAuth, requireRole("admin", "warehouse_manager"), async (
 // PUT /api/recipients/:id
 router.put("/:id", requireAuth, requireRole("admin"), async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     const { name, notes } = req.body;
     if (!name) { res.status(400).json({ error: "name is required" }); return; }
     const [updated] = await db
@@ -64,7 +64,7 @@ router.put("/:id", requireAuth, requireRole("admin"), async (req, res) => {
 // PATCH /api/recipients/:id/toggle
 router.patch("/:id/toggle", requireAuth, requireRole("admin"), async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     const current = await db.query.recipientsTable.findFirst({ where: eq(recipientsTable.id, id) });
     if (!current) { res.status(404).json({ error: "Not found" }); return; }
     const [updated] = await db

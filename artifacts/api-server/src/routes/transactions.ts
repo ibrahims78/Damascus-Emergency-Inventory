@@ -244,7 +244,7 @@ router.post(
 // GET /api/transactions/:id
 router.get("/:id", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     const [transaction] = await db
       .select({
         id: transactionsTable.id,
@@ -286,7 +286,7 @@ router.get("/:id", requireAuth, async (req, res) => {
 // GET /api/transactions/:id/print
 router.get("/:id/print", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     const [transaction] = await db
       .select({
         id: transactionsTable.id,

@@ -97,7 +97,7 @@ router.post(
 // GET /api/equipment/:id
 router.get("/:id", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     const item = await db.query.equipmentTable.findFirst({
       where: (e, { eq: eqFn }) => eqFn(e.id, id),
     });
@@ -119,7 +119,7 @@ router.put(
   requireRole("admin", "warehouse_manager"),
   async (req, res) => {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = parseInt(String(req.params.id), 10);
       const {
         name,
         equipmentType,

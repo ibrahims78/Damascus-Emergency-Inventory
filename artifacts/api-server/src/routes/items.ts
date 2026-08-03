@@ -135,7 +135,7 @@ router.post(
 // GET /api/items/:id
 router.get("/:id", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     const [item] = await db
       .select({
         id: itemsTable.id,
@@ -178,7 +178,7 @@ router.put(
   requireRole("admin", "warehouse_manager"),
   async (req, res) => {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = parseInt(String(req.params.id), 10);
       const {
         code,
         name,
@@ -232,7 +232,7 @@ router.delete(
   requireRole("admin"),
   async (req, res) => {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = parseInt(String(req.params.id), 10);
       await db
         .update(itemsTable)
         .set({ isActive: false, updatedAt: new Date() })
