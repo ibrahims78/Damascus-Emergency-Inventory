@@ -3,6 +3,7 @@ import {
   serial,
   text,
   integer,
+  date,
   timestamp,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -21,6 +22,10 @@ export const equipmentTable = pgTable("equipment", {
   originCountry: text("origin_country"),
   currentHolder: text("current_holder"),
   notes: text("notes"),
+  // Maintenance tracking fields
+  maintenanceSentAt: date("maintenance_sent_at"),
+  maintenanceReturnedAt: date("maintenance_returned_at"),
+  maintenanceNotes: text("maintenance_notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()

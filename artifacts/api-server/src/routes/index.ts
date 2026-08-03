@@ -13,6 +13,7 @@ import dashboardRouter from "./dashboard";
 import alertsRouter from "./alerts";
 import reportsRouter from "./reports";
 import usersRouter from "./users";
+import settingsRouter from "./settings";
 
 const router = Router();
 
@@ -28,5 +29,6 @@ router.use("/dashboard", dashboardRouter);
 router.use("/alerts", alertsRouter);
 router.use("/reports", reportsRouter);
 router.use("/users", usersRouter);
+router.use("/settings", settingsRouter);
 
 export default router;
