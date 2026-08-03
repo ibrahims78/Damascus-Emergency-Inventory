@@ -7,6 +7,8 @@ import {
   useListItems,
   useListEquipment,
   useCreateInTransaction,
+  type Item,
+  type Equipment,
 } from '@workspace/api-client-react';
 import { ArrowRight, Save, PackagePlus, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -69,12 +71,12 @@ export function TransactionInForm() {
 
   const selectedItem =
     watchItemType === 'item' && watchItemId
-      ? itemsData?.items.find((i) => i.id === Number(watchItemId))
+      ? itemsData?.items.find((i: Item) => i.id === Number(watchItemId))
       : null;
 
   const selectedEquipment =
     watchItemType === 'equipment' && watchEquipmentId
-      ? equipmentData?.equipment.find((e) => e.id === Number(watchEquipmentId))
+      ? equipmentData?.equipment.find((e: Equipment) => e.id === Number(watchEquipmentId))
       : null;
 
   const handleSubmit = (data: FormValues) => {
@@ -111,7 +113,7 @@ export function TransactionInForm() {
         },
       },
       {
-        onSuccess: (tx) => {
+        onSuccess: (tx: { id: number }) => {
           toast({ description: '✅ تم تسجيل عملية الإدخال بنجاح' });
           setLocation(`/print/${tx.id}`);
         },
@@ -211,8 +213,8 @@ export function TransactionInForm() {
                       </FormControl>
                       <SelectContent>
                         {itemsData?.items
-                          .filter((i) => i.isActive)
-                          .map((item) => (
+                          .filter((i: Item) => i.isActive)
+                          .map((item: Item) => (
                             <SelectItem key={item.id} value={item.id.toString()}>
                               {item.name}
                               {item.code ? ` (${item.code})` : ''} — رصيد:{' '}
@@ -275,7 +277,7 @@ export function TransactionInForm() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {equipmentData?.equipment.map((eq) => (
+                        {equipmentData?.equipment.map((eq: Equipment) => (
                           <SelectItem key={eq.id} value={eq.id.toString()}>
                             {eq.name}
                             {eq.serialNumber ? ` — رقم تسلسلي: ${eq.serialNumber}` : ''}

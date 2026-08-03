@@ -7,7 +7,8 @@ import {
   useGetItem, 
   useCreateItem, 
   useUpdateItem,
-  useListCategories
+  useListCategories,
+  type Category,
 } from '@workspace/api-client-react';
 import { ArrowRight, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -193,7 +194,7 @@ export function ItemForm({ itemId }: { itemId?: number }) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {categories?.map(cat => (
+                        {categories?.map((cat: Category) => (
                           <SelectItem key={cat.id} value={cat.id.toString()}>
                             {cat.name}
                           </SelectItem>

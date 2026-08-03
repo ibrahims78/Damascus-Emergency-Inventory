@@ -9,6 +9,10 @@ import {
   useListRecipients,
   useListExitReasons,
   useCreateOutTransaction,
+  type Item,
+  type Equipment,
+  type Recipient,
+  type ExitReason,
 } from '@workspace/api-client-react';
 import {
   ArrowRight,
@@ -83,12 +87,12 @@ export function TransactionOutForm() {
 
   const selectedItem =
     watchItemType === 'item' && watchItemId
-      ? itemsData?.items.find((i) => i.id === Number(watchItemId))
+      ? itemsData?.items.find((i: Item) => i.id === Number(watchItemId))
       : null;
 
   const selectedEquipment =
     watchItemType === 'equipment' && watchEquipmentId
-      ? equipmentData?.equipment.find((e) => e.id === Number(watchEquipmentId))
+      ? equipmentData?.equipment.find((e: Equipment) => e.id === Number(watchEquipmentId))
       : null;
 
   const quantityExceedsStock =
@@ -147,7 +151,7 @@ export function TransactionOutForm() {
         },
       },
       {
-        onSuccess: (tx) => {
+        onSuccess: (tx: { id: number }) => {
           toast({ description: '✅ تم تسجيل عملية الإخراج بنجاح' });
           setLocation(`/print/${tx.id}`);
         },
@@ -247,8 +251,8 @@ export function TransactionOutForm() {
                       </FormControl>
                       <SelectContent>
                         {itemsData?.items
-                          .filter((i) => i.isActive)
-                          .map((item) => (
+                          .filter((i: Item) => i.isActive)
+                          .map((item: Item) => (
                             <SelectItem key={item.id} value={item.id.toString()}>
                               {item.name}
                               {item.code ? ` (${item.code})` : ''} — رصيد:{' '}
@@ -305,8 +309,8 @@ export function TransactionOutForm() {
                       </FormControl>
                       <SelectContent>
                         {equipmentData?.equipment
-                          .filter((e) => e.condition !== 'consumed')
-                          .map((eq) => (
+                          .filter((e: Equipment) => e.condition !== 'consumed')
+                          .map((eq: Equipment) => (
                             <SelectItem key={eq.id} value={eq.id.toString()}>
                               {eq.name}
                               {eq.serialNumber ? ` — ${eq.serialNumber}` : ''}
@@ -399,7 +403,7 @@ export function TransactionOutForm() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {recipients?.map((r) => (
+                      {recipients?.map((r: Recipient) => (
                         <SelectItem key={r.id} value={r.id.toString()}>
                           {r.name}
                         </SelectItem>
@@ -450,7 +454,7 @@ export function TransactionOutForm() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {exitReasons?.map((r) => (
+                      {exitReasons?.map((r: ExitReason) => (
                         <SelectItem key={r.id} value={r.id.toString()}>
                           {r.name}
                         </SelectItem>

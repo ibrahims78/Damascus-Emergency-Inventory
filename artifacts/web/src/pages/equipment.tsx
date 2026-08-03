@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { 
-  useListEquipment, 
+  useListEquipment,
+  type Equipment,
 } from '@workspace/api-client-react';
 import { 
   Plus, 
@@ -132,7 +133,7 @@ function EquipmentList() {
                   </TableCell>
                 </TableRow>
               ) : (
-                data.equipment.map((eq) => {
+                data.equipment.map((eq: Equipment) => {
                   const cond = conditionMap[eq.condition] || { label: eq.condition, variant: 'default' };
                   
                   return (

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useRoute, useLocation } from 'wouter';
-import { useListTransactions } from '@workspace/api-client-react';
+import { useListTransactions, type Transaction } from '@workspace/api-client-react';
 import {
   ChevronRight,
   ChevronLeft,
@@ -238,7 +238,7 @@ function TransactionsList() {
                   </TableCell>
                 </TableRow>
               ) : (
-                data.transactions.map((tx) => {
+                data.transactions.map((tx: Transaction) => {
                   const itemName =
                     tx.itemType === 'equipment' ? tx.equipmentName : tx.itemName;
 

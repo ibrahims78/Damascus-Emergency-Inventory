@@ -3,7 +3,8 @@ import { useRoute, useLocation } from 'wouter';
 import { 
   useListItems, 
   useDeleteItem, 
-  useListCategories 
+  useListCategories,
+  type Item,
 } from '@workspace/api-client-react';
 import { 
   Plus, 
@@ -115,7 +116,7 @@ function ItemsList() {
                   </TableCell>
                 </TableRow>
               ) : (
-                data.items.map((item) => {
+                data.items.map((item: Item) => {
                   const isBelowMin = item.currentStock <= item.minStock;
                   let isNearExpiry = false;
                   if (item.expiryDate) {
