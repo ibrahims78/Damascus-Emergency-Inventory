@@ -1,6 +1,6 @@
-# [Project name]
+# نظام مستودع الإسعاف والطوارئ — دمشق
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+تطبيق ويب داخلي لإدارة مستودع مديرية الإحالة والإسعاف والطوارئ بدمشق، يتيح إدخال وإخراج المواد والتجهيزات، وإصدار سندات مطبوعة، ولوحة تحكم مع مؤشرات وتنبيهات، وتقارير متقدمة مع دعم كامل للعربية RTL.
 
 ## Run & Operate
 
