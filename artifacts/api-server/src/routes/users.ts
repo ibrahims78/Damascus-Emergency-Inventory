@@ -2,6 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { db, usersTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
+import { auditLog } from "../middlewares/audit";
 import { eq } from "drizzle-orm";
 
 const router = Router();
@@ -52,6 +53,7 @@ router.post("/", requireAuth, requireRole("admin"), async (req, res) => {
         isActive: usersTable.isActive,
         createdAt: usersTable.createdAt,
       });
+    await auditLog({ req, action: "create", entityType: "user", entityId: user.id, details: { username: user.username, role: user.role } });
     res.status(201).json(user);
   } catch (err: unknown) {
     console.error(err);
@@ -90,6 +92,7 @@ router.put("/:id", requireAuth, requireRole("admin"), async (req, res) => {
       res.status(404).json({ error: "User not found" });
       return;
     }
+    await auditLog({ req, action: "update", entityType: "user", entityId: user.id, details: { fullName: user.fullName, role: user.role, isActive: user.isActive } });
     res.json(user);
   } catch (err) {
     console.error(err);
@@ -107,6 +110,7 @@ router.delete("/:id", requireAuth, requireRole("admin"), async (req, res) => {
       return;
     }
     await db.update(usersTable).set({ isActive: false }).where(eq(usersTable.id, id));
+    await auditLog({ req, action: "delete", entityType: "user", entityId: id, details: {} });
     res.status(204).send();
   } catch (err) {
     console.error(err);

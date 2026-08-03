@@ -2,6 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { db, usersTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
+import { auditLog } from "../middlewares/audit";
 
 const router = Router();
 
@@ -82,6 +83,7 @@ router.post("/login", async (req, res) => {
       return;
     }
     req.session.userId = user.id;
+    await auditLog({ req, action: "login", entityType: "user", entityId: user.id, details: { username: user.username } });
     res.json({
       id: user.id,
       username: user.username,
@@ -95,7 +97,9 @@ router.post("/login", async (req, res) => {
 });
 
 // POST /api/auth/logout
-router.post("/logout", (req, res) => {
+router.post("/logout", requireAuth, async (req, res) => {
+  const user = res.locals.user as { id?: number; username?: string } | undefined;
+  await auditLog({ req, action: "logout", entityType: "user", entityId: user?.id, details: { username: user?.username } });
   req.session.destroy(() => {
     res.clearCookie("connect.sid");
     res.json({ ok: true });

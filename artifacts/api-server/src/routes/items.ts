@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db, itemsTable, categoriesTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
+import { auditLog } from "../middlewares/audit";
 import { eq, and, ilike, lte, sql } from "drizzle-orm";
 
 const router = Router();
@@ -124,6 +125,7 @@ router.post(
           notes: notes || null,
         })
         .returning();
+      await auditLog({ req, action: "create", entityType: "item", entityId: item.id, details: { name: item.name, itemType: item.itemType } });
       res.status(201).json(item);
     } catch (err) {
       console.error(err);
@@ -217,6 +219,7 @@ router.put(
         res.status(404).json({ error: "Item not found" });
         return;
       }
+      await auditLog({ req, action: "update", entityType: "item", entityId: item.id, details: { name: item.name } });
       res.json(item);
     } catch (err) {
       console.error(err);
@@ -237,6 +240,7 @@ router.delete(
         .update(itemsTable)
         .set({ isActive: false, updatedAt: new Date() })
         .where(eq(itemsTable.id, id));
+      await auditLog({ req, action: "delete", entityType: "item", entityId: id, details: {} });
       res.status(204).send();
     } catch (err) {
       console.error(err);

@@ -28,15 +28,32 @@
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/web/src/pages/` — all frontend pages (users.tsx, settings.tsx, transactions.tsx, reports.tsx, etc.)
+- `artifacts/web/src/components/layout/` — sidebar, header (with alerts bell), layout shell
+- `artifacts/api-server/src/routes/` — Express route handlers (one file per domain)
+- `artifacts/api-server/src/middlewares/audit.ts` — `auditLog()` helper for writing to audit_log table
+- `lib/db/src/schema/` — Drizzle table definitions (source of truth for DB structure)
+- `lib/api-spec/openapi.yaml` — OpenAPI spec (source of truth for API contracts)
+- `lib/api-client-react/src/generated/api.ts` — generated React Query hooks (do NOT edit directly)
+- `scripts/import-excel.mjs` — Excel import script (reads عهدة المستودع .xlsx and seeds items + init transactions)
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- **OpenAPI-first**: all API hooks are generated from `lib/api-spec/openapi.yaml` via Orval. After any spec change, run `pnpm --filter @workspace/api-spec run codegen` then `tsc --build`.
+- **Settings page** uses direct `fetch()` + TanStack Query `useQuery`/`useMutation` since settings hooks weren't in the last codegen run.
+- **Audit log** (`audit_log` table) is append-only. The `auditLog()` helper in `src/middlewares/audit.ts` fails silently — add it to routes without wrapping in try/catch.
+- **Excel import**: the عهدة file uses row 0 as sheet title, row 1 as real column headers. The import script skips equipment sheets (column name: "الجهاز", not in the item name candidates list).
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+تطبيق ويب داخلي RTL كامل لإدارة مستودع الإسعاف بدمشق. الصفحات المكتملة:
+- **لوحة التحكم** — إحصائيات + مخططات حركة المواد
+- **المواد / التجهيزات** — CRUD كامل مع بحث وفلتر
+- **العمليات** — تسجيل إدخال وإخراج + سند A4 قابل للطباعة (RTL)
+- **التقارير** — 5 تبويبات (جرد، حركة، انتهاء صلاحية، أقل من الحد، تجهيزات) + تصدير CSV
+- **المستخدمون** — CRUD كامل (admin فقط) مع أدوار ثلاثة
+- **الإعدادات** — ملف شخصي، تغيير كلمة المرور، إعدادات المنظومة
+- **التنبيهات** — جرس في الـ Header يتحدث كل 5 دقائق
 
 ## User preferences
 
@@ -44,7 +61,9 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- بعد أي تعديل على `lib/api-spec/openapi.yaml`، يجب تشغيل `pnpm --filter @workspace/api-spec run codegen` ثم `tsc --build` قبل typecheck.
+- `pnpm --filter @workspace/web run typecheck` يفشل إذا لم تُبنَ مكتبات الـ TypeScript أولاً — شغّل `tsc --build` من الجذر أولاً.
+- ملف Excel عهدة المستودع هو قالب فارغ (لا يحتوي بيانات حقيقية حتى الآن).
 
 ## Pointers
 

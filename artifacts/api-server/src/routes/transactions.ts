@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db, transactionsTable, itemsTable, equipmentTable, recipientsTable, exitReasonsTable, usersTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
+import { auditLog } from "../middlewares/audit";
 import { eq, and, ilike, gte, lte, sql } from "drizzle-orm";
 
 const router = Router();
@@ -135,6 +136,7 @@ router.post(
             .where(eq(itemsTable.id, parseInt(itemId, 10)));
         }
 
+        await auditLog({ req, action: "in", entityType: "transaction", entityId: transaction.id, details: { documentNumber: transaction.documentNumber, itemType, quantity } });
         res.status(201).json(transaction);
       });
     } catch (err) {
@@ -232,6 +234,7 @@ router.post(
             .where(eq(equipmentTable.id, parseInt(equipmentId, 10)));
         }
 
+        await auditLog({ req, action: "out", entityType: "transaction", entityId: transaction.id, details: { documentNumber: transaction.documentNumber, itemType, quantity } });
         res.status(201).json(transaction);
       });
     } catch (err) {
