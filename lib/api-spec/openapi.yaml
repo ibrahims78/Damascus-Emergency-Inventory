@@ -65,6 +65,40 @@ paths:
         "200":
           description: Logged out
 
+  /auth/setup-status:
+    get:
+      operationId: getSetupStatus
+      tags: [auth]
+      summary: Check if initial admin setup is needed
+      responses:
+        "200":
+          description: Setup status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetupStatus"
+
+  /auth/setup:
+    post:
+      operationId: setupAdmin
+      tags: [auth]
+      summary: Create the first admin account (only works if no admin exists)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetupAdminInput"
+      responses:
+        "200":
+          description: Admin created and logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "409":
+          description: Admin already exists
+
   /auth/me:
     get:
       operationId: getCurrentUser
@@ -659,6 +693,24 @@ components:
       required: [status]
       properties:
         status:
+          type: string
+
+    SetupStatus:
+      type: object
+      required: [needsSetup]
+      properties:
+        needsSetup:
+          type: boolean
+
+    SetupAdminInput:
+      type: object
+      required: [username, password, fullName]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+        fullName:
           type: string
 
     LoginCredentials:

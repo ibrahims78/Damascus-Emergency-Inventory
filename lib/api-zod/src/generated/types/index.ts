@@ -39,6 +39,8 @@ export * from './outTransactionInput';
 export * from './outTransactionInputItemType';
 export * from './recipient';
 export * from './recipientInput';
+export * from './setupAdminInput';
+export * from './setupStatus';
 export * from './transaction';
 export * from './transactionItemType';
 export * from './transactionListResponse';

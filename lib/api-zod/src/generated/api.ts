@@ -39,6 +39,31 @@ export const LogoutResponse = zod.unknown()
 
 
 /**
+ * @summary Check if initial admin setup is needed
+ */
+export const GetSetupStatusResponse = zod.object({
+  "needsSetup": zod.boolean()
+})
+
+
+/**
+ * @summary Create the first admin account (only works if no admin exists)
+ */
+export const SetupAdminBody = zod.object({
+  "username": zod.string(),
+  "password": zod.string(),
+  "fullName": zod.string()
+})
+
+export const SetupAdminResponse = zod.object({
+  "id": zod.number().int(),
+  "username": zod.string(),
+  "fullName": zod.string(),
+  "role": zod.enum(['admin', 'warehouse_manager', 'viewer'])
+})
+
+
+/**
  * @summary Get current authenticated user
  */
 export const GetCurrentUserResponse = zod.object({

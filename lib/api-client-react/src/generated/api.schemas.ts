@@ -9,6 +9,16 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface SetupStatus {
+  needsSetup: boolean;
+}
+
+export interface SetupAdminInput {
+  username: string;
+  password: string;
+  fullName: string;
+}
+
 export interface LoginCredentials {
   username: string;
   password: string;

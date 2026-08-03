@@ -11,6 +11,7 @@ import { Shell } from '@/components/layout/shell';
 // Pages
 import NotFound from '@/pages/not-found';
 import { LoginPage } from '@/pages/login';
+import { SetupPage } from '@/pages/setup';
 import { DashboardPage } from '@/pages/dashboard';
 import { ItemsPage } from '@/pages/items';
 import { EquipmentPage } from '@/pages/equipment';
@@ -65,6 +66,7 @@ function ProtectedRoute({ component: Component, adminOnly = false }: { component
 function Router() {
   return (
     <Switch>
+      <Route path="/setup" component={SetupPage} />
       <Route path="/login" component={LoginPage} />
       
       {/* Protected Routes */}

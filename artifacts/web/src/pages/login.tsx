@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useLogin, useGetCurrentUser } from '@workspace/api-client-react';
+import { useLogin, useGetCurrentUser, useGetSetupStatus } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
@@ -28,6 +28,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export function LoginPage() {
   const [, setLocation] = useLocation();
   const { data: user, isLoading: isCheckingUser } = useGetCurrentUser();
+  const { data: setupStatus, isLoading: isCheckingSetup } = useGetSetupStatus();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
   const loginMutation = useLogin({
@@ -53,12 +54,20 @@ export function LoginPage() {
     },
   });
 
-  if (isCheckingUser) return null;
-  
-  if (user) {
-    setLocation('/');
-    return null;
-  }
+  useEffect(() => {
+    if (!isCheckingSetup && setupStatus?.needsSetup) {
+      setLocation('/setup');
+    }
+  }, [isCheckingSetup, setupStatus, setLocation]);
+
+  useEffect(() => {
+    if (!isCheckingUser && user) {
+      setLocation('/');
+    }
+  }, [isCheckingUser, user, setLocation]);
+
+  if (isCheckingUser || isCheckingSetup) return null;
+  if (setupStatus?.needsSetup || user) return null;
 
   const onSubmit = (data: LoginFormValues) => {
     setErrorMsg(null);
