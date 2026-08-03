@@ -331,9 +331,210 @@ export function PlanDocument() {
           </div>
         </section>
 
-        {/* Section 9 — Technical Specs */}
+        {/* Section 9 — Equipment Status & Maintenance */}
         <section className="mb-8">
-          <h3 className="text-[#0A8FA0] font-bold text-xl border-b-2 border-[#0A8FA0] pb-2 mb-5">9. المواصفات التقنية والبيئة التشغيلية</h3>
+          <h3 className="text-[#0A8FA0] font-bold text-xl border-b-2 border-[#0A8FA0] pb-2 mb-5">9. الحالات الفنية للتجهيزات وتتبع الصيانة</h3>
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <h4 className="font-bold text-sm text-[#0D2137] mb-3">الحالات الفنية الخمس</h4>
+              <div className="space-y-2">
+                {[
+                  { status: "جيد", color: "bg-green-100 text-green-800 border-green-200", dot: "bg-green-500", desc: "يعمل بكفاءة كاملة — جاهز للاستخدام" },
+                  { status: "تحت الصيانة", color: "bg-amber-100 text-amber-800 border-amber-200", dot: "bg-amber-500", desc: "أُرسل للصيانة — خارج الخدمة مؤقتاً" },
+                  { status: "معطل", color: "bg-red-100 text-red-800 border-red-200", dot: "bg-red-500", desc: "خارج الخدمة — يحتاج قراراً" },
+                  { status: "مستهلك", color: "bg-gray-100 text-gray-700 border-gray-200", dot: "bg-gray-400", desc: "تم إتلافه أو سحبه نهائياً" },
+                  { status: "يحتاج فحص", color: "bg-purple-100 text-purple-800 border-purple-200", dot: "bg-purple-500", desc: "حالته غير محددة — بانتظار الفحص الفني" },
+                ].map((s, i) => (
+                  <div key={i} className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 ${s.color}`}>
+                    <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${s.dot}`} />
+                    <span className="font-bold text-xs w-24 flex-shrink-0">{s.status}</span>
+                    <span className="text-xs">{s.desc}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h4 className="font-bold text-sm text-[#0D2137] mb-3">تتبع الصيانة</h4>
+              <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
+                <div className="text-xs font-bold text-[#0A8FA0] mb-2">آلية تسجيل الصيانة (مبسّطة)</div>
+                <div className="space-y-3">
+                  {[
+                    { step: "1", label: "تغيير الحالة", desc: "تحديث الحالة الفنية إلى «تحت الصيانة»" },
+                    { step: "2", label: "تاريخ الإرسال", desc: "تسجيل تاريخ إرسال الجهاز لجهة الصيانة" },
+                    { step: "3", label: "تاريخ العودة", desc: "تسجيل تاريخ استلام الجهاز بعد الصيانة" },
+                    { step: "4", label: "تحديث الحالة", desc: "تغيير الحالة إلى «جيد» أو «معطل» حسب النتيجة" },
+                  ].map((s, i) => (
+                    <div key={i} className="flex items-start gap-3">
+                      <span className="w-5 h-5 rounded-full bg-[#0A8FA0] text-white text-xs flex items-center justify-center font-bold flex-shrink-0 mt-0.5">{s.step}</span>
+                      <div>
+                        <div className="font-semibold text-xs text-[#0D2137]">{s.label}</div>
+                        <div className="text-xs text-gray-500">{s.desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <p className="text-xs text-amber-800">
+                  <span className="font-bold">ملاحظة: </span>
+                  سجل الصيانة يُحفظ في سجل التدقيق مع اسم الموظف والتاريخ تلقائياً — لا يمكن حذفه.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Section 10 — Data Migration */}
+        <section className="mb-8">
+          <h3 className="text-[#0A8FA0] font-bold text-xl border-b-2 border-[#0A8FA0] pb-2 mb-5">10. خطة ترحيل البيانات من Excel</h3>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-white border-2 border-[#0A8FA0] rounded-lg p-4">
+              <div className="text-2xl mb-2">📂</div>
+              <h4 className="font-bold text-sm text-[#0D2137] mb-2">الخطوة 1 — رفع الملف</h4>
+              <p className="text-xs text-gray-600">رفع ملف Excel الحالي (عهدة المستودع) عبر واجهة الاستيراد</p>
+              <div className="mt-3 text-xs text-[#0A8FA0] font-semibold">تلقائي بالكامل</div>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <div className="text-2xl mb-2">🔄</div>
+              <h4 className="font-bold text-sm text-[#0D2137] mb-2">الخطوة 2 — المطابقة</h4>
+              <p className="text-xs text-gray-600">النظام يطابق أعمدة Excel تلقائياً مع الحقول الأربع: الثوابت، الطبية، المنوعة، التجهيزات</p>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <div className="text-2xl mb-2">✅</div>
+              <h4 className="font-bold text-sm text-[#0D2137] mb-2">الخطوة 3 — المراجعة</h4>
+              <p className="text-xs text-gray-600">عرض البيانات للمراجعة قبل التأكيد النهائي — مع إمكانية التعديل اليدوي</p>
+            </div>
+          </div>
+          <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex gap-3 items-start">
+              <span className="text-blue-600 text-lg flex-shrink-0">ℹ️</span>
+              <div>
+                <div className="font-bold text-xs text-blue-800 mb-1">توقيت الترحيل — مرن</div>
+                <p className="text-xs text-blue-700">يمكن البدء باستخدام النظام الجديد في أي وقت تراه مناسباً — سواء فور الانتهاء من التطوير أو بعد فترة تجريبية موازية. لا يوجد إلزام بجدول زمني محدد.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Section 11 — Voucher Design */}
+        <section className="mb-8">
+          <h3 className="text-[#0A8FA0] font-bold text-xl border-b-2 border-[#0A8FA0] pb-2 mb-5">11. تصميم سند الإخراج — مواصفات الطباعة</h3>
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <h4 className="font-bold text-sm text-[#0D2137] mb-3">محتوى السند (حجم A4)</h4>
+              <div className="bg-white border-2 border-dashed border-gray-300 rounded-lg p-4">
+                {/* Voucher Preview */}
+                <div className="border border-gray-200 rounded bg-white p-3 text-xs">
+                  <div className="flex items-center justify-between border-b border-gray-200 pb-2 mb-2">
+                    <div className="text-gray-500 text-xs">
+                      <div>رقم السند: <span className="font-bold text-[#0D2137]">2024-001</span></div>
+                      <div>التاريخ والوقت</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="w-8 h-8 bg-[#0A8FA0] rounded mx-auto mb-1" />
+                      <div className="font-bold text-[#0D2137] text-xs">منظومة الإحالة والإسعاف</div>
+                      <div className="text-gray-500" style={{fontSize:'9px'}}>سند إخراج مواد</div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 mb-2 text-xs">
+                    {[["المادة","اسم الصنف"],["النوع","—"],["الوحدة","—"],["الكمية","—"],["المستلم","اسم المستلم"],["الجهة","الوحدة المستلمة"],["السبب","—"],["المسجِّل","اسم الموظف"]].map(([k,v],i) => (
+                      <div key={i} className="flex gap-1">
+                        <span className="text-gray-400">{k}:</span>
+                        <span className="font-semibold text-gray-700" style={{fontSize:'9px'}}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="text-xs text-gray-500 border-t pt-1 mb-2">ملاحظات: _______________</div>
+                  <div className="grid grid-cols-3 gap-2 border-t pt-2">
+                    {["المستلم","المسلِّم","المشرف"].map((s, i) => (
+                      <div key={i} className="text-center">
+                        <div className="text-gray-400 mb-3" style={{fontSize:'8px'}}>{s}</div>
+                        <div className="border-b border-gray-300 w-full" />
+                        <div className="text-gray-400 mt-1" style={{fontSize:'7px'}}>التوقيع</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <h4 className="font-bold text-sm text-[#0D2137] mb-3">مواصفات السند</h4>
+              <div className="space-y-2">
+                {[
+                  { label: "حجم الورق", value: "A4 (210×297 ملم)" },
+                  { label: "الشعار", value: "شعار المنظومة + اسم المديرية" },
+                  { label: "رقم السند", value: "تلقائي ومتسلسل" },
+                  { label: "التاريخ والوقت", value: "تلقائي عند الطباعة" },
+                  { label: "تفاصيل المادة", value: "الاسم، النوع، الوحدة، الكمية" },
+                  { label: "بيانات الإخراج", value: "المستلم، الجهة، السبب، الموظف" },
+                  { label: "خانات التوقيع", value: "المستلم + المسلِّم + المشرف" },
+                  { label: "الملاحظات", value: "حقل نص حر اختياري" },
+                ].map(([k, v]: any, i) => (
+                  <div key={i} className={`flex justify-between px-3 py-2 rounded text-xs ${i % 2 === 0 ? "bg-gray-50" : "bg-white border border-gray-100"}`}>
+                    <span className="text-gray-500">{k}</span>
+                    <span className="font-semibold text-[#0D2137]">{v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Section 12 — Dashboard Specs */}
+        <section className="mb-8">
+          <h3 className="text-[#0A8FA0] font-bold text-xl border-b-2 border-[#0A8FA0] pb-2 mb-5">12. مواصفات لوحة المعلومات الرئيسية</h3>
+          <div className="grid grid-cols-2 gap-6 mb-4">
+            <div>
+              <h4 className="font-bold text-sm text-[#0D2137] mb-3">بطاقات KPI الرئيسية (4 بطاقات)</h4>
+              <div className="space-y-2">
+                {[
+                  { num: "01", title: "إجمالي الرصيد الحالي", desc: "مجموع كل الأصناف عبر الفئات الأربع", color: "border-[#0A8FA0] bg-[#e8f7fa]" },
+                  { num: "02", title: "مواد ستنتهي صلاحيتها قريباً", desc: "عدد الأصناف الطبية ضمن مدة التنبيه المحددة", color: "border-amber-300 bg-amber-50" },
+                  { num: "03", title: "أصناف دون الحد الأدنى", desc: "تنبيه فوري عند الوصول لمستوى المخزون الحرج", color: "border-red-300 bg-red-50" },
+                  { num: "04", title: "آخر عملية مسجلة", desc: "اسم الموظف، نوع العملية، المادة، التاريخ والوقت", color: "border-gray-300 bg-gray-50" },
+                ].map((k, i) => (
+                  <div key={i} className={`border-2 rounded-lg px-4 py-3 flex gap-3 items-center ${k.color}`}>
+                    <span className="font-bold text-xs text-[#0A8FA0] w-6 flex-shrink-0">{k.num}</span>
+                    <div>
+                      <div className="font-bold text-xs text-[#0D2137]">{k.title}</div>
+                      <div className="text-xs text-gray-500">{k.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h4 className="font-bold text-sm text-[#0D2137] mb-3">المخططات البيانية (كلاهما)</h4>
+              <div className="space-y-3">
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                  <div className="font-semibold text-xs text-[#0D2137] mb-2">📊 مخطط الأعمدة — حركة المخزون الشهرية</div>
+                  <p className="text-xs text-gray-500">يعرض الإدخال vs الإخراج لكل شهر — آخر 6 أشهر — لمعرفة اتجاهات الاستهلاك</p>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                  <div className="font-semibold text-xs text-[#0D2137] mb-2">🥧 مخطط دائري — توزيع المخزون بالفئات</div>
+                  <p className="text-xs text-gray-500">نسبة كل فئة (الثوابت / الطبية / المنوعة / التجهيزات) من إجمالي المخزون</p>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                  <div className="font-semibold text-xs text-[#0D2137] mb-2">🔔 نظام التنبيهات — شريط + جرس</div>
+                  <div className="space-y-1 mt-2">
+                    <div className="text-xs text-gray-600 flex gap-2 items-start">
+                      <span className="text-amber-500 flex-shrink-0">›</span>
+                      <span><strong>شريط تنبيه:</strong> يظهر أعلى الشاشة فور تسجيل الدخول إذا وُجدت تنبيهات نشطة</span>
+                    </div>
+                    <div className="text-xs text-gray-600 flex gap-2 items-start">
+                      <span className="text-amber-500 flex-shrink-0">›</span>
+                      <span><strong>أيقونة الجرس:</strong> عداد في شريط التنقل يُظهر عدد التنبيهات غير المقروءة</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Section 13 — Technical Specs (renumbered) */}
+        <section className="mb-8">
+          <h3 className="text-[#0A8FA0] font-bold text-xl border-b-2 border-[#0A8FA0] pb-2 mb-5">13. المواصفات التقنية والبيئة التشغيلية</h3>
           <div className="grid grid-cols-3 gap-4">
             {[
               { title: "بيئة التشغيل", items: ["نظام Windows — سطح مكتب مستقل","لا يحتاج إنترنت — شبكة داخلية","قاعدة بيانات محلية محمية","واجهة ويب تعمل عبر المتصفح"] },
@@ -354,9 +555,9 @@ export function PlanDocument() {
           </div>
         </section>
 
-        {/* Section 10 — Roadmap */}
+        {/* Section 14 — Roadmap */}
         <section className="mb-8">
-          <h3 className="text-[#0A8FA0] font-bold text-xl border-b-2 border-[#0A8FA0] pb-2 mb-5">10. خارطة الطريق — 3 مراحل تطوير</h3>
+          <h3 className="text-[#0A8FA0] font-bold text-xl border-b-2 border-[#0A8FA0] pb-2 mb-5">14. خارطة الطريق — 3 مراحل تطوير</h3>
           <div className="grid grid-cols-3 gap-4">
             {[
               {
@@ -387,9 +588,9 @@ export function PlanDocument() {
           </div>
         </section>
 
-        {/* Section 11 — Professional Suggestions */}
+        {/* Section 15 — Professional Suggestions */}
         <section className="mb-8">
-          <h3 className="text-[#0A8FA0] font-bold text-xl border-b-2 border-[#0A8FA0] pb-2 mb-5">11. المقترحات الاحترافية الإضافية</h3>
+          <h3 className="text-[#0A8FA0] font-bold text-xl border-b-2 border-[#0A8FA0] pb-2 mb-5">15. المقترحات الاحترافية الإضافية</h3>
           <div className="grid grid-cols-2 gap-3">
             {[
               { icon: "📲", title: "دعم الباركود / QR", desc: "مسح الأصناف بكاميرا الهاتف لتسجيل الحركة بدلاً من الكتابة اليدوية — يقلل الأخطاء بشكل كبير" },
