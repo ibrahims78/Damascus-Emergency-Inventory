@@ -1,0 +1,117 @@
+import { Router } from "express";
+import bcrypt from "bcryptjs";
+import { db, usersTable } from "@workspace/db";
+import { requireAuth, requireRole } from "../middlewares/auth";
+import { eq } from "drizzle-orm";
+
+const router = Router();
+
+// GET /api/users
+router.get("/", requireAuth, requireRole("admin"), async (_req, res) => {
+  try {
+    const users = await db
+      .select({
+        id: usersTable.id,
+        username: usersTable.username,
+        fullName: usersTable.fullName,
+        role: usersTable.role,
+        isActive: usersTable.isActive,
+        createdAt: usersTable.createdAt,
+      })
+      .from(usersTable)
+      .orderBy(usersTable.fullName);
+    res.json(users);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// POST /api/users
+router.post("/", requireAuth, requireRole("admin"), async (req, res) => {
+  try {
+    const { username, password, fullName, role } = req.body;
+    if (!username || !password || !fullName || !role) {
+      res.status(400).json({ error: "username, password, fullName, and role are required" });
+      return;
+    }
+    const validRoles = ["admin", "warehouse_manager", "viewer"];
+    if (!validRoles.includes(role)) {
+      res.status(400).json({ error: "Invalid role" });
+      return;
+    }
+    const passwordHash = await bcrypt.hash(password, 10);
+    const [user] = await db
+      .insert(usersTable)
+      .values({ username, passwordHash, fullName, role })
+      .returning({
+        id: usersTable.id,
+        username: usersTable.username,
+        fullName: usersTable.fullName,
+        role: usersTable.role,
+        isActive: usersTable.isActive,
+        createdAt: usersTable.createdAt,
+      });
+    res.status(201).json(user);
+  } catch (err: unknown) {
+    console.error(err);
+    if (err instanceof Error && err.message.includes("unique")) {
+      res.status(409).json({ error: "Username already exists" });
+      return;
+    }
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// PUT /api/users/:id
+router.put("/:id", requireAuth, requireRole("admin"), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { fullName, role, password, isActive } = req.body;
+    const updates: Partial<typeof usersTable.$inferInsert> = {};
+    if (fullName !== undefined) updates.fullName = fullName;
+    if (role !== undefined) updates.role = role;
+    if (isActive !== undefined) updates.isActive = isActive;
+    if (password) updates.passwordHash = await bcrypt.hash(password, 10);
+
+    const [user] = await db
+      .update(usersTable)
+      .set(updates)
+      .where(eq(usersTable.id, id))
+      .returning({
+        id: usersTable.id,
+        username: usersTable.username,
+        fullName: usersTable.fullName,
+        role: usersTable.role,
+        isActive: usersTable.isActive,
+        createdAt: usersTable.createdAt,
+      });
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    res.json(user);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// DELETE /api/users/:id (soft delete)
+router.delete("/:id", requireAuth, requireRole("admin"), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const user = res.locals.user;
+    if (user.id === id) {
+      res.status(400).json({ error: "Cannot delete your own account" });
+      return;
+    }
+    await db.update(usersTable).set({ isActive: false }).where(eq(usersTable.id, id));
+    res.status(204).send();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+export default router;

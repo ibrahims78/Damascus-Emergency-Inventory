@@ -1,0 +1,1 @@
+export function ReportsPage() { return <div>التقارير</div>; }
