@@ -120,7 +120,18 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
   });
 }
 
-buildAll().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// Copy connect-pg-simple's table.sql to dist (needed at runtime for session table creation)
+async function copySessionTableSql() {
+  const { copyFile } = await import("node:fs/promises");
+  const { createRequire } = await import("node:module");
+  const req = createRequire(import.meta.url);
+  const pgSimplePkg = req.resolve("connect-pg-simple/table.sql");
+  await copyFile(pgSimplePkg, path.resolve(artifactDir, "dist", "table.sql"));
+}
+
+buildAll()
+  .then(() => copySessionTableSql())
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
