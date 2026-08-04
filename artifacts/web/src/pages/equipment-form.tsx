@@ -39,6 +39,8 @@ const equipmentSchema = z.object({
   originCountry: z.string().optional().nullable(),
   currentHolder: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+  quantity: z.coerce.number().int().min(1, 'الكمية يجب أن تكون 1 على الأقل').default(1),
+  minQuantity: z.coerce.number().int().min(0, 'الحد الأدنى يجب أن يكون 0 أو أكثر').default(0),
 });
 
 type EquipmentFormValues = z.infer<typeof equipmentSchema>;
@@ -69,6 +71,8 @@ export function EquipmentForm({ equipmentId }: { equipmentId?: number }) {
       originCountry: '',
       currentHolder: '',
       notes: '',
+      quantity: 1,
+      minQuantity: 0,
     },
   });
 
@@ -84,6 +88,8 @@ export function EquipmentForm({ equipmentId }: { equipmentId?: number }) {
         originCountry: eq.originCountry || '',
         currentHolder: eq.currentHolder || '',
         notes: eq.notes || '',
+        quantity: eq.quantity ?? 1,
+        minQuantity: eq.minQuantity ?? 0,
       });
     }
   }, [eq, isEditing, form]);
@@ -140,6 +146,38 @@ export function EquipmentForm({ equipmentId }: { equipmentId?: number }) {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             
+            {/* Quantity row — prominent at the top */}
+            <div className="grid grid-cols-2 gap-6 p-4 rounded-lg border bg-muted/30">
+              <FormField
+                control={form.control}
+                name="quantity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>الكمية / العدد</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={1} {...field} />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">عدد القطع المتوفرة حالياً</p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="minQuantity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>الحد الأدنى للتنبيه</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={0} {...field} />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">يُطلق تنبيه نقص عند الوصول لهذا الحد (0 = بلا تنبيه)</p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}

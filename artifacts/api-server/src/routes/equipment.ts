@@ -67,11 +67,15 @@ router.post(
         originCountry,
         currentHolder,
         notes,
+        quantity,
+        minQuantity,
       } = req.body;
       if (!name) {
         res.status(400).json({ error: "name is required" });
         return;
       }
+      const qty = quantity !== undefined ? parseInt(String(quantity), 10) : 1;
+      const minQty = minQuantity !== undefined ? parseInt(String(minQuantity), 10) : 0;
       const [eq_] = await db
         .insert(equipmentTable)
         .values({
@@ -84,6 +88,8 @@ router.post(
           originCountry: originCountry || null,
           currentHolder: currentHolder || null,
           notes: notes || null,
+          quantity: isNaN(qty) || qty < 1 ? 1 : qty,
+          minQuantity: isNaN(minQty) || minQty < 0 ? 0 : minQty,
         })
         .returning();
       res.status(201).json(eq_);
@@ -165,6 +171,9 @@ router.post(
         const serialNumber = item.serialNumber ? String(item.serialNumber).trim() : null;
         const isUpdate = mode === "upsert" && serialNumber !== null && existingSerials.has(serialNumber);
 
+        const rawQty = item.quantity !== undefined ? parseInt(String(item.quantity), 10) : 1;
+        const rawMinQty = item.minQuantity !== undefined ? parseInt(String(item.minQuantity), 10) : 0;
+
         const values = {
           name,
           equipmentType: item.equipmentType ? String(item.equipmentType).trim() : null,
@@ -175,6 +184,8 @@ router.post(
           originCountry: item.originCountry ? String(item.originCountry).trim() : null,
           currentHolder: item.currentHolder ? String(item.currentHolder).trim() : null,
           notes: item.notes ? String(item.notes).trim() : null,
+          quantity: isNaN(rawQty) || rawQty < 1 ? 1 : rawQty,
+          minQuantity: isNaN(rawMinQty) || rawMinQty < 0 ? 0 : rawMinQty,
         };
 
         try {
@@ -194,6 +205,8 @@ router.post(
                   originCountry: values.originCountry,
                   currentHolder: values.currentHolder,
                   notes: values.notes,
+                  quantity: values.quantity,
+                  minQuantity: values.minQuantity,
                 },
               });
             if (isUpdate) {
@@ -261,6 +274,8 @@ router.put(
         originCountry,
         currentHolder,
         notes,
+        quantity,
+        minQuantity,
       } = req.body;
 
       const updates: Partial<typeof equipmentTable.$inferInsert> = {};
@@ -274,6 +289,14 @@ router.put(
       if (originCountry !== undefined) updates.originCountry = originCountry || null;
       if (currentHolder !== undefined) updates.currentHolder = currentHolder || null;
       if (notes !== undefined) updates.notes = notes || null;
+      if (quantity !== undefined) {
+        const qty = parseInt(String(quantity), 10);
+        updates.quantity = isNaN(qty) || qty < 1 ? 1 : qty;
+      }
+      if (minQuantity !== undefined) {
+        const minQty = parseInt(String(minQuantity), 10);
+        updates.minQuantity = isNaN(minQty) || minQty < 0 ? 0 : minQty;
+      }
 
       const [eq_] = await db
         .update(equipmentTable)

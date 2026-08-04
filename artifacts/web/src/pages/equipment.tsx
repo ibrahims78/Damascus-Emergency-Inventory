@@ -9,7 +9,8 @@ import {
   Search, 
   Edit, 
   Stethoscope,
-  Filter
+  Filter,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -113,6 +114,7 @@ function EquipmentList() {
               <TableRow>
                 <TableHead>رقم التسلسل</TableHead>
                 <TableHead>الاسم والموديل</TableHead>
+                <TableHead className="text-center">الكمية</TableHead>
                 <TableHead>العهدة الحالية</TableHead>
                 <TableHead>سنة الصنع</TableHead>
                 <TableHead>الحالة</TableHead>
@@ -136,6 +138,10 @@ function EquipmentList() {
                 data.equipment.map((eq: Equipment) => {
                   const cond = conditionMap[eq.condition] || { label: eq.condition, variant: 'default' };
                   
+                  const qty = eq.quantity ?? 1;
+                  const minQty = eq.minQuantity ?? 0;
+                  const isLow = minQty > 0 && qty <= minQty;
+
                   return (
                     <TableRow key={eq.id}>
                       <TableCell className="font-mono text-xs">{eq.serialNumber || '-'}</TableCell>
@@ -146,6 +152,22 @@ function EquipmentList() {
                         </div>
                         <div className="text-xs text-muted-foreground mt-1">
                           {eq.model || 'بدون موديل'} {eq.equipmentType ? `• ${eq.equipmentType}` : ''}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className={`font-semibold tabular-nums ${isLow ? 'text-destructive' : ''}`}>
+                            {qty}
+                          </span>
+                          {isLow && (
+                            <span className="flex items-center gap-0.5 text-[10px] text-destructive font-medium">
+                              <AlertTriangle className="h-3 w-3" />
+                              نقص
+                            </span>
+                          )}
+                          {minQty > 0 && (
+                            <span className="text-[10px] text-muted-foreground">حد: {minQty}</span>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>{eq.currentHolder || '-'}</TableCell>

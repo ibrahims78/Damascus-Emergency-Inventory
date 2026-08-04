@@ -1038,6 +1038,12 @@ components:
           type: ["string", "null"]
         notes:
           type: ["string", "null"]
+        quantity:
+          type: integer
+          default: 1
+        minQuantity:
+          type: integer
+          default: 0
         createdAt:
           type: string
         updatedAt:
@@ -1065,6 +1071,10 @@ components:
           type: ["string", "null"]
         notes:
           type: ["string", "null"]
+        quantity:
+          type: integer
+        minQuantity:
+          type: integer
 
     EquipmentUpdate:
       type: object
@@ -1087,6 +1097,10 @@ components:
           type: ["string", "null"]
         notes:
           type: ["string", "null"]
+        quantity:
+          type: ["integer", "null"]
+        minQuantity:
+          type: ["integer", "null"]
 
     EquipmentListResponse:
       type: object
@@ -1320,3 +1334,45 @@ components:
           type: ["integer", "null"]
         itemName:
           type: ["string", "null"]
+
+    SystemSettings:
+      type: object
+      required: [id, orgName, expiryAlertDays, setupCompleted]
+      properties:
+        id:
+          type: integer
+        setupCompleted:
+          type: boolean
+        setupAt:
+          type: ["string", "null"]
+        orgName:
+          type: string
+        orgSubtitle:
+          type: ["string", "null"]
+        expiryAlertDays:
+          type: integer
+        unitsList:
+          type: ["string", "null"]
+        updatedAt:
+          type: string
+
+    SystemSettingsInput:
+      type: object
+      properties:
+        orgName:
+          type: string
+        orgSubtitle:
+          type: ["string", "null"]
+        expiryAlertDays:
+          type: integer
+        unitsList:
+          type: ["string", "null"]
+
+    ChangePasswordInput:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string

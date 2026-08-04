@@ -25,6 +25,8 @@ export interface Equipment {
   currentHolder?: string | null;
   /** @nullable */
   notes?: string | null;
+  quantity?: number;
+  minQuantity?: number;
   createdAt: string;
   updatedAt?: string;
 }

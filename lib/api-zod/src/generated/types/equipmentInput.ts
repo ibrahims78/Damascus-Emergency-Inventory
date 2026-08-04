@@ -23,4 +23,6 @@ export interface EquipmentInput {
   currentHolder?: string | null;
   /** @nullable */
   notes?: string | null;
+  quantity?: number;
+  minQuantity?: number;
 }

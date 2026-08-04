@@ -22,6 +22,8 @@ export const equipmentTable = pgTable("equipment", {
   originCountry: text("origin_country"),
   currentHolder: text("current_holder"),
   notes: text("notes"),
+  quantity: integer("quantity").notNull().default(1),
+  minQuantity: integer("min_quantity").notNull().default(0),
   // Maintenance tracking fields
   maintenanceSentAt: date("maintenance_sent_at"),
   maintenanceReturnedAt: date("maintenance_returned_at"),

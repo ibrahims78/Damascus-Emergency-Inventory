@@ -253,6 +253,9 @@ export const ListEquipmentQueryParams = zod.object({
   "limit": zod.coerce.number().int().optional()
 })
 
+export const listEquipmentResponseEquipmentItemQuantityDefault = 1;
+export const listEquipmentResponseEquipmentItemMinQuantityDefault = 0;
+
 export const ListEquipmentResponse = zod.object({
   "equipment": zod.array(zod.object({
   "id": zod.number().int(),
@@ -265,6 +268,8 @@ export const ListEquipmentResponse = zod.object({
   "originCountry": zod.string().nullish(),
   "currentHolder": zod.string().nullish(),
   "notes": zod.string().nullish(),
+  "quantity": zod.number().int().default(listEquipmentResponseEquipmentItemQuantityDefault),
+  "minQuantity": zod.number().int().default(listEquipmentResponseEquipmentItemMinQuantityDefault),
   "createdAt": zod.string(),
   "updatedAt": zod.string().optional()
 })),
@@ -286,8 +291,13 @@ export const CreateEquipmentBody = zod.object({
   "manufactureYear": zod.number().int().nullish(),
   "originCountry": zod.string().nullish(),
   "currentHolder": zod.string().nullish(),
-  "notes": zod.string().nullish()
+  "notes": zod.string().nullish(),
+  "quantity": zod.number().int().optional(),
+  "minQuantity": zod.number().int().optional()
 })
+
+export const createEquipmentResponseQuantityDefault = 1;
+export const createEquipmentResponseMinQuantityDefault = 0;
 
 export const CreateEquipmentResponse = zod.object({
   "id": zod.number().int(),
@@ -300,6 +310,8 @@ export const CreateEquipmentResponse = zod.object({
   "originCountry": zod.string().nullish(),
   "currentHolder": zod.string().nullish(),
   "notes": zod.string().nullish(),
+  "quantity": zod.number().int().default(createEquipmentResponseQuantityDefault),
+  "minQuantity": zod.number().int().default(createEquipmentResponseMinQuantityDefault),
   "createdAt": zod.string(),
   "updatedAt": zod.string().optional()
 })
@@ -312,6 +324,9 @@ export const GetEquipmentParams = zod.object({
   "id": zod.coerce.number().int()
 })
 
+export const getEquipmentResponseQuantityDefault = 1;
+export const getEquipmentResponseMinQuantityDefault = 0;
+
 export const GetEquipmentResponse = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
@@ -323,6 +338,8 @@ export const GetEquipmentResponse = zod.object({
   "originCountry": zod.string().nullish(),
   "currentHolder": zod.string().nullish(),
   "notes": zod.string().nullish(),
+  "quantity": zod.number().int().default(getEquipmentResponseQuantityDefault),
+  "minQuantity": zod.number().int().default(getEquipmentResponseMinQuantityDefault),
   "createdAt": zod.string(),
   "updatedAt": zod.string().optional()
 })
@@ -344,8 +361,13 @@ export const UpdateEquipmentBody = zod.object({
   "manufactureYear": zod.number().int().nullish(),
   "originCountry": zod.string().nullish(),
   "currentHolder": zod.string().nullish(),
-  "notes": zod.string().nullish()
+  "notes": zod.string().nullish(),
+  "quantity": zod.number().int().nullish(),
+  "minQuantity": zod.number().int().nullish()
 })
+
+export const updateEquipmentResponseQuantityDefault = 1;
+export const updateEquipmentResponseMinQuantityDefault = 0;
 
 export const UpdateEquipmentResponse = zod.object({
   "id": zod.number().int(),
@@ -358,6 +380,8 @@ export const UpdateEquipmentResponse = zod.object({
   "originCountry": zod.string().nullish(),
   "currentHolder": zod.string().nullish(),
   "notes": zod.string().nullish(),
+  "quantity": zod.number().int().default(updateEquipmentResponseQuantityDefault),
+  "minQuantity": zod.number().int().default(updateEquipmentResponseMinQuantityDefault),
   "createdAt": zod.string(),
   "updatedAt": zod.string().optional()
 })
@@ -739,6 +763,9 @@ export const GetBelowMinReportResponse = zod.array(GetBelowMinReportResponseItem
 /**
  * @summary Equipment status report
  */
+export const getEquipmentReportResponseQuantityDefault = 1;
+export const getEquipmentReportResponseMinQuantityDefault = 0;
+
 export const GetEquipmentReportResponseItem = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
@@ -750,6 +777,8 @@ export const GetEquipmentReportResponseItem = zod.object({
   "originCountry": zod.string().nullish(),
   "currentHolder": zod.string().nullish(),
   "notes": zod.string().nullish(),
+  "quantity": zod.number().int().default(getEquipmentReportResponseQuantityDefault),
+  "minQuantity": zod.number().int().default(getEquipmentReportResponseMinQuantityDefault),
   "createdAt": zod.string(),
   "updatedAt": zod.string().optional()
 })
@@ -787,6 +816,102 @@ export const CreateUserResponse = zod.object({
   "role": zod.enum(['admin', 'warehouse_manager', 'viewer']),
   "isActive": zod.boolean(),
   "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Get system settings
+ */
+export const GetSettingsResponse = zod.object({
+  "id": zod.number().int(),
+  "setupCompleted": zod.boolean(),
+  "setupAt": zod.string().nullish(),
+  "orgName": zod.string(),
+  "orgSubtitle": zod.string().nullish(),
+  "expiryAlertDays": zod.number().int(),
+  "unitsList": zod.string().nullish(),
+  "updatedAt": zod.string().optional()
+})
+
+
+/**
+ * @summary Update system settings (admin only)
+ */
+export const UpdateSettingsBody = zod.object({
+  "orgName": zod.string().optional(),
+  "orgSubtitle": zod.string().nullish(),
+  "expiryAlertDays": zod.number().int().optional(),
+  "unitsList": zod.string().nullish()
+})
+
+export const UpdateSettingsResponse = zod.object({
+  "id": zod.number().int(),
+  "setupCompleted": zod.boolean(),
+  "setupAt": zod.string().nullish(),
+  "orgName": zod.string(),
+  "orgSubtitle": zod.string().nullish(),
+  "expiryAlertDays": zod.number().int(),
+  "unitsList": zod.string().nullish(),
+  "updatedAt": zod.string().optional()
+})
+
+
+/**
+ * @summary Change current user password
+ */
+export const ChangePasswordBody = zod.object({
+  "currentPassword": zod.string(),
+  "newPassword": zod.string()
+})
+
+export const ChangePasswordResponse = zod.object({
+  "ok": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Update a recipient
+ */
+export const UpdateRecipientParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const UpdateRecipientBody = zod.object({
+  "name": zod.string(),
+  "notes": zod.string().nullish()
+})
+
+export const UpdateRecipientResponse = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "notes": zod.string().nullish()
+})
+
+
+/**
+ * @summary Toggle recipient active status
+ */
+export const ToggleRecipientParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ToggleRecipientResponse = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "notes": zod.string().nullish()
+})
+
+
+/**
+ * @summary Toggle exit reason active status
+ */
+export const ToggleExitReasonParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ToggleExitReasonResponse = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string()
 })
 
 

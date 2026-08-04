@@ -195,6 +195,8 @@ export interface Equipment {
   currentHolder?: string | null;
   /** @nullable */
   notes?: string | null;
+  quantity?: number;
+  minQuantity?: number;
   createdAt: string;
   updatedAt?: string;
 }
@@ -216,6 +218,8 @@ export interface EquipmentInput {
   currentHolder?: string | null;
   /** @nullable */
   notes?: string | null;
+  quantity?: number;
+  minQuantity?: number;
 }
 
 export interface EquipmentUpdate {
@@ -237,6 +241,10 @@ export interface EquipmentUpdate {
   currentHolder?: string | null;
   /** @nullable */
   notes?: string | null;
+  /** @nullable */
+  quantity?: number | null;
+  /** @nullable */
+  minQuantity?: number | null;
 }
 
 export interface EquipmentListResponse {
@@ -441,6 +449,34 @@ export interface Alert {
   itemName?: string | null;
 }
 
+export interface SystemSettings {
+  id: number;
+  setupCompleted: boolean;
+  /** @nullable */
+  setupAt?: string | null;
+  orgName: string;
+  /** @nullable */
+  orgSubtitle?: string | null;
+  expiryAlertDays: number;
+  /** @nullable */
+  unitsList?: string | null;
+  updatedAt?: string;
+}
+
+export interface SystemSettingsInput {
+  orgName?: string;
+  /** @nullable */
+  orgSubtitle?: string | null;
+  expiryAlertDays?: number;
+  /** @nullable */
+  unitsList?: string | null;
+}
+
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
+}
+
 export type ListItemsParams = {
 categoryId?: number;
 search?: string;
@@ -471,5 +507,9 @@ export type GetMovementsReportParams = {
 from?: string;
 to?: string;
 type?: string;
+};
+
+export type ChangePassword200 = {
+  ok?: boolean;
 };
 
