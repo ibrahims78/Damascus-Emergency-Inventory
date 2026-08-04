@@ -7,3 +7,10 @@ uri = "file://attached_assets/%D8%AE%D8%B7%D8%A9_%D8%AA%D9%86%D9%81%D9%8A%D8%B0_
 type = "text"
 title = "خطة تنفيذ نظام مستودع الإسعاف — النسخة النهائية 2.0 ✅"
 description = "15 قراراً موثقاً · 11 جدول في قاعدة البيانات · 12 شاشة · عقد API كامل · جاهزة 100% للتنفيذ"
+
+[[outputs]]
+id = "kaPXqY_4m5SCDlfXkVYqD"
+uri = "file://attached_assets/%D8%A8%D9%8A%D8%A7%D9%86%D8%A7%D8%AA_%D8%A7%D8%AE%D8%AA%D8%A8%D8%A7%D8%B1_100_%D9%85%D8%A7%D8%AF%D8%A9.xlsx"
+type = "table"
+title = "بيانات اختبار — 100 مادة"
+description = "ملف Excel جاهز بـ 100 مادة وهمية موزعة على 4 تصنيفات بجميع الحقول مملوءة — جاهز للاستيراد من الإعدادات"
