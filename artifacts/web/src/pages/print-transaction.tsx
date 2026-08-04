@@ -3,7 +3,7 @@ import { useGetTransactionPrint } from '@workspace/api-client-react';
 import { Printer, ArrowRight, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatDateTime } from '@/lib/utils';
-import logoUrl from '@assets/WhatsApp_Image_2026-08-03_at_9.29.40_AM_1785738967367.jpeg';
+import logoUrl from '@assets/logo.jpeg';
 
 export function PrintTransactionPage() {
   const [, params] = useRoute('/print/:id');

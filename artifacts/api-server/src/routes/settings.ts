@@ -2,6 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { db, systemSettingsTable, usersTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
+import { auditLog } from "../middlewares/audit";
 import { eq } from "drizzle-orm";
 
 const router = Router();
@@ -89,6 +90,7 @@ router.post("/change-password", requireAuth, async (req, res) => {
     }
     const passwordHash = await bcrypt.hash(newPassword, 10);
     await db.update(usersTable).set({ passwordHash }).where(eq(usersTable.id, user.id));
+    await auditLog({ req, action: "update", entityType: "user", entityId: user.id, details: { action: "password_changed" } });
     res.json({ ok: true });
   } catch (err) {
     console.error(err);

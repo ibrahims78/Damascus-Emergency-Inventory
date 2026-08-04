@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/form';
 import { AlertCircle, ShieldCheck } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import logoUrl from '@assets/WhatsApp_Image_2026-08-03_at_9.29.40_AM_1785738967367.jpeg';
+import logoUrl from '@assets/logo.jpeg';
 
 const setupSchema = z
   .object({

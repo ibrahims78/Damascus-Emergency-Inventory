@@ -2,7 +2,8 @@ import { Router } from "express";
 import { db, transactionsTable, itemsTable, equipmentTable, recipientsTable, exitReasonsTable, usersTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
 import { auditLog } from "../middlewares/audit";
-import { eq, and, ilike, gte, lte, sql } from "drizzle-orm";
+import { eq, and, or, ilike, gte, lte, sql } from "drizzle-orm";
+import { systemSettingsTable } from "@workspace/db";
 
 const router = Router();
 
@@ -39,6 +40,17 @@ router.get("/", requireAuth, async (req, res) => {
     if (itemType) conditions.push(eq(transactionsTable.itemType, itemType as never));
     if (from) conditions.push(gte(transactionsTable.createdAt, new Date(from)));
     if (to) conditions.push(lte(transactionsTable.createdAt, new Date(to)));
+    if (search) {
+      const term = `%${search.trim()}%`;
+      conditions.push(
+        or(
+          ilike(transactionsTable.documentNumber, term),
+          ilike(itemsTable.name, term),
+          ilike(equipmentTable.name, term),
+          ilike(transactionsTable.recipientNameSnap, term),
+        )!,
+      );
+    }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -75,6 +87,8 @@ router.get("/", requireAuth, async (req, res) => {
       db
         .select({ count: sql<number>`count(*)` })
         .from(transactionsTable)
+        .leftJoin(itemsTable, eq(transactionsTable.itemId, itemsTable.id))
+        .leftJoin(equipmentTable, eq(transactionsTable.equipmentId, equipmentTable.id))
         .where(where),
     ]);
 
@@ -416,9 +430,12 @@ router.get("/:id/print", requireAuth, async (req, res) => {
       res.status(404).json({ error: "Transaction not found" });
       return;
     }
+    const settings = await db.query.systemSettingsTable.findFirst();
+    const organizationName = settings?.orgName ?? "مديرية الاحالة والاسعاف والطوارئ - دمشق";
     res.json({
       transaction,
-      organizationName: "مديرية الاحالة و الاسعاف و الطوارئ - دمشق",
+      organizationName,
+      orgSubtitle: settings?.orgSubtitle ?? null,
       printedAt: new Date().toISOString(),
     });
   } catch (err) {

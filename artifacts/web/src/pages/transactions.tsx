@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { useListTransactions, type Transaction } from '@workspace/api-client-react';
 import {
@@ -7,6 +7,8 @@ import {
   Printer,
   PackagePlus,
   PackageMinus,
+  Search,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,6 +46,16 @@ const PAGE_SIZE = 50;
 type TypeFilter = 'all' | 'in' | 'out' | 'adjust';
 type ItemTypeFilter = 'all' | 'item' | 'equipment';
 
+/** Debounce a value by `delay` ms — avoids a new API call on every keystroke */
+function useDebounce<T>(value: T, delay = 400): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
+}
+
 function typeBadge(type: string) {
   if (type === 'in')
     return (
@@ -77,12 +89,15 @@ function TransactionsList() {
   const [itemTypeFilter, setItemTypeFilter] = useState<ItemTypeFilter>('all');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const search = useDebounce(searchInput, 400);
 
   const { data, isLoading } = useListTransactions({
     type: typeFilter === 'all' ? undefined : typeFilter,
     itemType: itemTypeFilter === 'all' ? undefined : itemTypeFilter,
     from: fromDate || undefined,
     to: toDate || undefined,
+    search: search || undefined,
     page,
     limit: PAGE_SIZE,
   });
@@ -94,6 +109,7 @@ function TransactionsList() {
     setItemTypeFilter('all');
     setFromDate('');
     setToDate('');
+    setSearchInput('');
     setPage(1);
   };
 
@@ -101,7 +117,8 @@ function TransactionsList() {
     typeFilter !== 'all' ||
     itemTypeFilter !== 'all' ||
     fromDate !== '' ||
-    toDate !== '';
+    toDate !== '' ||
+    searchInput !== '';
 
   return (
     <div className="space-y-6">
@@ -128,7 +145,30 @@ function TransactionsList() {
       </div>
 
       {/* Filters */}
-      <div className="bg-card border rounded-lg shadow-sm p-4">
+      <div className="bg-card border rounded-lg shadow-sm p-4 space-y-3">
+        {/* Search row */}
+        <div className="relative">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder="بحث برقم السند أو اسم المادة أو الجهة المستلمة..."
+            value={searchInput}
+            onChange={(e) => {
+              setSearchInput(e.target.value);
+              setPage(1);
+            }}
+            className="pr-9 pl-8"
+          />
+          {searchInput && (
+            <button
+              onClick={() => { setSearchInput(''); setPage(1); }}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label="مسح البحث"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground/80">نوع العملية</label>
