@@ -419,6 +419,7 @@ function UsersList({ currentUserId }: { currentUserId?: number }) {
               <Select
                 value={form.role}
                 onValueChange={(v) => setForm((f) => ({ ...f, role: v as Role }))}
+                disabled={!!(editingUser && editingUser.id === currentUserId)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -434,6 +435,9 @@ function UsersList({ currentUserId }: { currentUserId?: number }) {
                   ))}
                 </SelectContent>
               </Select>
+              {editingUser && editingUser.id === currentUserId && (
+                <p className="text-xs text-muted-foreground">لا يمكن تغيير دورك بنفسك لتجنب فقدان الصلاحيات</p>
+              )}
             </div>
 
             {/* Active status (edit only) */}

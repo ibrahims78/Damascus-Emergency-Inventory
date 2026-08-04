@@ -4,27 +4,40 @@ description: Tracks which implementation phases are done and which remain
 ---
 
 ## Phases 1–6 — Complete ✅
-All six functional phases verified working before August 2026 review.
-
 ## August 2026 Review — 10-gap remediation ✅ Complete
 
-All 10 gaps from the Excel/brief review have been implemented:
+## Second Code Audit — 7 additional bugs fixed ✅ (August 2026)
 
-1. **Backup/Restore** — `GET /api/backup/export` (JSON download) + `GET /api/backup/info` + BackupTab in settings.tsx
-2. **Audit Log page** — `GET /api/audit` (paginated, filtered) + full audit.tsx viewer with date/action/entity filters + CSV export; admin-only route `/audit`
-3. **Logo in print** — org logo added to print-transaction.tsx header (center position, 72px circle)
-4. **4th signature block** — out transactions now show 4 blocks: أمين المستودع، المسؤول المرسل، المشرف، المستلم
-5. **Row color-coding** — red bg for belowMin/expired rows, amber bg for nearExpiry rows in items.tsx
-6. **Filter buttons** — category dropdown + "نقص بالمخزون" + "قرب انتهاء الصلاحية" quick filters in items.tsx; uses direct useQuery + fetch with URLSearchParams
-7. **XLSX export** — replaced exportCsv with async exportXlsx (SheetJS/xlsx ^0.18.5) in reports.tsx; all 5 tabs now export .xlsx
-8. **Dashboard 4th KPI** — changed from totalEquipment to "آخر عملية مسجلة" showing type/item/date; equipment count moved to mini-card
-9. **Units management** — UnitsTab in settings.tsx; unitsList stored as JSON string in system_settings.unitsList column (DB pushed); default 15 Arabic units
-10. **PDF download button** — "تحميل PDF" button added to print toolbar; uses window.print() with PDF tip shown below A4 container
+1. **Negative stock allowed in POST /api/items** — added `currentStock >= 0` and `minStock >= 0` validation
+2. **Duplicate username returns 500** — Drizzle wraps pg errors under `err.cause.code`; fixed to check `err?.cause?.code === '23505'`
+3. **OUT transaction allowed without recipient/exitReason** — backend now requires both for all OUT transactions
+4. **item-form.tsx missing onError toast** — createMutation and updateMutation now show error toast on failure
+5. **equipment-form.tsx missing onError toast** — both mutations now show Arabic error toast on failure
+6. **audit.tsx CSV export breaks on commas** — fields now wrapped in quotes with double-quote escaping
+7. **users.tsx admin can demote own role** — role selector disabled when editing own account; explanatory note shown
+
+## First Code Audit — 7 bugs fixed (August 2026, same session)
+
+1. backup.ts 500 error — usersTable.active → usersTable.isActive
+2. XLSX exports named .csv — all 5 filenames changed to .xlsx
+3. Missing await on exportXlsx — added await to all 5 calls
+4. Duplicate ملاحظات column header in EquipmentTab
+5. Hardcoded expiry days in reports.ts — reads expiryAlertDays from settings
+6. Hardcoded expiry days in items.ts — reads expiryAlertDays from settings
+7. setupCompleted not set after admin creation — auth.ts now sets it
+
+## Seed data
+`artifacts/api-server/seed.mjs` seeds: 4 categories, admin user, 8 recipients, 8 exit reasons.
+Run with: `cd artifacts/api-server && node seed.mjs`
+
+## Known remaining items (proposed as follow-up tasks)
+- Print voucher hardcodes org name (should read from settings)
+- No text search in transactions list (only date/type filters)
 
 ## Phase 7 (Deploy) — Pending
-User has not yet requested deployment.
 
-## Key fix applied post-implementation
-- ProtectedRoute: useEffect must be called BEFORE early returns (Rules of Hooks) — moved useEffect above `if (isLoading)` block
-- `handleExport` in reports.tsx must be `async` because exportXlsx is async (dynamic import of xlsx)
-- Added `useEffect` import to App.tsx
+## Key architectural notes
+- ProtectedRoute: useEffect BEFORE early returns (Rules of Hooks)
+- equipment-form.tsx uses useToast (shadcn) — rest of app uses sonner toast
+- transaction-out-form.tsx also uses useToast — inconsistency but both work
+- Drizzle wraps pg unique-constraint errors under err.cause.code (not err.code)

@@ -100,7 +100,8 @@ export function EquipmentForm({ equipmentId }: { equipmentId?: number }) {
         onSuccess: () => {
           toast({ description: "تم تعديل التجهيز بنجاح" });
           setLocation('/equipment');
-        }
+        },
+        onError: () => toast({ description: "حدث خطأ أثناء حفظ التجهيز", variant: "destructive" }),
       });
     } else {
       createMutation.mutate({ 
@@ -112,7 +113,8 @@ export function EquipmentForm({ equipmentId }: { equipmentId?: number }) {
         onSuccess: () => {
           toast({ description: "تم إضافة التجهيز بنجاح" });
           setLocation('/equipment');
-        }
+        },
+        onError: () => toast({ description: "حدث خطأ أثناء إضافة التجهيز", variant: "destructive" }),
       });
     }
   };

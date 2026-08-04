@@ -172,7 +172,8 @@ export function ItemForm({ itemId }: { itemId?: number }) {
         onSuccess: () => {
           toast({ description: "تم تعديل المادة بنجاح" });
           setLocation('/items');
-        }
+        },
+        onError: () => toast({ description: "حدث خطأ أثناء حفظ المادة", variant: "destructive" }),
       });
     } else {
       createMutation.mutate({ 
@@ -185,7 +186,8 @@ export function ItemForm({ itemId }: { itemId?: number }) {
         onSuccess: () => {
           toast({ description: "تمت إضافة المادة بنجاح" });
           setLocation('/items');
-        }
+        },
+        onError: () => toast({ description: "حدث خطأ أثناء إضافة المادة", variant: "destructive" }),
       });
     }
   };

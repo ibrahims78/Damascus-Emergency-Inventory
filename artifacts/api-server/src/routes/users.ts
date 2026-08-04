@@ -57,8 +57,11 @@ router.post("/", requireAuth, requireRole("admin"), async (req, res) => {
     res.status(201).json(user);
   } catch (err: unknown) {
     console.error(err);
-    if (err instanceof Error && err.message.includes("unique")) {
-      res.status(409).json({ error: "Username already exists" });
+    // PostgreSQL unique-constraint violation (Drizzle wraps it under err.cause)
+    const pgCode = (err as { code?: string; cause?: { code?: string } })?.cause?.code
+      ?? (err as { code?: string })?.code;
+    if (pgCode === "23505" || (err instanceof Error && err.message.includes("unique"))) {
+      res.status(409).json({ error: "اسم المستخدم موجود مسبقاً" });
       return;
     }
     res.status(500).json({ error: "Internal server error" });

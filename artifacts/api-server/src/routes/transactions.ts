@@ -173,6 +173,14 @@ router.post(
         res.status(400).json({ error: "quantity must be positive" });
         return;
       }
+      if (!recipientId) {
+        res.status(400).json({ error: "الجهة المستلمة مطلوبة لعمليات الإخراج" });
+        return;
+      }
+      if (!exitReasonId) {
+        res.status(400).json({ error: "سبب الإخراج مطلوب لعمليات الإخراج" });
+        return;
+      }
 
       // Validate stock
       if (itemType === "item" && itemId && quantity) {

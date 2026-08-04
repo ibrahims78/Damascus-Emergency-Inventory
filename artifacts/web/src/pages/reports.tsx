@@ -127,8 +127,8 @@ function StockTab() {
   const belowMin = items.filter((i) => i.currentStock <= i.minStock).length;
 
   const handleExport = async () => {
-    exportXlsx(
-      'جرد-المخزون.csv',
+    await exportXlsx(
+      'جرد-المخزون.xlsx',
       ['الكود', 'الاسم', 'الرصيد الحالي', 'الحد الأدنى', 'الوحدة', 'تاريخ الانتهاء', 'الموقع'],
       items.map((i: Item) => [
         i.code ?? '',
@@ -243,8 +243,8 @@ function MovementsTab() {
   const hasFilters = from !== '' || to !== '' || type !== 'all';
 
   const handleExport = async () => {
-    exportXlsx(
-      'حركة-المواد.csv',
+    await exportXlsx(
+      'حركة-المواد.xlsx',
       ['رقم السند', 'التاريخ', 'النوع', 'الصنف', 'الكمية', 'الجهة', 'المستخدم'],
       txs.map((t: Transaction) => [
         t.documentNumber ?? '',
@@ -374,8 +374,8 @@ function ExpiryTab() {
   const nearExpiry = items.length - expired;
 
   const handleExport = async () => {
-    exportXlsx(
-      'قرب-انتهاء-الصلاحية.csv',
+    await exportXlsx(
+      'قرب-انتهاء-الصلاحية.xlsx',
       ['الاسم', 'الرصيد', 'الوحدة', 'تاريخ الانتهاء', 'الأيام المتبقية'],
       items.map((i: Item) => {
         const days = i.expiryDate
@@ -467,8 +467,8 @@ function BelowMinTab() {
   const critical = items.filter((i) => i.currentStock === 0).length;
 
   const handleExport = async () => {
-    exportXlsx(
-      'أقل-من-الحد-الأدنى.csv',
+    await exportXlsx(
+      'أقل-من-الحد-الأدنى.xlsx',
       ['الاسم', 'الرصيد الحالي', 'الحد الأدنى', 'الفرق', 'الوحدة'],
       items.map((i: Item) => [
         i.name,
@@ -567,8 +567,8 @@ function EquipmentTab() {
   }, {});
 
   const handleExport = async () => {
-    exportXlsx(
-      'حالة-التجهيزات.csv',
+    await exportXlsx(
+      'حالة-التجهيزات.xlsx',
       ['الاسم', 'الرقم التسلسلي', 'الموديل', 'الحالة', 'الحائز', 'ملاحظات'],
       equipment.map((e: Equipment) => [
         e.name,
@@ -611,7 +611,6 @@ function EquipmentTab() {
               <TableHead className="text-right print:hidden">الموديل</TableHead>
               <TableHead className="text-center">الحالة</TableHead>
               <TableHead className="text-right">الحائز الحالي</TableHead>
-              <TableHead className="text-right print:hidden">ملاحظات</TableHead>
               <TableHead className="text-right print:hidden">ملاحظات</TableHead>
             </TableRow>
           </TableHeader>

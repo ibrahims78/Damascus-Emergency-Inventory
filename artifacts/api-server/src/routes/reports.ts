@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, itemsTable, equipmentTable, transactionsTable, categoriesTable, usersTable } from "@workspace/db";
+import { db, itemsTable, equipmentTable, transactionsTable, categoriesTable, usersTable, systemSettingsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { eq, and, lte, gte, sql } from "drizzle-orm";
 
@@ -79,8 +79,10 @@ router.get("/movements", requireAuth, async (req, res) => {
 // GET /api/reports/expiry
 router.get("/expiry", requireAuth, async (_req, res) => {
   try {
-    const sixtyDaysFromNow = new Date();
-    sixtyDaysFromNow.setDate(sixtyDaysFromNow.getDate() + 60);
+    const settings = await db.query.systemSettingsTable.findFirst();
+    const alertDays = settings?.expiryAlertDays ?? 30;
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() + alertDays);
 
     const items = await db
       .select({
@@ -100,7 +102,7 @@ router.get("/expiry", requireAuth, async (_req, res) => {
       .where(
         and(
           eq(itemsTable.isActive, true),
-          sql`${itemsTable.expiryDate} IS NOT NULL AND ${itemsTable.expiryDate} <= ${sixtyDaysFromNow.toISOString().split("T")[0]}`
+          sql`${itemsTable.expiryDate} IS NOT NULL AND ${itemsTable.expiryDate} <= ${cutoffDate.toISOString().split("T")[0]}`
         )
       )
       .orderBy(itemsTable.expiryDate);

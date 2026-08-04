@@ -40,7 +40,7 @@ router.get("/export", requireAuth, requireRole("admin"), async (_req, res) => {
           username: usersTable.username,
           fullName: usersTable.fullName,
           role: usersTable.role,
-          active: usersTable.active,
+          isActive: usersTable.isActive,
           createdAt: usersTable.createdAt,
         })
         .from(usersTable),

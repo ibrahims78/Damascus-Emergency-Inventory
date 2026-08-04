@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, itemsTable, categoriesTable } from "@workspace/db";
+import { db, itemsTable, categoriesTable, systemSettingsTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
 import { auditLog } from "../middlewares/audit";
 import { eq, and, ilike, lte, sql } from "drizzle-orm";
@@ -29,10 +29,12 @@ router.get("/", requireAuth, async (req, res) => {
     if (belowMin === "true")
       conditions.push(lte(itemsTable.currentStock, itemsTable.minStock));
     if (nearExpiry === "true") {
-      const thirtyDaysFromNow = new Date();
-      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+      const settings = await db.query.systemSettingsTable.findFirst();
+      const alertDays = settings?.expiryAlertDays ?? 30;
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() + alertDays);
       conditions.push(
-        sql`${itemsTable.expiryDate} IS NOT NULL AND ${itemsTable.expiryDate} <= ${thirtyDaysFromNow.toISOString().split("T")[0]}`
+        sql`${itemsTable.expiryDate} IS NOT NULL AND ${itemsTable.expiryDate} <= ${cutoffDate.toISOString().split("T")[0]}`
       );
     }
 
@@ -108,6 +110,16 @@ router.post(
         res.status(400).json({ error: "name, itemType, and unit are required" });
         return;
       }
+      const parsedStock = parseInt(currentStock, 10);
+      const parsedMinStock = parseInt(minStock, 10);
+      if (isNaN(parsedStock) || parsedStock < 0) {
+        res.status(400).json({ error: "currentStock must be a non-negative number" });
+        return;
+      }
+      if (isNaN(parsedMinStock) || parsedMinStock < 0) {
+        res.status(400).json({ error: "minStock must be a non-negative number" });
+        return;
+      }
       const [item] = await db
         .insert(itemsTable)
         .values({
@@ -116,8 +128,8 @@ router.post(
           categoryId: categoryId ? parseInt(categoryId, 10) : null,
           itemType,
           unit,
-          currentStock: parseInt(currentStock, 10),
-          minStock: parseInt(minStock, 10),
+          currentStock: parsedStock,
+          minStock: parsedMinStock,
           expiryDate: expiryDate || null,
           batchNumber: batchNumber || null,
           location: location || null,

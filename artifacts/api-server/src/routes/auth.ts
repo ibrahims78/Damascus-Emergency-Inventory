@@ -1,8 +1,9 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
-import { db, usersTable } from "@workspace/db";
+import { db, usersTable, systemSettingsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { auditLog } from "../middlewares/audit";
+import { eq } from "drizzle-orm";
 
 const router = Router();
 
@@ -50,6 +51,18 @@ router.post("/setup", async (req, res) => {
       .insert(usersTable)
       .values({ username, passwordHash, fullName, role: "admin" })
       .returning();
+
+    // Mark setup as completed in system settings
+    const existingSettings = await db.query.systemSettingsTable.findFirst();
+    if (existingSettings) {
+      await db
+        .update(systemSettingsTable)
+        .set({ setupCompleted: true, setupAt: new Date() })
+        .where(eq(systemSettingsTable.id, existingSettings.id));
+    } else {
+      await db.insert(systemSettingsTable).values({ setupCompleted: true, setupAt: new Date() });
+    }
+
     req.session.userId = user.id;
     res.json({ id: user.id, username: user.username, fullName: user.fullName, role: user.role });
   } catch (err: any) {
