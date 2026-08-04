@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db, itemsTable, categoriesTable, systemSettingsTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
 import { auditLog } from "../middlewares/audit";
-import { eq, and, ilike, lte, sql } from "drizzle-orm";
+import { eq, and, ilike, lte, sql, isNotNull } from "drizzle-orm";
 
 const router = Router();
 
@@ -171,8 +171,23 @@ router.post(
         allCategories.map((c) => [c.name.trim().toLowerCase(), c.id])
       );
 
-      const results: { created: number; errors: { row: number; name: string; error: string }[] } =
-        { created: 0, errors: [] };
+      const mode = (req.query.mode as string) === "upsert" ? "upsert" : "insert";
+
+      // In upsert mode, pre-fetch existing codes (one query) for insert-vs-update tracking
+      const existingCodes = new Set<string>();
+      if (mode === "upsert") {
+        const existing = await db
+          .select({ code: itemsTable.code })
+          .from(itemsTable)
+          .where(isNotNull(itemsTable.code));
+        existing.forEach((r) => { if (r.code) existingCodes.add(r.code); });
+      }
+
+      const results: {
+        created: number;
+        updated: number;
+        errors: { row: number; name: string; error: string }[];
+      } = { created: 0, updated: 0, errors: [] };
 
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
@@ -208,39 +223,75 @@ router.post(
           continue;
         }
 
+        const code = item.code ? String(item.code).trim() : null;
+        const isUpdate = mode === "upsert" && code !== null && existingCodes.has(code);
+
+        const values = {
+          code,
+          name,
+          categoryId,
+          itemType: "item" as const,
+          unit,
+          currentStock,
+          minStock,
+          expiryDate: item.expiryDate ? String(item.expiryDate).trim() : null,
+          batchNumber: item.batchNumber ? String(item.batchNumber).trim() : null,
+          location: item.location ? String(item.location).trim() : null,
+          supplier: item.supplier ? String(item.supplier).trim() : null,
+          notes: item.notes ? String(item.notes).trim() : null,
+        };
+
         try {
-          const [created] = await db
-            .insert(itemsTable)
-            .values({
-              code: item.code ? String(item.code).trim() : null,
-              name,
-              categoryId,
-              itemType: "item",
-              unit,
-              currentStock,
-              minStock,
-              expiryDate: item.expiryDate ? String(item.expiryDate).trim() : null,
-              batchNumber: item.batchNumber ? String(item.batchNumber).trim() : null,
-              location: item.location ? String(item.location).trim() : null,
-              supplier: item.supplier ? String(item.supplier).trim() : null,
-              notes: item.notes ? String(item.notes).trim() : null,
-            })
-            .returning();
-          results.created++;
-          await auditLog({
-            req,
-            action: "create",
-            entityType: "item",
-            entityId: created.id,
-            details: { name: created.name, source: "bulk-import" },
-          });
+          if (mode === "upsert" && code !== null) {
+            // Upsert: update all fields when code already exists
+            const [saved] = await db
+              .insert(itemsTable)
+              .values(values)
+              .onConflictDoUpdate({
+                target: itemsTable.code,
+                set: {
+                  name: values.name,
+                  categoryId: values.categoryId,
+                  unit: values.unit,
+                  currentStock: values.currentStock,
+                  minStock: values.minStock,
+                  expiryDate: values.expiryDate,
+                  batchNumber: values.batchNumber,
+                  location: values.location,
+                  supplier: values.supplier,
+                  notes: values.notes,
+                },
+              })
+              .returning();
+            if (isUpdate) {
+              results.updated++;
+              await auditLog({
+                req, action: "update", entityType: "item", entityId: saved.id,
+                details: { name: saved.name, source: "bulk-import-upsert" },
+              });
+            } else {
+              results.created++;
+              await auditLog({
+                req, action: "create", entityType: "item", entityId: saved.id,
+                details: { name: saved.name, source: "bulk-import" },
+              });
+            }
+          } else {
+            // Insert-only mode
+            const [created] = await db.insert(itemsTable).values(values).returning();
+            results.created++;
+            await auditLog({
+              req, action: "create", entityType: "item", entityId: created.id,
+              details: { name: created.name, source: "bulk-import" },
+            });
+          }
         } catch (err: unknown) {
           const e = err as { cause?: { code?: string }; code?: string };
           const isDuplicate = e?.cause?.code === "23505" || e?.code === "23505";
           results.errors.push({
             row: rowNum,
             name,
-            error: isDuplicate ? "الرمز مستخدم مسبقاً" : "خطأ في الإدراج",
+            error: isDuplicate ? "الرمز مستخدم مسبقاً — استخدم وضع «تحديث وإضافة» لتحديثه" : "خطأ في الإدراج",
           });
         }
       }

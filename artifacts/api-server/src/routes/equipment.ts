@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, equipmentTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
-import { eq, and, ilike, sql } from "drizzle-orm";
+import { eq, and, ilike, sql, isNotNull } from "drizzle-orm";
 
 const router = Router();
 
@@ -120,8 +120,23 @@ router.post(
         "تحتاج فحص": "needs_inspection", "يحتاج فحص": "needs_inspection",
       };
 
-      const results: { created: number; errors: { row: number; name: string; error: string }[] } =
-        { created: 0, errors: [] };
+      const mode = (req.query.mode as string) === "upsert" ? "upsert" : "insert";
+
+      // In upsert mode, pre-fetch existing serial numbers for insert-vs-update tracking
+      const existingSerials = new Set<string>();
+      if (mode === "upsert") {
+        const existing = await db
+          .select({ serialNumber: equipmentTable.serialNumber })
+          .from(equipmentTable)
+          .where(isNotNull(equipmentTable.serialNumber));
+        existing.forEach((r) => { if (r.serialNumber) existingSerials.add(r.serialNumber); });
+      }
+
+      const results: {
+        created: number;
+        updated: number;
+        errors: { row: number; name: string; error: string }[];
+      } = { created: 0, updated: 0, errors: [] };
 
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
@@ -147,26 +162,57 @@ router.post(
           continue;
         }
 
+        const serialNumber = item.serialNumber ? String(item.serialNumber).trim() : null;
+        const isUpdate = mode === "upsert" && serialNumber !== null && existingSerials.has(serialNumber);
+
+        const values = {
+          name,
+          equipmentType: item.equipmentType ? String(item.equipmentType).trim() : null,
+          model: item.model ? String(item.model).trim() : null,
+          serialNumber,
+          condition: condition as "good" | "maintenance" | "broken" | "consumed" | "needs_inspection",
+          manufactureYear,
+          originCountry: item.originCountry ? String(item.originCountry).trim() : null,
+          currentHolder: item.currentHolder ? String(item.currentHolder).trim() : null,
+          notes: item.notes ? String(item.notes).trim() : null,
+        };
+
         try {
-          await db.insert(equipmentTable).values({
-            name,
-            equipmentType: item.equipmentType ? String(item.equipmentType).trim() : null,
-            model: item.model ? String(item.model).trim() : null,
-            serialNumber: item.serialNumber ? String(item.serialNumber).trim() : null,
-            condition: condition as "good" | "maintenance" | "broken" | "consumed" | "needs_inspection",
-            manufactureYear,
-            originCountry: item.originCountry ? String(item.originCountry).trim() : null,
-            currentHolder: item.currentHolder ? String(item.currentHolder).trim() : null,
-            notes: item.notes ? String(item.notes).trim() : null,
-          });
-          results.created++;
+          if (mode === "upsert" && serialNumber !== null) {
+            // Upsert: update all fields when serial number already exists
+            await db
+              .insert(equipmentTable)
+              .values(values)
+              .onConflictDoUpdate({
+                target: equipmentTable.serialNumber,
+                set: {
+                  name: values.name,
+                  equipmentType: values.equipmentType,
+                  model: values.model,
+                  condition: values.condition,
+                  manufactureYear: values.manufactureYear,
+                  originCountry: values.originCountry,
+                  currentHolder: values.currentHolder,
+                  notes: values.notes,
+                },
+              });
+            if (isUpdate) {
+              results.updated++;
+            } else {
+              results.created++;
+            }
+          } else {
+            // Insert-only mode
+            await db.insert(equipmentTable).values(values);
+            results.created++;
+          }
         } catch (err: unknown) {
           const e = err as { cause?: { code?: string }; code?: string };
           const isDuplicate = e?.cause?.code === "23505" || e?.code === "23505";
           results.errors.push({
             row: rowNum,
             name,
-            error: isDuplicate ? "الرقم التسلسلي مستخدم مسبقاً" : "خطأ في الإدراج",
+            error: isDuplicate ? "الرقم التسلسلي مستخدم مسبقاً — استخدم وضع «تحديث وإضافة» لتحديثه" : "خطأ في الإدراج",
           });
         }
       }

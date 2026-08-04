@@ -724,6 +724,7 @@ interface ImportRow {
 
 interface ImportResult {
   created: number;
+  updated?: number;
   errors: { row: number; name: string; error: string }[];
 }
 
@@ -733,6 +734,7 @@ function ImportTab() {
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [parseError, setParseError] = useState('');
+  const [importMode, setImportMode] = useState<'insert' | 'upsert'>('insert');
   const queryClient = useQueryClient();
 
   const { data: categoriesData } = useQuery<{ categories: { id: number; name: string; type: string }[] }>({
@@ -853,7 +855,7 @@ function ImportTab() {
     }));
 
     try {
-      const res = await fetch('/api/items/bulk-import', {
+      const res = await fetch(`/api/items/bulk-import?mode=${importMode}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -861,8 +863,12 @@ function ImportTab() {
       });
       const data = (await res.json()) as ImportResult;
       setResult(data);
-      if (data.created > 0) {
-        toast.success(`تم استيراد ${data.created} مادة بنجاح`);
+      const total = data.created + (data.updated ?? 0);
+      if (total > 0) {
+        const parts: string[] = [];
+        if (data.created > 0) parts.push(`إضافة ${data.created}`);
+        if ((data.updated ?? 0) > 0) parts.push(`تحديث ${data.updated}`);
+        toast.success(`تم ${parts.join(' و')} مادة بنجاح`);
         void queryClient.invalidateQueries({ queryKey: ['items'] });
         setRows([]);
         setFileName('');
@@ -973,55 +979,97 @@ function ImportTab() {
         </div>
       )}
 
-      {/* Step 3 — Import */}
+      {/* Step 3 — Mode + Import */}
       {rows.length > 0 && (
-        <div className="rounded-lg border p-4 space-y-3">
+        <div className="rounded-lg border p-4 space-y-4">
           <div className="flex items-center gap-2">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">٣</span>
-            <span className="font-medium text-sm">ابدأ الاستيراد</span>
+            <span className="font-medium text-sm">اختر الوضع وابدأ الاستيراد</span>
           </div>
+
+          {/* Mode toggle */}
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium text-foreground">وضع الاستيراد</p>
+            <div className="inline-flex rounded-lg border bg-muted p-0.5 gap-0.5">
+              <button
+                type="button"
+                onClick={() => setImportMode('insert')}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  importMode === 'insert'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                إضافة فقط
+              </button>
+              <button
+                type="button"
+                onClick={() => setImportMode('upsert')}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  importMode === 'upsert'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                تحديث وإضافة
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {importMode === 'insert'
+                ? 'المواد بنفس الرمز ستُرفض — مناسب للاستيراد الأوّلي.'
+                : 'المواد بنفس الرمز ستُحدَّث بالكامل — المواد الجديدة ستُضاف تلقائياً.'}
+            </p>
+          </div>
+
           <Button onClick={() => void handleImport()} disabled={importing} className="gap-2">
             {importing
               ? <Loader2 className="h-4 w-4 animate-spin" />
               : <FileSpreadsheet className="h-4 w-4" />}
-            {importing ? 'جارٍ الاستيراد…' : `استيراد ${rows.length} مادة`}
+            {importing ? 'جارٍ الاستيراد…' : `${importMode === 'upsert' ? 'تحديث/إضافة' : 'استيراد'} ${rows.length} مادة`}
           </Button>
         </div>
       )}
 
       {/* Results */}
-      {result && (
-        <div className={`rounded-lg border p-4 space-y-2 ${
-          result.created > 0
-            ? 'border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900'
-            : 'border-destructive/30 bg-destructive/5'
-        }`}>
-          <div className="flex items-center gap-2">
-            {result.created > 0
-              ? <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-              : <X className="h-5 w-5 text-destructive" />}
-            <span className="font-medium text-sm">
-              {result.created > 0
-                ? `تم استيراد ${result.created} مادة بنجاح`
-                : 'لم يتم استيراد أي مادة'}
-            </span>
-          </div>
-          {result.errors.length > 0 && (
-            <div className="mt-2 space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">
-                الأخطاء ({result.errors.length} صف):
-              </p>
-              <div className="max-h-36 overflow-y-auto space-y-0.5 rounded border bg-background p-2">
-                {result.errors.map((e, i) => (
-                  <p key={i} className="text-xs text-destructive">
-                    صف {e.row}: <span className="font-medium">{e.name}</span> — {e.error}
-                  </p>
-                ))}
-              </div>
+      {result && (() => {
+        const total = result.created + (result.updated ?? 0);
+        const hasSuccess = total > 0;
+        const summaryParts: string[] = [];
+        if (result.created > 0) summaryParts.push(`إضافة ${result.created} مادة`);
+        if ((result.updated ?? 0) > 0) summaryParts.push(`تحديث ${result.updated} مادة`);
+        return (
+          <div className={`rounded-lg border p-4 space-y-2 ${
+            hasSuccess
+              ? 'border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900'
+              : 'border-destructive/30 bg-destructive/5'
+          }`}>
+            <div className="flex items-center gap-2">
+              {hasSuccess
+                ? <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                : <X className="h-5 w-5 text-destructive" />}
+              <span className="font-medium text-sm">
+                {hasSuccess
+                  ? `تم ${summaryParts.join(' و')} بنجاح`
+                  : 'لم يتم استيراد أي مادة'}
+              </span>
             </div>
-          )}
-        </div>
-      )}
+            {result.errors.length > 0 && (
+              <div className="mt-2 space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">
+                  الأخطاء ({result.errors.length} صف):
+                </p>
+                <div className="max-h-36 overflow-y-auto space-y-0.5 rounded border bg-background p-2">
+                  {result.errors.map((e, i) => (
+                    <p key={i} className="text-xs text-destructive">
+                      صف {e.row}: <span className="font-medium">{e.name}</span> — {e.error}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -1042,6 +1090,7 @@ function ImportEquipmentTab() {
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [parseError, setParseError] = useState('');
+  const [importMode, setImportMode] = useState<'insert' | 'upsert'>('insert');
   const queryClient = useQueryClient();
 
   const handleExportTemplate = async () => {
@@ -1141,7 +1190,7 @@ function ImportEquipmentTab() {
     }));
 
     try {
-      const res = await fetch('/api/equipment/bulk-import', {
+      const res = await fetch(`/api/equipment/bulk-import?mode=${importMode}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -1149,8 +1198,12 @@ function ImportEquipmentTab() {
       });
       const data = (await res.json()) as ImportResult;
       setResult(data);
-      if (data.created > 0) {
-        toast.success(`تم استيراد ${data.created} تجهيز بنجاح`);
+      const total = data.created + (data.updated ?? 0);
+      if (total > 0) {
+        const parts: string[] = [];
+        if (data.created > 0) parts.push(`إضافة ${data.created}`);
+        if ((data.updated ?? 0) > 0) parts.push(`تحديث ${data.updated}`);
+        toast.success(`تم ${parts.join(' و')} تجهيز بنجاح`);
         void queryClient.invalidateQueries({ queryKey: ['equipment'] });
         setRows([]);
         setFileName('');
@@ -1261,55 +1314,97 @@ function ImportEquipmentTab() {
         </div>
       )}
 
-      {/* Step 3 — Import */}
+      {/* Step 3 — Mode + Import */}
       {rows.length > 0 && (
-        <div className="rounded-lg border p-4 space-y-3">
+        <div className="rounded-lg border p-4 space-y-4">
           <div className="flex items-center gap-2">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">٣</span>
-            <span className="font-medium text-sm">ابدأ الاستيراد</span>
+            <span className="font-medium text-sm">اختر الوضع وابدأ الاستيراد</span>
           </div>
+
+          {/* Mode toggle */}
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium text-foreground">وضع الاستيراد</p>
+            <div className="inline-flex rounded-lg border bg-muted p-0.5 gap-0.5">
+              <button
+                type="button"
+                onClick={() => setImportMode('insert')}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  importMode === 'insert'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                إضافة فقط
+              </button>
+              <button
+                type="button"
+                onClick={() => setImportMode('upsert')}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  importMode === 'upsert'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                تحديث وإضافة
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {importMode === 'insert'
+                ? 'التجهيزات بنفس الرقم التسلسلي ستُرفض — مناسب للاستيراد الأوّلي.'
+                : 'التجهيزات بنفس الرقم التسلسلي ستُحدَّث بالكامل — الجديدة ستُضاف تلقائياً.'}
+            </p>
+          </div>
+
           <Button onClick={() => void handleImport()} disabled={importing} className="gap-2">
             {importing
               ? <Loader2 className="h-4 w-4 animate-spin" />
               : <FileSpreadsheet className="h-4 w-4" />}
-            {importing ? 'جارٍ الاستيراد…' : `استيراد ${rows.length} تجهيز`}
+            {importing ? 'جارٍ الاستيراد…' : `${importMode === 'upsert' ? 'تحديث/إضافة' : 'استيراد'} ${rows.length} تجهيز`}
           </Button>
         </div>
       )}
 
       {/* Results */}
-      {result && (
-        <div className={`rounded-lg border p-4 space-y-2 ${
-          result.created > 0
-            ? 'border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900'
-            : 'border-destructive/30 bg-destructive/5'
-        }`}>
-          <div className="flex items-center gap-2">
-            {result.created > 0
-              ? <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-              : <X className="h-5 w-5 text-destructive" />}
-            <span className="font-medium text-sm">
-              {result.created > 0
-                ? `تم استيراد ${result.created} تجهيز بنجاح`
-                : 'لم يتم استيراد أي تجهيز'}
-            </span>
-          </div>
-          {result.errors.length > 0 && (
-            <div className="mt-2 space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">
-                الأخطاء ({result.errors.length} صف):
-              </p>
-              <div className="max-h-36 overflow-y-auto space-y-0.5 rounded border bg-background p-2">
-                {result.errors.map((e, i) => (
-                  <p key={i} className="text-xs text-destructive">
-                    صف {e.row}: <span className="font-medium">{e.name}</span> — {e.error}
-                  </p>
-                ))}
-              </div>
+      {result && (() => {
+        const total = result.created + (result.updated ?? 0);
+        const hasSuccess = total > 0;
+        const summaryParts: string[] = [];
+        if (result.created > 0) summaryParts.push(`إضافة ${result.created} تجهيز`);
+        if ((result.updated ?? 0) > 0) summaryParts.push(`تحديث ${result.updated} تجهيز`);
+        return (
+          <div className={`rounded-lg border p-4 space-y-2 ${
+            hasSuccess
+              ? 'border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900'
+              : 'border-destructive/30 bg-destructive/5'
+          }`}>
+            <div className="flex items-center gap-2">
+              {hasSuccess
+                ? <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                : <X className="h-5 w-5 text-destructive" />}
+              <span className="font-medium text-sm">
+                {hasSuccess
+                  ? `تم ${summaryParts.join(' و')} بنجاح`
+                  : 'لم يتم استيراد أي تجهيز'}
+              </span>
             </div>
-          )}
-        </div>
-      )}
+            {result.errors.length > 0 && (
+              <div className="mt-2 space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">
+                  الأخطاء ({result.errors.length} صف):
+                </p>
+                <div className="max-h-36 overflow-y-auto space-y-0.5 rounded border bg-background p-2">
+                  {result.errors.map((e, i) => (
+                    <p key={i} className="text-xs text-destructive">
+                      صف {e.row}: <span className="font-medium">{e.name}</span> — {e.error}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
