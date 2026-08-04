@@ -346,6 +346,22 @@ export function ItemForm({ itemId }: { itemId?: number }) {
                 )}
               />
 
+              {!isEditing && (
+                <FormField
+                  control={form.control}
+                  name="initialStock"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>الكمية الحالية (الرصيد الافتتاحي)</FormLabel>
+                      <FormControl>
+                        <Input type="number" min={0} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
               <FormField
                 control={form.control}
                 name="minStock"
