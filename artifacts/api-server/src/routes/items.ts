@@ -146,6 +146,113 @@ router.post(
   }
 );
 
+// POST /api/items/bulk-import
+router.post(
+  "/bulk-import",
+  requireAuth,
+  requireRole("admin", "warehouse_manager"),
+  async (req, res) => {
+    try {
+      const items = req.body;
+      if (!Array.isArray(items) || items.length === 0) {
+        res.status(400).json({ error: "يجب إرسال قائمة مواد صالحة" });
+        return;
+      }
+      if (items.length > 1000) {
+        res.status(400).json({ error: "الحد الأقصى للاستيراد 1000 صف في المرة الواحدة" });
+        return;
+      }
+
+      // Fetch all categories for name→id resolution
+      const allCategories = await db
+        .select({ id: categoriesTable.id, name: categoriesTable.name })
+        .from(categoriesTable);
+      const categoryMap = new Map(
+        allCategories.map((c) => [c.name.trim().toLowerCase(), c.id])
+      );
+
+      const results: { created: number; errors: { row: number; name: string; error: string }[] } =
+        { created: 0, errors: [] };
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const rowNum = i + 2; // Excel row (header = row 1)
+        const name = String(item.name ?? "").trim();
+        const unit = String(item.unit ?? "").trim();
+
+        if (!name) {
+          results.errors.push({ row: rowNum, name: `صف ${rowNum}`, error: "الاسم مطلوب" });
+          continue;
+        }
+        if (!unit) {
+          results.errors.push({ row: rowNum, name, error: "الوحدة مطلوبة" });
+          continue;
+        }
+
+        // Resolve category name → id
+        let categoryId: number | null = null;
+        if (item.categoryName) {
+          const resolved = categoryMap.get(String(item.categoryName).trim().toLowerCase());
+          if (resolved !== undefined) categoryId = resolved;
+        }
+
+        const currentStock = parseInt(String(item.currentStock ?? 0), 10);
+        const minStock = parseInt(String(item.minStock ?? 0), 10);
+
+        if (isNaN(currentStock) || currentStock < 0) {
+          results.errors.push({ row: rowNum, name, error: "الكمية الحالية يجب أن تكون رقماً موجباً" });
+          continue;
+        }
+        if (isNaN(minStock) || minStock < 0) {
+          results.errors.push({ row: rowNum, name, error: "الحد الأدنى يجب أن يكون رقماً موجباً" });
+          continue;
+        }
+
+        try {
+          const [created] = await db
+            .insert(itemsTable)
+            .values({
+              code: item.code ? String(item.code).trim() : null,
+              name,
+              categoryId,
+              itemType: "item",
+              unit,
+              currentStock,
+              minStock,
+              expiryDate: item.expiryDate ? String(item.expiryDate).trim() : null,
+              batchNumber: item.batchNumber ? String(item.batchNumber).trim() : null,
+              location: item.location ? String(item.location).trim() : null,
+              supplier: item.supplier ? String(item.supplier).trim() : null,
+              notes: item.notes ? String(item.notes).trim() : null,
+            })
+            .returning();
+          results.created++;
+          await auditLog({
+            req,
+            action: "create",
+            entityType: "item",
+            entityId: created.id,
+            details: { name: created.name, source: "bulk-import" },
+          });
+        } catch (err: unknown) {
+          const e = err as { cause?: { code?: string }; code?: string };
+          const isDuplicate = e?.cause?.code === "23505" || e?.code === "23505";
+          results.errors.push({
+            row: rowNum,
+            name,
+            error: isDuplicate ? "الرمز مستخدم مسبقاً" : "خطأ في الإدراج",
+          });
+        }
+      }
+
+      res.json(results);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);
+
 // GET /api/items/:id
 router.get("/:id", requireAuth, async (req, res) => {
   try {

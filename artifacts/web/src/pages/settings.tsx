@@ -16,6 +16,9 @@ import {
   Tag,
   Pencil,
   Trash2,
+  FileSpreadsheet,
+  Upload,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -129,6 +132,11 @@ export function SettingsPage() {
               <DatabaseBackup className="h-4 w-4" />النسخ الاحتياطي
             </TabsTrigger>
           )}
+          {isAdmin && (
+            <TabsTrigger value="import" className="gap-2">
+              <FileSpreadsheet className="h-4 w-4" />استيراد Excel
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="profile">
@@ -157,6 +165,11 @@ export function SettingsPage() {
         {isAdmin && (
           <TabsContent value="backup">
             <BackupTab />
+          </TabsContent>
+        )}
+        {isAdmin && (
+          <TabsContent value="import">
+            <ImportTab />
           </TabsContent>
         )}
       </Tabs>
@@ -689,6 +702,316 @@ function CategoriesTab() {
           )
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── Import Tab ───────────────────────────────────────────────────────────────
+
+interface ImportRow {
+  [key: string]: string | number | undefined;
+}
+
+interface ImportResult {
+  created: number;
+  errors: { row: number; name: string; error: string }[];
+}
+
+function ImportTab() {
+  const [rows, setRows] = useState<ImportRow[]>([]);
+  const [fileName, setFileName] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [result, setResult] = useState<ImportResult | null>(null);
+  const [parseError, setParseError] = useState('');
+  const queryClient = useQueryClient();
+
+  const { data: categoriesData } = useQuery<{ categories: { id: number; name: string; type: string }[] }>({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const res = await fetch('/api/categories', { credentials: 'include' });
+      if (!res.ok) throw new Error('failed');
+      return res.json() as Promise<{ categories: { id: number; name: string; type: string }[] }>;
+    },
+  });
+
+  const categories = categoriesData?.categories ?? [];
+
+  const handleExportTemplate = async () => {
+    const XLSX = await import('xlsx');
+
+    // Sheet 1: Data headers only — user fills in
+    const dataHeaders = [
+      'الرمز', 'الاسم *', 'الوحدة *', 'التصنيف',
+      'الكمية الحالية', 'الحد الأدنى',
+      'تاريخ الانتهاء', 'رقم الدفعة', 'الموقع', 'المورد', 'ملاحظات',
+    ];
+    const dataWs = XLSX.utils.aoa_to_sheet([dataHeaders]);
+    dataWs['!cols'] = [
+      { wch: 14 }, { wch: 30 }, { wch: 14 }, { wch: 22 },
+      { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 14 },
+      { wch: 16 }, { wch: 22 }, { wch: 26 },
+    ];
+
+    // Sheet 2: Instructions
+    const catList = categories.length
+      ? categories.map((c) => c.name).join(' — ')
+      : 'أضف التصنيفات أولاً من تبويب التصنيفات';
+    const instrRows = [
+      ['تعليمات الاستخدام — نموذج استيراد المواد'],
+      [],
+      ['العمود', 'الوصف', 'مطلوب؟', 'ملاحظات'],
+      ['الرمز', 'رمز أو كود المادة', 'لا', 'يجب أن يكون فريداً إذا أُدخل'],
+      ['الاسم *', 'اسم المادة', 'نعم', ''],
+      ['الوحدة *', 'وحدة القياس (مثال: قطعة، رول، لتر)', 'نعم', ''],
+      ['التصنيف', 'اسم التصنيف كما هو في النظام', 'لا', catList],
+      ['الكمية الحالية', 'الكمية المتوفرة حالياً', 'لا', 'رقم صحيح ≥ 0 — افتراضي: 0'],
+      ['الحد الأدنى', 'الحد الأدنى لإطلاق تنبيه النقص', 'لا', 'رقم صحيح ≥ 0 — افتراضي: 0'],
+      ['تاريخ الانتهاء', 'تاريخ انتهاء الصلاحية', 'لا', 'الصيغة: YYYY-MM-DD مثال: 2026-12-31'],
+      ['رقم الدفعة', 'رقم دفعة الإنتاج', 'لا', ''],
+      ['الموقع', 'موقع التخزين داخل المستودع', 'لا', ''],
+      ['المورد', 'اسم المورد أو الشركة', 'لا', ''],
+      ['ملاحظات', 'أي ملاحظات إضافية', 'لا', ''],
+      [],
+      ['مثال على صف بيانات:'],
+      ['MED-001', 'شاش طبي معقم', 'رول', categories[0]?.name ?? '', '50', '10', '2026-12-31', 'B-2024', 'رف A3', 'شركة الأدوية الوطنية', ''],
+    ];
+    const instrWs = XLSX.utils.aoa_to_sheet(instrRows);
+    instrWs['!cols'] = [
+      { wch: 20 }, { wch: 36 }, { wch: 10 }, { wch: 55 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, dataWs, 'البيانات');
+    XLSX.utils.book_append_sheet(wb, instrWs, 'التعليمات');
+    XLSX.writeFile(wb, 'نموذج_استيراد_المواد.xlsx');
+    toast.success('تم تحميل النموذج بنجاح');
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setParseError('');
+    setResult(null);
+    setFileName(file.name);
+    setRows([]);
+
+    try {
+      const XLSX = await import('xlsx');
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: 'buffer', cellDates: false });
+
+      // Prefer "البيانات" sheet, otherwise first sheet
+      const sheetName = wb.SheetNames.includes('البيانات')
+        ? 'البيانات'
+        : wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const data = XLSX.utils.sheet_to_json<ImportRow>(ws, { defval: '' });
+
+      if (data.length === 0) {
+        setParseError('لم يتم العثور على بيانات في الملف — تأكد من تعبئة ورقة "البيانات"');
+        return;
+      }
+      setRows(data);
+    } catch {
+      setParseError('فشل قراءة الملف — تأكد أنه ملف Excel صالح (.xlsx أو .xls)');
+    }
+    e.target.value = '';
+  };
+
+  const getName = (r: ImportRow) =>
+    String(r['الاسم *'] ?? r['الاسم'] ?? '').trim();
+  const getUnit = (r: ImportRow) =>
+    String(r['الوحدة *'] ?? r['الوحدة'] ?? '').trim();
+
+  const handleImport = async () => {
+    if (rows.length === 0) return;
+    setImporting(true);
+    setResult(null);
+
+    const payload = rows.map((r) => ({
+      code: String(r['الرمز'] ?? '').trim() || null,
+      name: getName(r),
+      unit: getUnit(r),
+      categoryName: String(r['التصنيف'] ?? '').trim() || null,
+      currentStock: r['الكمية الحالية'] ?? 0,
+      minStock: r['الحد الأدنى'] ?? 0,
+      expiryDate: String(r['تاريخ الانتهاء'] ?? '').trim() || null,
+      batchNumber: String(r['رقم الدفعة'] ?? '').trim() || null,
+      location: String(r['الموقع'] ?? '').trim() || null,
+      supplier: String(r['المورد'] ?? '').trim() || null,
+      notes: String(r['ملاحظات'] ?? '').trim() || null,
+    }));
+
+    try {
+      const res = await fetch('/api/items/bulk-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      });
+      const data = (await res.json()) as ImportResult;
+      setResult(data);
+      if (data.created > 0) {
+        toast.success(`تم استيراد ${data.created} مادة بنجاح`);
+        void queryClient.invalidateQueries({ queryKey: ['items'] });
+        setRows([]);
+        setFileName('');
+      } else {
+        toast.error('لم يتم استيراد أي مادة — راجع الأخطاء أدناه');
+      }
+    } catch {
+      toast.error('حدث خطأ أثناء الاستيراد');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const previewCols: { label: string; get: (r: ImportRow) => string }[] = [
+    { label: 'الاسم', get: (r) => getName(r) || '—' },
+    { label: 'الوحدة', get: (r) => getUnit(r) || '—' },
+    { label: 'التصنيف', get: (r) => String(r['التصنيف'] ?? '') || '—' },
+    { label: 'الكمية', get: (r) => String(r['الكمية الحالية'] ?? 0) },
+    { label: 'الحد الأدنى', get: (r) => String(r['الحد الأدنى'] ?? 0) },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h3 className="text-base font-semibold">استيراد المواد من Excel</h3>
+        <p className="text-sm text-muted-foreground mt-1">
+          حمّل النموذج الفارغ، أدخل بيانات المواد، ثم استوردها للنظام دفعةً واحدة.
+        </p>
+      </div>
+
+      {/* Step 1 — Download template */}
+      <div className="rounded-lg border p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">١</span>
+          <span className="font-medium text-sm">حمّل النموذج الفارغ</span>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          ملف Excel جاهز بأعمدة المواد وورقة تعليمات مفصّلة.
+          الحقلان المطلوبان هما <strong>الاسم</strong> و<strong>الوحدة</strong> فقط.
+        </p>
+        <Button variant="outline" size="sm" className="gap-2" onClick={() => void handleExportTemplate()}>
+          <Download className="h-4 w-4" />
+          تحميل نموذج Excel
+        </Button>
+      </div>
+
+      {/* Step 2 — Upload file */}
+      <div className="rounded-lg border p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">٢</span>
+          <span className="font-medium text-sm">ارفع الملف المعبأ</span>
+        </div>
+        <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/40 transition-colors">
+          <div className="flex flex-col items-center gap-1 pointer-events-none">
+            <Upload className="h-6 w-6 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">
+              {fileName ? fileName : 'اضغط لاختيار ملف Excel'}
+            </span>
+            {!fileName && <span className="text-xs text-muted-foreground">.xlsx أو .xls</span>}
+          </div>
+          <input
+            type="file"
+            className="hidden"
+            accept=".xlsx,.xls"
+            onChange={(e) => void handleFileChange(e)}
+          />
+        </label>
+        {parseError && <p className="text-sm text-destructive">{parseError}</p>}
+        {rows.length > 0 && (
+          <p className="text-sm text-green-600 dark:text-green-400 flex items-center gap-1.5">
+            <CheckCircle2 className="h-4 w-4" />
+            تم قراءة <strong>{rows.length}</strong> صف من الملف
+          </p>
+        )}
+      </div>
+
+      {/* Preview table */}
+      {rows.length > 0 && (
+        <div className="rounded-lg border overflow-hidden">
+          <div className="px-3 py-2 border-b bg-muted/30 flex items-center justify-between">
+            <span className="text-sm font-medium">معاينة البيانات</span>
+            <span className="text-xs text-muted-foreground">
+              {rows.length > 5 ? `أول 5 صفوف من ${rows.length}` : `${rows.length} صف`}
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b bg-muted/20">
+                  {previewCols.map((c) => (
+                    <th key={c.label} className="px-3 py-2 text-right font-medium text-muted-foreground">
+                      {c.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.slice(0, 5).map((r, i) => (
+                  <tr key={i} className="border-b last:border-0 hover:bg-muted/10">
+                    {previewCols.map((c) => (
+                      <td key={c.label} className="px-3 py-2">{c.get(r)}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3 — Import */}
+      {rows.length > 0 && (
+        <div className="rounded-lg border p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">٣</span>
+            <span className="font-medium text-sm">ابدأ الاستيراد</span>
+          </div>
+          <Button onClick={() => void handleImport()} disabled={importing} className="gap-2">
+            {importing
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : <FileSpreadsheet className="h-4 w-4" />}
+            {importing ? 'جارٍ الاستيراد…' : `استيراد ${rows.length} مادة`}
+          </Button>
+        </div>
+      )}
+
+      {/* Results */}
+      {result && (
+        <div className={`rounded-lg border p-4 space-y-2 ${
+          result.created > 0
+            ? 'border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900'
+            : 'border-destructive/30 bg-destructive/5'
+        }`}>
+          <div className="flex items-center gap-2">
+            {result.created > 0
+              ? <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+              : <X className="h-5 w-5 text-destructive" />}
+            <span className="font-medium text-sm">
+              {result.created > 0
+                ? `تم استيراد ${result.created} مادة بنجاح`
+                : 'لم يتم استيراد أي مادة'}
+            </span>
+          </div>
+          {result.errors.length > 0 && (
+            <div className="mt-2 space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">
+                الأخطاء ({result.errors.length} صف):
+              </p>
+              <div className="max-h-36 overflow-y-auto space-y-0.5 rounded border bg-background p-2">
+                {result.errors.map((e, i) => (
+                  <p key={i} className="text-xs text-destructive">
+                    صف {e.row}: <span className="font-medium">{e.name}</span> — {e.error}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
