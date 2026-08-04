@@ -30,9 +30,13 @@ description: Tracks which implementation phases are done and which remain
 `artifacts/api-server/seed.mjs` seeds: 4 categories, admin user, 8 recipients, 8 exit reasons.
 Run with: `cd artifacts/api-server && node seed.mjs`
 
-## Known remaining items (proposed as follow-up tasks)
-- Print voucher hardcodes org name (should read from settings)
-- No text search in transactions list (only date/type filters)
+## Resolved items (no longer pending)
+- Print voucher now reads orgName from systemSettingsTable ✅
+- Transactions list now has debounced text search (documentNumber, itemName, equipmentName, recipientName) ✅
+- Logo (@assets alias) now points to artifacts/web/src/assets/logo.jpeg ✅
+- Sidebar is collapsible (SidebarProvider context + localStorage) ✅
+- Designer signature (إبراهيم الصيداوي · 0933706403) in sidebar footer ✅
+- App version v1.0.0 in sidebar footer ✅
 
 ## Phase 7 (Deploy) — Pending
 
