@@ -4,8 +4,8 @@
  * يقرأ ملف عهدة المستودع ويُنشئ سجلات "رصيد افتتاحي" في جدول transactions
  *
  * الاستخدام:
- *   node scripts/import-excel.mjs [مسار الملف]
- *   node scripts/import-excel.mjs attached_assets/عهدة_مستودع_منظومة_الإسعاف_والطوارئ_بدمشق_1785745853642.xlsx
+ *   node scripts/import-excel.mjs <مسار الملف>
+ *   node scripts/import-excel.mjs /path/to/عهدة_المستودع.xlsx
  */
 
 import { readFileSync } from "fs";
@@ -29,9 +29,12 @@ const sql = postgres(DATABASE_URL);
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const EXCEL_PATH =
-  process.argv[2] ??
-  join(ROOT, "attached_assets", "عهدة_مستودع_منظومة_الإسعاف_والطوارئ_بدمشق_1785745853642.xlsx");
+const EXCEL_PATH = process.argv[2];
+if (!EXCEL_PATH) {
+  console.error("❌ يجب تمرير مسار ملف Excel كوسيط:");
+  console.error("   node scripts/import-excel.mjs <مسار الملف>");
+  process.exit(1);
+}
 
 // Column name mappings — Arabic names as they appear in the Excel sheet
 // We try multiple common variants in order
