@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   Clock,
   X,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,13 +44,16 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { ItemForm } from './item-form';
+import { AdjustmentForm } from './adjustment-form';
 
 export function ItemsPage() {
   const [matchNew] = useRoute('/items/new');
   const [matchEdit, params] = useRoute('/items/:id/edit');
+  const [matchAdjust, adjustParams] = useRoute('/items/:id/adjust');
 
   if (matchNew) return <ItemForm />;
   if (matchEdit && params?.id) return <ItemForm itemId={parseInt(params.id)} />;
+  if (matchAdjust && adjustParams?.id) return <AdjustmentForm preselectedItemId={parseInt(adjustParams.id)} />;
 
   return <ItemsList />;
 }
@@ -288,6 +292,10 @@ function ItemsList() {
                             <DropdownMenuItem onClick={() => setLocation(`/items/${item.id}/edit`)}>
                               <Edit className="ml-2 h-4 w-4" />
                               تعديل
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setLocation(`/items/${item.id}/adjust`)}>
+                              <SlidersHorizontal className="ml-2 h-4 w-4 text-amber-600" />
+                              تسوية جرد
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive focus:bg-destructive/10"

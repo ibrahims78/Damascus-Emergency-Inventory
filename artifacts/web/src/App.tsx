@@ -22,6 +22,7 @@ import { UsersPage } from '@/pages/users';
 import { SettingsPage } from '@/pages/settings';
 import { AuditPage } from '@/pages/audit';
 import { PrintTransactionPage } from '@/pages/print-transaction';
+import { AdjustmentForm } from '@/pages/adjustment-form';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -86,6 +87,7 @@ function Router() {
       <Route path="/items"><ProtectedRoute component={ItemsPage} /></Route>
       <Route path="/items/new"><ProtectedRoute component={ItemsPage} /></Route>
       <Route path="/items/:id/edit"><ProtectedRoute component={ItemsPage} /></Route>
+      <Route path="/items/:id/adjust"><ProtectedRoute component={ItemsPage} /></Route>
 
       <Route path="/equipment"><ProtectedRoute component={EquipmentPage} /></Route>
       <Route path="/equipment/new"><ProtectedRoute component={EquipmentPage} /></Route>

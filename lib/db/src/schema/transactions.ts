@@ -15,7 +15,7 @@ import { usersTable } from "./users";
 
 export const transactionsTable = pgTable("transactions", {
   id: serial("id").primaryKey(),
-  type: text("type").notNull().$type<"in" | "out" | "init">(),
+  type: text("type").notNull().$type<"in" | "out" | "init" | "adjust">(),
   itemType: text("item_type").notNull().$type<"item" | "equipment">(),
   itemId: integer("item_id").references(() => itemsTable.id),
   equipmentId: integer("equipment_id").references(() => equipmentTable.id),

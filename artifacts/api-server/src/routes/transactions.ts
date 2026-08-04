@@ -6,9 +6,9 @@ import { eq, and, ilike, gte, lte, sql } from "drizzle-orm";
 
 const router = Router();
 
-async function generateDocumentNumber(type: "in" | "out" | "init"): Promise<string> {
+async function generateDocumentNumber(type: "in" | "out" | "init" | "adjust"): Promise<string> {
   const year = new Date().getFullYear();
-  const prefix = type === "in" ? "IN" : type === "out" ? "OUT" : "INIT";
+  const prefix = type === "in" ? "IN" : type === "out" ? "OUT" : type === "adjust" ? "ADJ" : "INIT";
   const result = await db
     .select({ count: sql<number>`count(*)` })
     .from(transactionsTable)
@@ -285,6 +285,93 @@ router.get("/:id", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+// POST /api/transactions/adjust
+router.post(
+  "/adjust",
+  requireAuth,
+  requireRole("admin", "warehouse_manager"),
+  async (req, res) => {
+    try {
+      const { itemId, newStock, reason, notes } = req.body;
+      const user = res.locals.user;
+
+      if (!itemId) {
+        res.status(400).json({ error: "itemId is required" });
+        return;
+      }
+      if (newStock === undefined || newStock === null || newStock === "") {
+        res.status(400).json({ error: "newStock is required" });
+        return;
+      }
+      const newStockNum = parseInt(newStock, 10);
+      if (isNaN(newStockNum) || newStockNum < 0) {
+        res.status(400).json({ error: "newStock must be a non-negative number" });
+        return;
+      }
+      if (!reason || !String(reason).trim()) {
+        res.status(400).json({ error: "reason is required" });
+        return;
+      }
+
+      const itemIdNum = parseInt(itemId, 10);
+      const [item] = await db
+        .select({ currentStock: itemsTable.currentStock, name: itemsTable.name })
+        .from(itemsTable)
+        .where(eq(itemsTable.id, itemIdNum));
+
+      if (!item) {
+        res.status(404).json({ error: "Item not found" });
+        return;
+      }
+
+      const previousStock = item.currentStock;
+      const delta = newStockNum - previousStock;
+      const documentNumber = await generateDocumentNumber("adjust");
+
+      const fullNotes = [
+        `تسوية جرد — السبب: ${String(reason).trim()}`,
+        `الكمية قبل: ${previousStock}، الكمية بعد: ${newStockNum}، الفرق: ${delta >= 0 ? "+" : ""}${delta}`,
+        notes ? `ملاحظات: ${notes}` : null,
+      ]
+        .filter(Boolean)
+        .join(". ");
+
+      await db.transaction(async (tx) => {
+        const [transaction] = await tx
+          .insert(transactionsTable)
+          .values({
+            type: "adjust" as never,
+            itemType: "item",
+            itemId: itemIdNum,
+            quantity: delta,
+            documentNumber,
+            notes: fullNotes,
+            createdBy: user.id,
+          })
+          .returning();
+
+        await tx
+          .update(itemsTable)
+          .set({ currentStock: newStockNum, updatedAt: new Date() })
+          .where(eq(itemsTable.id, itemIdNum));
+
+        await auditLog({
+          req,
+          action: "adjust",
+          entityType: "transaction",
+          entityId: transaction.id,
+          details: { documentNumber, itemId: itemIdNum, itemName: item.name, previousStock, newStock: newStockNum, delta },
+        });
+
+        res.status(201).json(transaction);
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);
 
 // GET /api/transactions/:id/print
 router.get("/:id/print", requireAuth, async (req, res) => {

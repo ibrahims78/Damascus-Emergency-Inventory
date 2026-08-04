@@ -41,7 +41,7 @@ export function TransactionsPage() {
 
 const PAGE_SIZE = 50;
 
-type TypeFilter = 'all' | 'in' | 'out';
+type TypeFilter = 'all' | 'in' | 'out' | 'adjust';
 type ItemTypeFilter = 'all' | 'item' | 'equipment';
 
 function typeBadge(type: string) {
@@ -55,6 +55,12 @@ function typeBadge(type: string) {
     return (
       <Badge variant="destructive" className="text-xs font-medium">
         إخراج
+      </Badge>
+    );
+  if (type === 'adjust')
+    return (
+      <Badge className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700 border text-xs font-medium">
+        تسوية جرد
       </Badge>
     );
   return (
@@ -140,6 +146,7 @@ function TransactionsList() {
                 <SelectItem value="all">الكل</SelectItem>
                 <SelectItem value="in">إدخال فقط</SelectItem>
                 <SelectItem value="out">إخراج فقط</SelectItem>
+                <SelectItem value="adjust">تسوية جرد فقط</SelectItem>
               </SelectContent>
             </Select>
           </div>
