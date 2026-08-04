@@ -24,10 +24,12 @@ router.post("/", requireAuth, async (req, res) => {
   try {
     const { name, type } = req.body as { name?: string; type?: string };
     if (!name || !name.trim()) {
-      return res.status(400).json({ error: "اسم التصنيف مطلوب" });
+      res.status(400).json({ error: "اسم التصنيف مطلوب" });
+      return;
     }
     if (!type || !["consumable", "equipment"].includes(type)) {
-      return res.status(400).json({ error: "نوع التصنيف مطلوب (consumable أو equipment)" });
+      res.status(400).json({ error: "نوع التصنيف مطلوب (consumable أو equipment)" });
+      return;
     }
     const [created] = await db
       .insert(categoriesTable)
@@ -36,7 +38,8 @@ router.post("/", requireAuth, async (req, res) => {
     res.status(201).json(created);
   } catch (err: any) {
     if (err?.code === "23505") {
-      return res.status(409).json({ error: "هذا التصنيف موجود مسبقاً" });
+      res.status(409).json({ error: "هذا التصنيف موجود مسبقاً" });
+      return;
     }
     console.error(err);
     res.status(500).json({ error: "Internal server error" });
@@ -46,10 +49,11 @@ router.post("/", requireAuth, async (req, res) => {
 // PUT /api/categories/:id
 router.put("/:id", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     const { name, type } = req.body as { name?: string; type?: string };
     if (!name || !name.trim()) {
-      return res.status(400).json({ error: "اسم التصنيف مطلوب" });
+      res.status(400).json({ error: "اسم التصنيف مطلوب" });
+      return;
     }
     const updateData: Partial<typeof categoriesTable.$inferInsert> = { name: name.trim() };
     if (type && ["consumable", "equipment"].includes(type)) {
@@ -60,11 +64,15 @@ router.put("/:id", requireAuth, async (req, res) => {
       .set(updateData)
       .where(eq(categoriesTable.id, id))
       .returning();
-    if (!updated) return res.status(404).json({ error: "التصنيف غير موجود" });
+    if (!updated) {
+      res.status(404).json({ error: "التصنيف غير موجود" });
+      return;
+    }
     res.json(updated);
   } catch (err: any) {
     if (err?.code === "23505") {
-      return res.status(409).json({ error: "هذا التصنيف موجود مسبقاً" });
+      res.status(409).json({ error: "هذا التصنيف موجود مسبقاً" });
+      return;
     }
     console.error(err);
     res.status(500).json({ error: "Internal server error" });
@@ -74,17 +82,21 @@ router.put("/:id", requireAuth, async (req, res) => {
 // DELETE /api/categories/:id
 router.delete("/:id", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     const [deleted] = await db
       .delete(categoriesTable)
       .where(eq(categoriesTable.id, id))
       .returning();
-    if (!deleted) return res.status(404).json({ error: "التصنيف غير موجود" });
+    if (!deleted) {
+      res.status(404).json({ error: "التصنيف غير موجود" });
+      return;
+    }
     res.json({ success: true });
   } catch (err: any) {
     // FK violation — category is in use
     if (err?.code === "23503") {
-      return res.status(409).json({ error: "لا يمكن حذف التصنيف لأنه مرتبط بمواد موجودة" });
+      res.status(409).json({ error: "لا يمكن حذف التصنيف لأنه مرتبط بمواد موجودة" });
+      return;
     }
     console.error(err);
     res.status(500).json({ error: "Internal server error" });

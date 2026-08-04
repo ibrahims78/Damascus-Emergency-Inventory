@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { 
@@ -8,7 +8,7 @@ import {
   useCreateEquipment, 
   useUpdateEquipment
 } from '@workspace/api-client-react';
-import { ArrowRight, Save } from 'lucide-react';
+import { ArrowRight, Save, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -29,19 +29,31 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 
-const equipmentSchema = z.object({
-  name: z.string().min(2, 'الاسم مطلوب'),
-  equipmentType: z.string().optional().nullable(),
-  model: z.string().optional().nullable(),
-  serialNumber: z.string().optional().nullable(),
-  condition: z.string().default('good'),
-  manufactureYear: z.coerce.number().optional().nullable(),
-  originCountry: z.string().optional().nullable(),
-  currentHolder: z.string().optional().nullable(),
-  notes: z.string().optional().nullable(),
-  quantity: z.coerce.number().int().min(1, 'الكمية يجب أن تكون 1 على الأقل').default(1),
-  minQuantity: z.coerce.number().int().min(0, 'الحد الأدنى يجب أن يكون 0 أو أكثر').default(0),
-});
+const equipmentSchema = z
+  .object({
+    name: z.string().min(2, 'الاسم مطلوب'),
+    equipmentType: z.string().optional().nullable(),
+    model: z.string().optional().nullable(),
+    serialNumber: z.string().optional().nullable(),
+    condition: z.string().default('good'),
+    manufactureYear: z.coerce.number().optional().nullable(),
+    originCountry: z.string().optional().nullable(),
+    currentHolder: z.string().optional().nullable(),
+    notes: z.string().optional().nullable(),
+    quantity: z.coerce.number().int().min(1, 'الكمية يجب أن تكون 1 على الأقل').default(1),
+    minQuantity: z.coerce.number().int().min(0, 'الحد الأدنى يجب أن يكون 0 أو أكثر').default(0),
+  })
+  .refine(
+    (data) => {
+      const sn = data.serialNumber?.trim();
+      if (sn && data.quantity > 1) return false;
+      return true;
+    },
+    {
+      message: 'التجهيزات ذات الرقم التسلسلي يجب أن تكون كميتها 1 فقط — الرقم التسلسلي يعرّف جهازاً واحداً بعينه',
+      path: ['quantity'],
+    }
+  );
 
 type EquipmentFormValues = z.infer<typeof equipmentSchema>;
 
@@ -94,6 +106,28 @@ export function EquipmentForm({ equipmentId }: { equipmentId?: number }) {
     }
   }, [eq, isEditing, form]);
 
+  // Watch serial number to auto-lock quantity to 1
+  const serialNumberValue = useWatch({ control: form.control, name: 'serialNumber' });
+  const hasSerialNumber = !!(serialNumberValue?.trim());
+
+  useEffect(() => {
+    if (hasSerialNumber) {
+      const current = form.getValues('quantity');
+      if (current !== 1) {
+        form.setValue('quantity', 1, { shouldValidate: true });
+      }
+    }
+  }, [hasSerialNumber, form]);
+
+  const getServerErrorMessage = (err: unknown): string => {
+    if (err && typeof err === 'object' && 'response' in err) {
+      const res = (err as any).response;
+      if (res?.data?.error) return res.data.error;
+      if (res?.data?.message) return res.data.message;
+    }
+    return '';
+  };
+
   const onSubmit = (data: EquipmentFormValues) => {
     if (isEditing) {
       updateMutation.mutate({ 
@@ -107,7 +141,13 @@ export function EquipmentForm({ equipmentId }: { equipmentId?: number }) {
           toast({ description: "تم تعديل التجهيز بنجاح" });
           setLocation('/equipment');
         },
-        onError: () => toast({ description: "حدث خطأ أثناء حفظ التجهيز", variant: "destructive" }),
+        onError: (err) => {
+          const msg = getServerErrorMessage(err);
+          toast({
+            description: msg || "حدث خطأ أثناء حفظ التجهيز",
+            variant: "destructive",
+          });
+        },
       });
     } else {
       createMutation.mutate({ 
@@ -120,7 +160,13 @@ export function EquipmentForm({ equipmentId }: { equipmentId?: number }) {
           toast({ description: "تم إضافة التجهيز بنجاح" });
           setLocation('/equipment');
         },
-        onError: () => toast({ description: "حدث خطأ أثناء إضافة التجهيز", variant: "destructive" }),
+        onError: (err) => {
+          const msg = getServerErrorMessage(err);
+          toast({
+            description: msg || "حدث خطأ أثناء إضافة التجهيز",
+            variant: "destructive",
+          });
+        },
       });
     }
   };
@@ -153,11 +199,30 @@ export function EquipmentForm({ equipmentId }: { equipmentId?: number }) {
                 name="quantity"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>الكمية / العدد</FormLabel>
+                    <FormLabel className="flex items-center gap-2">
+                      الكمية / العدد
+                      {hasSerialNumber && (
+                        <span className="flex items-center gap-1 text-xs font-normal text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                          <Lock className="h-3 w-3" />
+                          مقيّدة بالرقم التسلسلي
+                        </span>
+                      )}
+                    </FormLabel>
                     <FormControl>
-                      <Input type="number" min={1} {...field} />
+                      <Input
+                        type="number"
+                        min={1}
+                        max={hasSerialNumber ? 1 : undefined}
+                        readOnly={hasSerialNumber}
+                        className={hasSerialNumber ? 'bg-muted cursor-not-allowed' : ''}
+                        {...field}
+                      />
                     </FormControl>
-                    <p className="text-xs text-muted-foreground">عدد القطع المتوفرة حالياً</p>
+                    <p className="text-xs text-muted-foreground">
+                      {hasSerialNumber
+                        ? 'الرقم التسلسلي يعرّف جهازاً واحداً بعينه — الكمية ثابتة عند 1'
+                        : 'عدد القطع المتوفرة حالياً (للمستلزمات بدون رقم تسلسلي)'}
+                    </p>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -228,8 +293,9 @@ export function EquipmentForm({ equipmentId }: { equipmentId?: number }) {
                   <FormItem>
                     <FormLabel>الرقم التسلسلي (S/N)</FormLabel>
                     <FormControl>
-                      <Input {...field} value={field.value || ''} dir="ltr" className="text-right" />
+                      <Input {...field} value={field.value || ''} dir="ltr" className="text-right" placeholder="اتركه فارغاً للمستلزمات المجمّعة" />
                     </FormControl>
+                    <p className="text-xs text-muted-foreground">إدخال رقم تسلسلي يُقيّد الكمية تلقائياً عند 1</p>
                     <FormMessage />
                   </FormItem>
                 )}

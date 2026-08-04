@@ -157,8 +157,8 @@ export function PrintTransactionPage() {
             {isOut && tx.recipientPerson && (
               <InfoRow label="اسم المستلم" value={tx.recipientPerson} />
             )}
-            {isOut && tx.exitReasonName && (
-              <InfoRow label="سبب الإخراج" value={tx.exitReasonName} />
+            {isOut && tx.exitReason && (
+              <InfoRow label="سبب الإخراج" value={tx.exitReason} />
             )}
             {(isIn || !isOut) && tx.supplier && (
               <InfoRow label="المورد" value={tx.supplier} />

@@ -297,6 +297,12 @@ export interface Transaction {
   exitReasonId?: number | null;
   /** @nullable */
   exitReason?: string | null;
+  /** @nullable */
+  supplier?: string | null;
+  /** @nullable */
+  batchNumber?: string | null;
+  /** @nullable */
+  expiryDate?: string | null;
   documentNumber: string;
   /** @nullable */
   notes?: string | null;

@@ -1151,6 +1151,12 @@ components:
           type: ["integer", "null"]
         exitReason:
           type: ["string", "null"]
+        supplier:
+          type: ["string", "null"]
+        batchNumber:
+          type: ["string", "null"]
+        expiryDate:
+          type: ["string", "null"]
         documentNumber:
           type: string
         notes:

@@ -76,24 +76,39 @@ router.post(
       }
       const qty = quantity !== undefined ? parseInt(String(quantity), 10) : 1;
       const minQty = minQuantity !== undefined ? parseInt(String(minQuantity), 10) : 0;
+      const finalQty = isNaN(qty) || qty < 1 ? 1 : qty;
+      const sn = serialNumber ? String(serialNumber).trim() : null;
+
+      // A serial number uniquely identifies one physical unit — quantity must be 1
+      if (sn && finalQty > 1) {
+        res.status(400).json({
+          error: "التجهيزات ذات الرقم التسلسلي يجب أن تكون كميتها 1 فقط، لأن الرقم التسلسلي يعرّف جهازاً واحداً بعينه",
+        });
+        return;
+      }
+
       const [eq_] = await db
         .insert(equipmentTable)
         .values({
           name,
           equipmentType: equipmentType || null,
           model: model || null,
-          serialNumber: serialNumber || null,
+          serialNumber: sn,
           condition,
           manufactureYear: manufactureYear ? parseInt(manufactureYear, 10) : null,
           originCountry: originCountry || null,
           currentHolder: currentHolder || null,
           notes: notes || null,
-          quantity: isNaN(qty) || qty < 1 ? 1 : qty,
+          quantity: finalQty,
           minQuantity: isNaN(minQty) || minQty < 0 ? 0 : minQty,
         })
         .returning();
       res.status(201).json(eq_);
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.cause?.code === "23505" || err?.code === "23505") {
+        res.status(409).json({ error: "الرقم التسلسلي مسجّل مسبقاً لتجهيز آخر في النظام" });
+        return;
+      }
       console.error(err);
       res.status(500).json({ error: "Internal server error" });
     }
@@ -282,7 +297,7 @@ router.put(
       if (name !== undefined) updates.name = name;
       if (equipmentType !== undefined) updates.equipmentType = equipmentType || null;
       if (model !== undefined) updates.model = model || null;
-      if (serialNumber !== undefined) updates.serialNumber = serialNumber || null;
+      if (serialNumber !== undefined) updates.serialNumber = serialNumber ? String(serialNumber).trim() : null;
       if (condition !== undefined) updates.condition = condition;
       if (manufactureYear !== undefined)
         updates.manufactureYear = manufactureYear ? parseInt(manufactureYear, 10) : null;
@@ -298,6 +313,25 @@ router.put(
         updates.minQuantity = isNaN(minQty) || minQty < 0 ? 0 : minQty;
       }
 
+      // Determine effective serialNumber and quantity after merges
+      // We must check against the current record if only one of them is being updated
+      if (updates.serialNumber !== undefined || updates.quantity !== undefined) {
+        const current = await db.query.equipmentTable.findFirst({
+          where: (e, { eq: eqFn }) => eqFn(e.id, id),
+          columns: { serialNumber: true, quantity: true },
+        });
+        if (current) {
+          const effectiveSN = updates.serialNumber !== undefined ? updates.serialNumber : current.serialNumber;
+          const effectiveQty = updates.quantity !== undefined ? updates.quantity : current.quantity;
+          if (effectiveSN && effectiveQty > 1) {
+            res.status(400).json({
+              error: "التجهيزات ذات الرقم التسلسلي يجب أن تكون كميتها 1 فقط، لأن الرقم التسلسلي يعرّف جهازاً واحداً بعينه",
+            });
+            return;
+          }
+        }
+      }
+
       const [eq_] = await db
         .update(equipmentTable)
         .set({ ...updates, updatedAt: new Date() })
@@ -309,7 +343,11 @@ router.put(
         return;
       }
       res.json(eq_);
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.cause?.code === "23505" || err?.code === "23505") {
+        res.status(409).json({ error: "الرقم التسلسلي مسجّل مسبقاً لتجهيز آخر في النظام" });
+        return;
+      }
       console.error(err);
       res.status(500).json({ error: "Internal server error" });
     }
