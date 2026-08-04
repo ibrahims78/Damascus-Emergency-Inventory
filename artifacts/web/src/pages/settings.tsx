@@ -13,12 +13,22 @@ import {
   Plus,
   X,
   CheckCircle2,
+  Tag,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -105,6 +115,11 @@ export function SettingsPage() {
             </TabsTrigger>
           )}
           {isAdmin && (
+            <TabsTrigger value="categories" className="gap-2">
+              <Tag className="h-4 w-4" />التصنيفات
+            </TabsTrigger>
+          )}
+          {isAdmin && (
             <TabsTrigger value="units" className="gap-2">
               <Ruler className="h-4 w-4" />وحدات القياس
             </TabsTrigger>
@@ -127,6 +142,11 @@ export function SettingsPage() {
         {isAdmin && (
           <TabsContent value="org">
             <OrgTab />
+          </TabsContent>
+        )}
+        {isAdmin && (
+          <TabsContent value="categories">
+            <CategoriesTab />
           </TabsContent>
         )}
         {isAdmin && (
@@ -483,6 +503,191 @@ function BackupTab() {
           <li>للاستعادة من نسخة احتياطية، تواصل مع مسؤول النظام التقني</li>
           <li>الملف المُصدَّر بصيغة JSON — لا يحتوي على كلمات مرور</li>
         </ul>
+      </div>
+    </div>
+  );
+}
+
+// ─── Categories Tab ───────────────────────────────────────────────────────────
+
+interface Category {
+  id: number;
+  name: string;
+  type: 'consumable' | 'equipment';
+}
+
+function CategoriesTab() {
+  const qc = useQueryClient();
+  const [newName, setNewName] = useState('');
+  const [newType, setNewType] = useState<'consumable' | 'equipment'>('consumable');
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editName, setEditName] = useState('');
+
+  const { data: categories = [], isLoading } = useQuery<Category[]>({
+    queryKey: ['categories-settings'],
+    queryFn: async () => {
+      const res = await fetch('/api/categories', { credentials: 'include' });
+      if (!res.ok) throw new Error('فشل جلب التصنيفات');
+      return res.json();
+    },
+  });
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['categories-settings'] });
+    qc.invalidateQueries({ queryKey: ['listCategories'] });
+  };
+
+  const createMutation = useMutation({
+    mutationFn: async (data: { name: string; type: string }) => {
+      const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({})) as { error?: string }; throw new Error(e.error || 'خطأ'); }
+      return res.json();
+    },
+    onSuccess: () => { invalidate(); setNewName(''); toast.success('تم إضافة التصنيف'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: number; name: string }) => {
+      const res = await fetch(`/api/categories/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({})) as { error?: string }; throw new Error(e.error || 'خطأ'); }
+      return res.json();
+    },
+    onSuccess: () => { invalidate(); setEditId(null); toast.success('تم تعديل التصنيف'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/categories/${id}`, { method: 'DELETE', credentials: 'include' });
+      if (!res.ok) { const e = await res.json().catch(() => ({})) as { error?: string }; throw new Error(e.error || 'خطأ'); }
+    },
+    onSuccess: () => { invalidate(); toast.success('تم حذف التصنيف'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const typeLabel = { consumable: 'مستهلكات', equipment: 'تجهيزات' };
+  const consumable = categories.filter((c) => c.type === 'consumable');
+  const equipment  = categories.filter((c) => c.type === 'equipment');
+
+  return (
+    <div className="space-y-6">
+      {/* Add new */}
+      <div className="bg-card border rounded-lg p-6 space-y-4">
+        <h2 className="font-semibold text-lg">إضافة تصنيف جديد</h2>
+        <div className="flex flex-wrap gap-3 items-end">
+          <div className="space-y-1.5 flex-1 min-w-[180px]">
+            <Label htmlFor="cat-name-s">اسم التصنيف</Label>
+            <Input
+              id="cat-name-s"
+              placeholder="مثال: مستهلكات طبية، أدوية..."
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && newName.trim() && createMutation.mutate({ name: newName.trim(), type: newType })}
+            />
+          </div>
+          <div className="space-y-1.5 w-40">
+            <Label>النوع</Label>
+            <Select value={newType} onValueChange={(v) => setNewType(v as 'consumable' | 'equipment')}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="consumable">مستهلكات (مواد)</SelectItem>
+                <SelectItem value="equipment">تجهيزات</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            onClick={() => newName.trim() && createMutation.mutate({ name: newName.trim(), type: newType })}
+            disabled={!newName.trim() || createMutation.isPending}
+            className="gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            إضافة
+          </Button>
+        </div>
+      </div>
+
+      {/* List */}
+      <div className="bg-card border rounded-lg divide-y">
+        <div className="px-5 py-3 bg-muted/40 flex items-center gap-2">
+          <Tag className="w-4 h-4 text-muted-foreground" />
+          <span className="font-semibold text-sm">
+            التصنيفات المسجّلة ({categories.length})
+          </span>
+        </div>
+
+        {isLoading ? (
+          <div className="px-5 py-8 text-center text-sm text-muted-foreground">جاري التحميل...</div>
+        ) : categories.length === 0 ? (
+          <div className="px-5 py-8 text-center text-sm text-muted-foreground">
+            لا توجد تصنيفات بعد — أضف واحداً من الأعلى
+          </div>
+        ) : (
+          [
+            { label: 'مستهلكات (مواد)', items: consumable },
+            { label: 'تجهيزات', items: equipment },
+          ].map(({ label, items }) =>
+            items.length === 0 ? null : (
+              <div key={label}>
+                <div className="px-5 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-muted/20">
+                  {label}
+                </div>
+                {items.map((cat) => (
+                  <div key={cat.id} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/20 transition-colors">
+                    {editId === cat.id ? (
+                      <>
+                        <Input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          className="h-8 flex-1"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') updateMutation.mutate({ id: cat.id, name: editName });
+                            if (e.key === 'Escape') setEditId(null);
+                          }}
+                        />
+                        <Button size="sm" className="h-8 gap-1" onClick={() => updateMutation.mutate({ id: cat.id, name: editName })} disabled={updateMutation.isPending}>
+                          <Save className="w-3.5 h-3.5" />حفظ
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8" onClick={() => setEditId(null)}>
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex-1 font-medium text-sm">{cat.name}</span>
+                        <span className="text-xs text-muted-foreground">{typeLabel[cat.type]}</span>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" title="تعديل" onClick={() => { setEditId(cat.id); setEditName(cat.name); }}>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          size="icon" variant="ghost"
+                          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          title="حذف"
+                          onClick={() => {
+                            if (confirm(`حذف تصنيف "${cat.name}"؟`)) deleteMutation.mutate(cat.id);
+                          }}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )
+          )
+        )}
       </div>
     </div>
   );

@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
   useGetItem, 
   useCreateItem, 
@@ -10,7 +11,7 @@ import {
   useListCategories,
   type Category,
 } from '@workspace/api-client-react';
-import { ArrowRight, Save } from 'lucide-react';
+import { ArrowRight, Save, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -29,6 +30,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 
 const itemSchema = z.object({
@@ -50,8 +59,32 @@ type ItemFormValues = z.infer<typeof itemSchema>;
 export function ItemForm({ itemId }: { itemId?: number }) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  
-  const { data: categories } = useListCategories();
+  const qc = useQueryClient();
+
+  // ── Category quick-add dialog state ──
+  const [catDialogOpen, setCatDialogOpen] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatType, setNewCatType] = useState<'consumable' | 'equipment'>('consumable');
+
+  // ── Units from settings ──
+  const [showCustomUnit, setShowCustomUnit] = useState(false);
+  const { data: settingsData } = useQuery({
+    queryKey: ['settings-units'],
+    queryFn: async () => {
+      const res = await fetch('/api/settings', { credentials: 'include' });
+      if (!res.ok) return null;
+      return res.json() as Promise<{ unitsList?: string | null }>;
+    },
+    staleTime: 60_000,
+  });
+  const unitOptions: string[] = (() => {
+    try {
+      const parsed = JSON.parse(settingsData?.unitsList ?? '[]');
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  })();
+
+  const { data: categories, refetch: refetchCategories } = useListCategories();
   const isEditing = !!itemId;
   
   // Use enabled and queryKey options for Orval hook
@@ -62,6 +95,33 @@ export function ItemForm({ itemId }: { itemId?: number }) {
 
   const createMutation = useCreateItem();
   const updateMutation = useUpdateItem();
+
+  // Mutation to create a new category inline
+  const createCatMutation = useMutation({
+    mutationFn: async (data: { name: string; type: string }) => {
+      const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(err.error || 'فشل إضافة التصنيف');
+      }
+      return res.json() as Promise<Category>;
+    },
+    onSuccess: (created) => {
+      qc.invalidateQueries({ queryKey: ['listCategories'] });
+      refetchCategories();
+      // Auto-select the new category
+      form.setValue('categoryId', created.id);
+      setCatDialogOpen(false);
+      setNewCatName('');
+      toast({ description: `تم إضافة تصنيف "${created.name}" بنجاح` });
+    },
+    onError: (err: Error) => toast({ description: err.message, variant: 'destructive' }),
+  });
 
   const form = useForm<ItemFormValues>({
     resolver: zodResolver(itemSchema),
@@ -184,23 +244,40 @@ export function ItemForm({ itemId }: { itemId?: number }) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>التصنيف</FormLabel>
-                    <Select 
-                      value={field.value ? field.value.toString() : ''} 
-                      onValueChange={(val) => field.onChange(parseInt(val))}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="اختر التصنيف" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {categories?.map((cat: Category) => (
-                          <SelectItem key={cat.id} value={cat.id.toString()}>
-                            {cat.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex gap-2">
+                      <Select 
+                        value={field.value ? field.value.toString() : ''} 
+                        onValueChange={(val) => field.onChange(parseInt(val))}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="اختر التصنيف" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {categories?.length === 0 && (
+                            <div className="px-3 py-2 text-sm text-muted-foreground">
+                              لا توجد تصنيفات — أضف واحداً بالزر +
+                            </div>
+                          )}
+                          {categories?.map((cat: Category) => (
+                            <SelectItem key={cat.id} value={cat.id.toString()}>
+                              {cat.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        title="إضافة تصنيف جديد"
+                        onClick={() => setCatDialogOpen(true)}
+                        className="flex-shrink-0"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -212,9 +289,56 @@ export function ItemForm({ itemId }: { itemId?: number }) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>الوحدة *</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="علبة، حبة، أمبولة، ليتر..." />
-                    </FormControl>
+                    {unitOptions.length > 0 && !showCustomUnit ? (
+                      <div className="flex gap-2">
+                        <Select
+                          value={field.value ?? ''}
+                          onValueChange={(val) => {
+                            if (val === '__custom__') {
+                              setShowCustomUnit(true);
+                              field.onChange('');
+                            } else {
+                              field.onChange(val);
+                            }
+                          }}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="اختر الوحدة" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {unitOptions.map((u) => (
+                              <SelectItem key={u} value={u}>{u}</SelectItem>
+                            ))}
+                            <SelectItem value="__custom__" className="text-muted-foreground italic border-t mt-1 pt-1">
+                              أخرى (إدخال يدوي)...
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="اكتب الوحدة..."
+                            autoFocus={showCustomUnit}
+                          />
+                        </FormControl>
+                        {unitOptions.length > 0 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="flex-shrink-0 text-xs"
+                            onClick={() => { setShowCustomUnit(false); field.onChange(''); }}
+                          >
+                            من القائمة
+                          </Button>
+                        )}
+                      </div>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -317,6 +441,60 @@ export function ItemForm({ itemId }: { itemId?: number }) {
           </form>
         </Form>
       </div>
+
+      {/* ── Quick-add category dialog ── */}
+      <Dialog open={catDialogOpen} onOpenChange={setCatDialogOpen}>
+        <DialogContent className="sm:max-w-sm" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>إضافة تصنيف جديد</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="cat-name">اسم التصنيف *</Label>
+              <Input
+                id="cat-name"
+                placeholder="مثال: مستهلكات طبية، أدوية، معدات..."
+                value={newCatName}
+                onChange={(e) => setNewCatName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (newCatName.trim()) createCatMutation.mutate({ name: newCatName, type: newCatType });
+                  }
+                }}
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>نوع التصنيف *</Label>
+              <Select value={newCatType} onValueChange={(v) => setNewCatType(v as 'consumable' | 'equipment')}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="consumable">مستهلكات (مواد)</SelectItem>
+                  <SelectItem value="equipment">تجهيزات</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setCatDialogOpen(false)}>
+              إلغاء
+            </Button>
+            <Button
+              onClick={() => {
+                if (newCatName.trim()) createCatMutation.mutate({ name: newCatName, type: newCatType });
+              }}
+              disabled={!newCatName.trim() || createCatMutation.isPending}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              {createCatMutation.isPending ? 'جاري الإضافة...' : 'إضافة التصنيف'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
