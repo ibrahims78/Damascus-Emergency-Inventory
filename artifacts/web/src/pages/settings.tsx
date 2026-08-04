@@ -134,7 +134,12 @@ export function SettingsPage() {
           )}
           {isAdmin && (
             <TabsTrigger value="import" className="gap-2">
-              <FileSpreadsheet className="h-4 w-4" />استيراد Excel
+              <FileSpreadsheet className="h-4 w-4" />استيراد مواد
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="import-equipment" className="gap-2">
+              <FileSpreadsheet className="h-4 w-4" />استيراد تجهيزات
             </TabsTrigger>
           )}
         </TabsList>
@@ -170,6 +175,11 @@ export function SettingsPage() {
         {isAdmin && (
           <TabsContent value="import">
             <ImportTab />
+          </TabsContent>
+        )}
+        {isAdmin && (
+          <TabsContent value="import-equipment">
+            <ImportEquipmentTab />
           </TabsContent>
         )}
       </Tabs>

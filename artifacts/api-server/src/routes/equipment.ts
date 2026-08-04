@@ -94,6 +94,91 @@ router.post(
   }
 );
 
+// POST /api/equipment/bulk-import
+router.post(
+  "/bulk-import",
+  requireAuth,
+  requireRole("admin", "warehouse_manager"),
+  async (req, res) => {
+    try {
+      const items = req.body;
+      if (!Array.isArray(items) || items.length === 0) {
+        res.status(400).json({ error: "يجب إرسال قائمة تجهيزات صالحة" });
+        return;
+      }
+      if (items.length > 1000) {
+        res.status(400).json({ error: "الحد الأقصى للاستيراد 1000 صف في المرة الواحدة" });
+        return;
+      }
+
+      const VALID_CONDITIONS = new Set(["good", "maintenance", "broken", "consumed", "needs_inspection"]);
+      const CONDITION_MAP: Record<string, string> = {
+        "جيدة": "good", "جيد": "good",
+        "في الصيانة": "maintenance", "صيانة": "maintenance",
+        "معطلة": "broken", "معطل": "broken",
+        "مستهلكة": "consumed", "مستهلك": "consumed",
+        "تحتاج فحص": "needs_inspection", "يحتاج فحص": "needs_inspection",
+      };
+
+      const results: { created: number; errors: { row: number; name: string; error: string }[] } =
+        { created: 0, errors: [] };
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const rowNum = i + 2;
+        const name = String(item.name ?? "").trim();
+
+        if (!name) {
+          results.errors.push({ row: rowNum, name: `صف ${rowNum}`, error: "الاسم مطلوب" });
+          continue;
+        }
+
+        // Resolve condition: accept Arabic label or English key
+        let condition = String(item.condition ?? "good").trim();
+        if (!VALID_CONDITIONS.has(condition)) {
+          condition = CONDITION_MAP[condition] ?? "good";
+        }
+
+        const manufactureYear = item.manufactureYear
+          ? parseInt(String(item.manufactureYear), 10)
+          : null;
+        if (item.manufactureYear && (isNaN(manufactureYear!) || manufactureYear! < 1900 || manufactureYear! > 2100)) {
+          results.errors.push({ row: rowNum, name, error: "سنة الصنع غير صالحة" });
+          continue;
+        }
+
+        try {
+          await db.insert(equipmentTable).values({
+            name,
+            equipmentType: item.equipmentType ? String(item.equipmentType).trim() : null,
+            model: item.model ? String(item.model).trim() : null,
+            serialNumber: item.serialNumber ? String(item.serialNumber).trim() : null,
+            condition: condition as "good" | "maintenance" | "broken" | "consumed" | "needs_inspection",
+            manufactureYear,
+            originCountry: item.originCountry ? String(item.originCountry).trim() : null,
+            currentHolder: item.currentHolder ? String(item.currentHolder).trim() : null,
+            notes: item.notes ? String(item.notes).trim() : null,
+          });
+          results.created++;
+        } catch (err: unknown) {
+          const e = err as { cause?: { code?: string }; code?: string };
+          const isDuplicate = e?.cause?.code === "23505" || e?.code === "23505";
+          results.errors.push({
+            row: rowNum,
+            name,
+            error: isDuplicate ? "الرقم التسلسلي مستخدم مسبقاً" : "خطأ في الإدراج",
+          });
+        }
+      }
+
+      res.json(results);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);
+
 // GET /api/equipment/:id
 router.get("/:id", requireAuth, async (req, res) => {
   try {
