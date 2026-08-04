@@ -46,6 +46,7 @@ const itemSchema = z.object({
   categoryId: z.coerce.number().optional().nullable(),
   itemType: z.string().default('item'),
   unit: z.string().min(1, 'الوحدة مطلوبة (مثال: حبة، علبة، الخ)'),
+  initialStock: z.coerce.number().min(0).default(0),
   minStock: z.coerce.number().min(0).default(0),
   expiryDate: z.string().optional().nullable(),
   batchNumber: z.string().optional().nullable(),
@@ -131,6 +132,7 @@ export function ItemForm({ itemId }: { itemId?: number }) {
       categoryId: undefined,
       itemType: 'item',
       unit: 'حبة',
+      initialStock: 0,
       minStock: 10,
       expiryDate: '',
       batchNumber: '',
@@ -176,7 +178,7 @@ export function ItemForm({ itemId }: { itemId?: number }) {
       createMutation.mutate({ 
         data: {
           ...data,
-          currentStock: 0,
+          currentStock: data.initialStock ?? 0,
           categoryId: data.categoryId || null,
         } 
       }, {
