@@ -14,3 +14,17 @@ uri = "file://attached_assets/%D8%A8%D9%8A%D8%A7%D9%86%D8%A7%D8%AA_%D8%A7%D8%AE%
 type = "table"
 title = "بيانات اختبار — 100 مادة"
 description = "ملف Excel جاهز بـ 100 مادة وهمية موزعة على 4 تصنيفات بجميع الحقول مملوءة — جاهز للاستيراد من الإعدادات"
+
+[[outputs]]
+id = "BxUZ1BiszErinXstO-z4I"
+uri = "file://%D8%A8%D9%8A%D8%A7%D9%86%D8%A7%D8%AA_%D8%A7%D8%AE%D8%AA%D8%A8%D8%A7%D8%B1_100_%D9%85%D8%A7%D8%AF%D8%A9.xlsx"
+type = "table"
+title = "بيانات اختبار — 100 مادة (مكتملة)"
+description = "مواد منتهية الصلاحية + قريبة الانتهاء + كميات منخفضة لاختبار جميع التنبيهات"
+
+[[outputs]]
+id = "6iVsRuuZfutpBFYh4qY8p"
+uri = "file://%D8%A8%D9%8A%D8%A7%D9%86%D8%A7%D8%AA_%D8%A7%D8%AE%D8%AA%D8%A8%D8%A7%D8%B1_60_%D8%AA%D8%AC%D9%87%D9%8A%D8%B2%D8%A9.xlsx"
+type = "table"
+title = "بيانات اختبار — 60 تجهيزة (مكتملة)"
+description = "جميع حالات التجهيزات الخمس + جميع الخانات ممتلئة + متوافق مع نموذج الاستيراد"
