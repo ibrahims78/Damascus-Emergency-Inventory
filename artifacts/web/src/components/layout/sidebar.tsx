@@ -11,17 +11,31 @@ import {
   ShieldCheck,
   Menu,
   X,
+  ChevronsRight,
+  ChevronsLeft,
+  Code2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import logoUrl from '@assets/logo.jpeg';
+import { useSidebar } from './sidebar-context';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+
+const APP_VERSION = 'v1.0.0';
+const DESIGNER_NAME = 'إبراهيم الصيداوي';
+const DESIGNER_PHONE = '0933706403';
 
 const navItems = [
-  { href: '/',            label: 'لوحة التحكم',       icon: LayoutDashboard },
-  { href: '/items',       label: 'المواد والمستهلكات', icon: Package },
-  { href: '/equipment',   label: 'التجهيزات الطبية',   icon: Stethoscope },
-  { href: '/transactions',label: 'سجل العمليات',       icon: ArrowRightLeft },
-  { href: '/reports',     label: 'التقارير',            icon: FileText },
+  { href: '/',             label: 'لوحة التحكم',        icon: LayoutDashboard },
+  { href: '/items',        label: 'المواد والمستهلكات',  icon: Package },
+  { href: '/equipment',    label: 'التجهيزات الطبية',    icon: Stethoscope },
+  { href: '/transactions', label: 'سجل العمليات',        icon: ArrowRightLeft },
+  { href: '/reports',      label: 'التقارير',             icon: FileText },
 ];
 
 const adminItems = [
@@ -33,55 +47,86 @@ const adminItems = [
 export function Sidebar() {
   const [location] = useLocation();
   const { data: user } = useGetCurrentUser();
-  const [isOpen, setIsOpen] = useState(false);
+  const { collapsed, toggle } = useSidebar();
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const allItems =
     user?.role === 'admin' ? [...navItems, ...adminItems] : navItems;
 
   return (
-    <>
+    <TooltipProvider delayDuration={200}>
       {/* Mobile Toggle */}
       <button
         className="md:hidden fixed bottom-4 right-4 z-50 p-3 bg-primary text-primary-foreground rounded-full shadow-lg"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => setIsMobileOpen(!isMobileOpen)}
       >
-        {isOpen ? <X size={24} /> : <Menu size={24} />}
+        {isMobileOpen ? <X size={22} /> : <Menu size={22} />}
       </button>
 
-      {/* Backdrop */}
-      {isOpen && (
+      {/* Mobile Backdrop */}
+      {isMobileOpen && (
         <div
           className="md:hidden fixed inset-0 z-40 bg-background/80 backdrop-blur-sm"
-          onClick={() => setIsOpen(false)}
+          onClick={() => setIsMobileOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed md:static inset-y-0 right-0 z-40 w-64 border-l bg-card transition-transform duration-300 ease-in-out flex flex-col',
-          isOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0',
+          'fixed md:static inset-y-0 right-0 z-40 border-l bg-card flex flex-col',
+          'transition-all duration-300 ease-in-out',
+          collapsed ? 'w-[60px]' : 'w-64',
+          isMobileOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0',
         )}
       >
-        <div className="p-6 border-b flex flex-col items-center gap-4">
+        {/* Header: logo + title */}
+        <div
+          className={cn(
+            'border-b flex items-center transition-all duration-300',
+            collapsed ? 'p-3 justify-center' : 'p-5 gap-3',
+          )}
+        >
           <img
             src={logoUrl}
             alt="Logo"
-            className="w-20 h-20 object-contain rounded-full border shadow-sm"
+            className={cn(
+              'object-contain rounded-full border shadow-sm flex-shrink-0 transition-all duration-300',
+              collapsed ? 'w-9 h-9' : 'w-12 h-12',
+            )}
           />
-          <div className="text-center">
-            <h1 className="font-bold text-base text-foreground leading-tight">
-              منظومة الإسعاف والطوارئ
-            </h1>
-            <p className="text-xs text-muted-foreground mt-1">
-              مديرية الاحالة والاسعاف - دمشق
-            </p>
-          </div>
+          {!collapsed && (
+            <div className="overflow-hidden">
+              <h1 className="font-bold text-sm text-foreground leading-snug whitespace-nowrap">
+                منظومة الإسعاف والطوارئ
+              </h1>
+              <p className="text-[11px] text-muted-foreground mt-0.5 whitespace-nowrap">
+                مديرية الاحالة والاسعاف - دمشق
+              </p>
+            </div>
+          )}
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-          {/* Group separator for admin items */}
-          {allItems.map((item, idx) => {
+        {/* Desktop collapse toggle */}
+        <button
+          onClick={toggle}
+          className={cn(
+            'hidden md:flex items-center justify-center h-7 w-7 rounded-md',
+            'text-muted-foreground hover:text-foreground hover:bg-secondary',
+            'transition-colors absolute -left-3.5 top-[68px] z-10',
+            'bg-card border shadow-sm',
+          )}
+          title={collapsed ? 'توسيع الشريط الجانبي' : 'طي الشريط الجانبي'}
+        >
+          {collapsed
+            ? <ChevronsLeft className="w-3.5 h-3.5" />
+            : <ChevronsRight className="w-3.5 h-3.5" />
+          }
+        </button>
+
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
+          {allItems.map((item) => {
             const Icon = item.icon;
             const isAdminStart = item.href === '/users';
             const isActive =
@@ -89,37 +134,106 @@ export function Sidebar() {
                 ? location === '/'
                 : location.startsWith(item.href);
 
+            const linkEl = (
+              <Link
+                href={item.href}
+                className={cn(
+                  'flex items-center rounded-md text-sm font-medium transition-colors',
+                  collapsed
+                    ? 'justify-center p-2.5'
+                    : 'gap-3 px-3 py-2.5',
+                  isActive
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
+                )}
+                onClick={() => setIsMobileOpen(false)}
+              >
+                <Icon className="w-[18px] h-[18px] flex-shrink-0" />
+                {!collapsed && <span>{item.label}</span>}
+              </Link>
+            );
+
             return (
               <div key={item.href}>
                 {isAdminStart && user?.role === 'admin' && (
-                  <div className="px-3 pt-3 pb-1">
-                    <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-                      إدارة النظام
-                    </div>
+                  <div className={cn('pt-3 pb-1', collapsed ? 'px-1' : 'px-3')}>
+                    {collapsed
+                      ? <div className="border-t" />
+                      : (
+                        <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                          إدارة النظام
+                        </div>
+                      )
+                    }
                   </div>
                 )}
-                <Link
-                  href={item.href}
-                  className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors',
-                    isActive
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
-                  )}
-                  onClick={() => setIsOpen(false)}
-                >
-                  <Icon className="w-5 h-5 flex-shrink-0" />
-                  {item.label}
-                </Link>
+
+                {collapsed ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>{linkEl}</TooltipTrigger>
+                    <TooltipContent side="left" className="font-medium">
+                      {item.label}
+                    </TooltipContent>
+                  </Tooltip>
+                ) : linkEl}
               </div>
             );
           })}
         </nav>
 
-        <div className="p-4 border-t mt-auto text-xs text-center text-muted-foreground">
-          نظام إدارة المستودعات — الإصدار 1.0
+        {/* Footer: version + designer signature */}
+        <div
+          className={cn(
+            'border-t mt-auto transition-all duration-300',
+            collapsed ? 'p-2' : 'p-3',
+          )}
+        >
+          {collapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex justify-center">
+                  <span className="text-[9px] font-mono text-muted-foreground/50 select-none">
+                    {APP_VERSION}
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                <div className="text-center leading-relaxed">
+                  <div>{APP_VERSION}</div>
+                  <div className="opacity-80">تصميم: {DESIGNER_NAME}</div>
+                  <div className="opacity-60 font-mono">{DESIGNER_PHONE}</div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono text-muted-foreground/50 select-none tracking-wide">
+                  {APP_VERSION}
+                </span>
+                <span className="text-[10px] text-muted-foreground/40 select-none">
+                  نظام إدارة المستودعات
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 pt-0.5 border-t border-dashed border-border/40">
+                <Code2 className="w-3 h-3 text-muted-foreground/30 flex-shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-[10px] text-muted-foreground/50 leading-tight truncate">
+                    تصميم: {DESIGNER_NAME}
+                  </div>
+                  <a
+                    href={`tel:${DESIGNER_PHONE}`}
+                    className="text-[10px] font-mono text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors leading-tight block"
+                    dir="ltr"
+                  >
+                    {DESIGNER_PHONE}
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </aside>
-    </>
+    </TooltipProvider>
   );
 }
