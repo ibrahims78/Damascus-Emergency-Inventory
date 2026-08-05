@@ -42,6 +42,42 @@ import {
 import { cn } from '@/lib/utils';
 import { Link, useLocation } from 'wouter';
 import { useState, useEffect, type ReactNode } from 'react';
+import type { TooltipProps } from 'recharts';
+
+// ─── Custom dark-mode-safe Tooltip ───────────────────────────────────────────
+
+function ChartTooltip({ active, payload, label, labelFormatter, itemFormatter }: {
+  active?: boolean;
+  payload?: Array<{ name: string; value: number; color?: string; dataKey?: string; payload?: Record<string, unknown> }>;
+  label?: string;
+  labelFormatter?: (label: string) => string;
+  itemFormatter?: (value: number, name: string, entry: typeof payload extends Array<infer E> ? E : never) => [string, string];
+}) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg border border-border bg-card px-3 py-2 text-sm shadow-md" dir="rtl">
+      {label && (
+        <p className="mb-1 font-medium text-foreground">
+          {labelFormatter ? labelFormatter(label) : label}
+        </p>
+      )}
+      {payload.map((entry, i) => {
+        const [valStr, nameStr] = itemFormatter
+          ? itemFormatter(entry.value, entry.name, entry as never)
+          : [`${entry.value}`, entry.name];
+        return (
+          <div key={i} className="flex items-center gap-2 text-foreground/90">
+            {entry.color && (
+              <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: entry.color }} />
+            )}
+            <span className="text-muted-foreground">{nameStr}:</span>
+            <span className="font-medium tabular-nums">{valStr}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -466,19 +502,15 @@ export function DashboardPage() {
                     ))}
                   </Pie>
                   <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      borderColor: 'hsl(var(--border))',
-                      borderRadius: '8px',
-                      textAlign: 'right',
-                      direction: 'rtl',
-                      fontSize: 12,
-                      color: 'hsl(var(--foreground))',
-                    }}
-                    formatter={(v: number, name: string, entry: { payload?: { itemCount?: number } }) => [
-                      `${v.toLocaleString('ar')} وحدة (${entry.payload?.itemCount ?? 0} صنف)`,
-                      name,
-                    ]}
+                    content={(props: TooltipProps<number, string>) => (
+                      <ChartTooltip
+                        {...props}
+                        itemFormatter={(v, name, entry) => [
+                          `${v.toLocaleString('ar')} وحدة (${(entry as { payload?: { itemCount?: number } }).payload?.itemCount ?? 0} صنف)`,
+                          name,
+                        ]}
+                      />
+                    )}
                   />
                   <Legend
                     verticalAlign="bottom"
@@ -556,19 +588,12 @@ export function DashboardPage() {
                   allowDecimals={false}
                 />
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    borderColor: 'hsl(var(--border))',
-                    borderRadius: '8px',
-                    textAlign: 'right',
-                    direction: 'rtl',
-                    fontSize: 12,
-                    color: 'hsl(var(--foreground))',
-                  }}
-                  formatter={(v: number, key: string) => [
-                    `${v} وحدة`,
-                    key === 'inQty' ? 'إدخال' : 'إخراج',
-                  ]}
+                  content={(props: TooltipProps<number, string>) => (
+                    <ChartTooltip
+                      {...props}
+                      itemFormatter={(v, key) => [`${v} وحدة`, key === 'inQty' ? 'إدخال' : 'إخراج']}
+                    />
+                  )}
                 />
                 <Area
                   type="monotone"
@@ -651,19 +676,12 @@ export function DashboardPage() {
                   tickLine={false}
                 />
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    borderColor: 'hsl(var(--border))',
-                    borderRadius: '8px',
-                    textAlign: 'right',
-                    direction: 'rtl',
-                    fontSize: 12,
-                    color: 'hsl(var(--foreground))',
-                  }}
-                  formatter={(v: number, key: string) => [
-                    `${v} وحدة`,
-                    key === 'inQty' ? 'إدخال' : 'إخراج',
-                  ]}
+                  content={(props: TooltipProps<number, string>) => (
+                    <ChartTooltip
+                      {...props}
+                      itemFormatter={(v, key) => [`${v} وحدة`, key === 'inQty' ? 'إدخال' : 'إخراج']}
+                    />
+                  )}
                 />
                 <Bar dataKey="inQty"  fill="#10b981" radius={[0, 3, 3, 0]} name="إدخال" />
                 <Bar dataKey="outQty" fill="#f87171" radius={[0, 3, 3, 0]} name="إخراج" />
