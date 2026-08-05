@@ -412,7 +412,7 @@ export function DashboardPage() {
           title="إجمالي التجهيزات"
           value={stats?.totalEquipment ?? 0}
           icon={<Stethoscope className="h-4 w-4" />}
-          sub="جهاز ومعدة مسجّلة"
+          sub={stats?.totalEquipment ? 'جهاز ومعدة مسجّلة' : 'لا توجد تجهيزات مسجّلة'}
           href="/equipment"
         />
         <KpiCard
@@ -522,7 +522,8 @@ export function DashboardPage() {
         <CardContent>
           {chartsLoading ? (
             <div className="h-52 animate-pulse bg-muted/30 rounded-lg" />
-          ) : !charts?.dailyMovement?.length ? (
+          ) : !charts?.dailyMovement?.some(d => d.inQty > 0 || d.outQty > 0) ? (
+            // generate_series always returns 30 rows; check actual movement instead of length
             <div className="h-52 flex items-center justify-center text-sm text-muted-foreground">
               <div className="text-center">
                 <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-20" />

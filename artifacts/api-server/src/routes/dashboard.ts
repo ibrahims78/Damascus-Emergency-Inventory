@@ -72,14 +72,14 @@ router.get("/stats", requireAuth, async (_req, res) => {
           )
         ),
 
-      // Already expired (expiryDate < today)
+      // Already expired (expiryDate <= today — includes items expiring exactly today)
       db
         .select({ count: sql<number>`count(*)` })
         .from(itemsTable)
         .where(
           and(
             eq(itemsTable.isActive, true),
-            sql`${itemsTable.expiryDate} IS NOT NULL AND ${itemsTable.expiryDate} < ${today}`
+            sql`${itemsTable.expiryDate} IS NOT NULL AND ${itemsTable.expiryDate} <= ${today}`
           )
         ),
 
