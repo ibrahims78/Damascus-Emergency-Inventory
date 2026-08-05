@@ -627,15 +627,26 @@ export const CreateExitReasonResponse = zod.object({
  * @summary Get dashboard KPI statistics
  */
 export const GetDashboardStatsResponse = zod.object({
-  "totalItems": zod.number().int(),
-  "belowMinCount": zod.number().int(),
-  "nearExpiryCount": zod.number().int(),
-  "totalEquipment": zod.number().int(),
-  "lastTransactionId": zod.number().int().nullish(),
-  "lastTransactionType": zod.string().nullish(),
-  "lastTransactionItemName": zod.string().nullish(),
-  "lastTransactionAt": zod.string().nullish(),
-  "lastTransactionBy": zod.string().nullish()
+  "totalItems": zod.number().int().describe('Active items in the warehouse'),
+  "belowMinCount": zod.number().int().describe('Active items with currentStock <= minStock (minStock > 0)'),
+  "nearExpiryCount": zod.number().int().describe('Active items expiring within expiryAlertDays, not yet expired'),
+  "expiredCount": zod.number().int().describe('Active items whose expiryDate <= today'),
+  "zeroStockCount": zod.number().int().describe('Active items with currentStock = 0'),
+  "totalEquipment": zod.number().int().describe('Equipment count excluding consumed\/scrapped units'),
+  "equipmentAlertCount": zod.number().int().describe('Equipment in maintenance, needs_inspection, or broken state'),
+  "monthlyIn": zod.number().int().describe('IN transactions this calendar month'),
+  "monthlyOut": zod.number().int().describe('OUT transactions this calendar month'),
+  "expiryAlertDays": zod.number().int().describe('Alert window in days (from system settings, default 30)'),
+  "recentTransactions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "type": zod.enum(['in', 'out', 'init', 'adjust']),
+  "itemType": zod.enum(['item', 'equipment']),
+  "quantity": zod.number().int().nullish(),
+  "documentNumber": zod.string(),
+  "name": zod.string().describe('Item or equipment name (resolved server-side)'),
+  "createdAt": zod.coerce.date(),
+  "createdByName": zod.string()
+}))
 })
 
 
@@ -643,14 +654,22 @@ export const GetDashboardStatsResponse = zod.object({
  * @summary Get chart data for dashboard
  */
 export const GetDashboardChartsResponse = zod.object({
-  "topConsumed": zod.array(zod.object({
+  "topItems": zod.array(zod.object({
   "name": zod.string(),
-  "quantity": zod.number().int()
-})),
+  "outQty": zod.number().int(),
+  "inQty": zod.number().int()
+})).describe('Top 8 most-active items in the last 30 days (by total quantity)'),
   "stockByCategory": zod.array(zod.object({
-  "categoryName": zod.string(),
-  "count": zod.number().int()
-}))
+  "category": zod.string(),
+  "totalStock": zod.number().int(),
+  "itemCount": zod.number().int()
+})).describe('Stock distribution by category (quantity-based, excludes zero-stock)'),
+  "dailyMovement": zod.array(zod.object({
+  "day": zod.string().describe('Formatted date label (DD\/MM)'),
+  "inQty": zod.number().int(),
+  "outQty": zod.number().int(),
+  "txCount": zod.number().int()
+})).describe('Daily IN\/OUT quantities for the last 30 days (all days present via generate_series)')
 })
 
 

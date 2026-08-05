@@ -5,20 +5,28 @@
  * Ambulance & Emergency Warehouse Management System API — Damascus
  * OpenAPI spec version: 0.1.0
  */
+import type { RecentTransaction } from './recentTransaction';
 
 export interface DashboardStats {
+  /** Active items in the warehouse */
   totalItems: number;
+  /** Active items with currentStock <= minStock (minStock > 0) */
   belowMinCount: number;
+  /** Active items expiring within expiryAlertDays, not yet expired */
   nearExpiryCount: number;
+  /** Active items whose expiryDate <= today */
+  expiredCount: number;
+  /** Active items with currentStock = 0 */
+  zeroStockCount: number;
+  /** Equipment count excluding consumed/scrapped units */
   totalEquipment: number;
-  /** @nullable */
-  lastTransactionId?: number | null;
-  /** @nullable */
-  lastTransactionType?: string | null;
-  /** @nullable */
-  lastTransactionItemName?: string | null;
-  /** @nullable */
-  lastTransactionAt?: string | null;
-  /** @nullable */
-  lastTransactionBy?: string | null;
+  /** Equipment in maintenance, needs_inspection, or broken state */
+  equipmentAlertCount: number;
+  /** IN transactions this calendar month */
+  monthlyIn: number;
+  /** OUT transactions this calendar month */
+  monthlyOut: number;
+  /** Alert window in days (from system settings, default 30) */
+  expiryAlertDays: number;
+  recentTransactions: RecentTransaction[];
 }

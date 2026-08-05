@@ -5,10 +5,15 @@
  * Ambulance & Emergency Warehouse Management System API — Damascus
  * OpenAPI spec version: 0.1.0
  */
-import type { ChartBar } from './chartBar';
-import type { ChartPie } from './chartPie';
+import type { CategoryStock } from './categoryStock';
+import type { DailyMovement } from './dailyMovement';
+import type { TopItem } from './topItem';
 
 export interface DashboardCharts {
-  topConsumed: ChartBar[];
-  stockByCategory: ChartPie[];
+  /** Top 8 most-active items in the last 30 days (by total quantity) */
+  topItems: TopItem[];
+  /** Stock distribution by category (quantity-based, excludes zero-stock) */
+  stockByCategory: CategoryStock[];
+  /** Daily IN/OUT quantities for the last 30 days (all days present via generate_series) */
+  dailyMovement: DailyMovement[];
 }

@@ -1332,59 +1332,136 @@ components:
         name:
           type: string
 
+    RecentTransaction:
+      type: object
+      required: [id, type, itemType, documentNumber, name, createdAt, createdByName]
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [in, out, init, adjust]
+        itemType:
+          type: string
+          enum: [item, equipment]
+        quantity:
+          type: ["integer", "null"]
+        documentNumber:
+          type: string
+        name:
+          type: string
+          description: Item or equipment name (resolved server-side)
+        createdAt:
+          type: string
+          format: date-time
+        createdByName:
+          type: string
+
     DashboardStats:
       type: object
-      required: [totalItems, belowMinCount, nearExpiryCount, totalEquipment]
+      required:
+        - totalItems
+        - belowMinCount
+        - nearExpiryCount
+        - expiredCount
+        - zeroStockCount
+        - totalEquipment
+        - equipmentAlertCount
+        - monthlyIn
+        - monthlyOut
+        - expiryAlertDays
+        - recentTransactions
       properties:
         totalItems:
           type: integer
+          description: Active items in the warehouse
         belowMinCount:
           type: integer
+          description: Active items with currentStock <= minStock (minStock > 0)
         nearExpiryCount:
           type: integer
+          description: Active items expiring within expiryAlertDays, not yet expired
+        expiredCount:
+          type: integer
+          description: Active items whose expiryDate <= today
+        zeroStockCount:
+          type: integer
+          description: Active items with currentStock = 0
         totalEquipment:
           type: integer
-        lastTransactionId:
-          type: ["integer", "null"]
-        lastTransactionType:
-          type: ["string", "null"]
-        lastTransactionItemName:
-          type: ["string", "null"]
-        lastTransactionAt:
-          type: ["string", "null"]
-        lastTransactionBy:
-          type: ["string", "null"]
-
-    DashboardCharts:
-      type: object
-      required: [topConsumed, stockByCategory]
-      properties:
-        topConsumed:
+          description: Equipment count excluding consumed/scrapped units
+        equipmentAlertCount:
+          type: integer
+          description: Equipment in maintenance, needs_inspection, or broken state
+        monthlyIn:
+          type: integer
+          description: IN transactions this calendar month
+        monthlyOut:
+          type: integer
+          description: OUT transactions this calendar month
+        expiryAlertDays:
+          type: integer
+          description: Alert window in days (from system settings, default 30)
+        recentTransactions:
           type: array
           items:
-            $ref: "#/components/schemas/ChartBar"
-        stockByCategory:
-          type: array
-          items:
-            $ref: "#/components/schemas/ChartPie"
+            $ref: "#/components/schemas/RecentTransaction"
 
-    ChartBar:
+    TopItem:
       type: object
-      required: [name, quantity]
+      required: [name, outQty, inQty]
       properties:
         name:
           type: string
-        quantity:
+        outQty:
+          type: integer
+        inQty:
           type: integer
 
-    ChartPie:
+    CategoryStock:
       type: object
-      required: [categoryName, count]
+      required: [category, totalStock, itemCount]
       properties:
-        categoryName:
+        category:
           type: string
-        count:
+        totalStock:
           type: integer
+        itemCount:
+          type: integer
+
+    DailyMovement:
+      type: object
+      required: [day, inQty, outQty, txCount]
+      properties:
+        day:
+          type: string
+          description: Formatted date label (DD/MM)
+        inQty:
+          type: integer
+        outQty:
+          type: integer
+        txCount:
+          type: integer
+
+    DashboardCharts:
+      type: object
+      required: [topItems, stockByCategory, dailyMovement]
+      properties:
+        topItems:
+          type: array
+          description: Top 8 most-active items in the last 30 days (by total quantity)
+          items:
+            $ref: "#/components/schemas/TopItem"
+        stockByCategory:
+          type: array
+          description: Stock distribution by category (quantity-based, excludes zero-stock)
+          items:
+            $ref: "#/components/schemas/CategoryStock"
+        dailyMovement:
+          type: array
+          description: Daily IN/OUT quantities for the last 30 days (all days present via generate_series)
+          items:
+            $ref: "#/components/schemas/DailyMovement"
 
     Alert:
       type: object

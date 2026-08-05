@@ -394,36 +394,88 @@ export interface ExitReasonInput {
   name: string;
 }
 
-export interface DashboardStats {
-  totalItems: number;
-  belowMinCount: number;
-  nearExpiryCount: number;
-  totalEquipment: number;
-  /** @nullable */
-  lastTransactionId?: number | null;
-  /** @nullable */
-  lastTransactionType?: string | null;
-  /** @nullable */
-  lastTransactionItemName?: string | null;
-  /** @nullable */
-  lastTransactionAt?: string | null;
-  /** @nullable */
-  lastTransactionBy?: string | null;
-}
+export type RecentTransactionType = typeof RecentTransactionType[keyof typeof RecentTransactionType];
 
-export interface ChartBar {
+
+export const RecentTransactionType = {
+  in: 'in',
+  out: 'out',
+  init: 'init',
+  adjust: 'adjust',
+} as const;
+
+export type RecentTransactionItemType = typeof RecentTransactionItemType[keyof typeof RecentTransactionItemType];
+
+
+export const RecentTransactionItemType = {
+  item: 'item',
+  equipment: 'equipment',
+} as const;
+
+export interface RecentTransaction {
+  id: number;
+  type: RecentTransactionType;
+  itemType: RecentTransactionItemType;
+  /** @nullable */
+  quantity?: number | null;
+  documentNumber: string;
+  /** Item or equipment name (resolved server-side) */
   name: string;
-  quantity: number;
+  createdAt: string;
+  createdByName: string;
 }
 
-export interface ChartPie {
-  categoryName: string;
-  count: number;
+export interface DashboardStats {
+  /** Active items in the warehouse */
+  totalItems: number;
+  /** Active items with currentStock <= minStock (minStock > 0) */
+  belowMinCount: number;
+  /** Active items expiring within expiryAlertDays, not yet expired */
+  nearExpiryCount: number;
+  /** Active items whose expiryDate <= today */
+  expiredCount: number;
+  /** Active items with currentStock = 0 */
+  zeroStockCount: number;
+  /** Equipment count excluding consumed/scrapped units */
+  totalEquipment: number;
+  /** Equipment in maintenance, needs_inspection, or broken state */
+  equipmentAlertCount: number;
+  /** IN transactions this calendar month */
+  monthlyIn: number;
+  /** OUT transactions this calendar month */
+  monthlyOut: number;
+  /** Alert window in days (from system settings, default 30) */
+  expiryAlertDays: number;
+  recentTransactions: RecentTransaction[];
+}
+
+export interface TopItem {
+  name: string;
+  outQty: number;
+  inQty: number;
+}
+
+export interface CategoryStock {
+  category: string;
+  totalStock: number;
+  itemCount: number;
+}
+
+export interface DailyMovement {
+  /** Formatted date label (DD/MM) */
+  day: string;
+  inQty: number;
+  outQty: number;
+  txCount: number;
 }
 
 export interface DashboardCharts {
-  topConsumed: ChartBar[];
-  stockByCategory: ChartPie[];
+  /** Top 8 most-active items in the last 30 days (by total quantity) */
+  topItems: TopItem[];
+  /** Stock distribution by category (quantity-based, excludes zero-stock) */
+  stockByCategory: CategoryStock[];
+  /** Daily IN/OUT quantities for the last 30 days (all days present via generate_series) */
+  dailyMovement: DailyMovement[];
 }
 
 export type AlertType = typeof AlertType[keyof typeof AlertType];

@@ -6,7 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface ChartPie {
-  categoryName: string;
-  count: number;
+export interface TopItem {
+  name: string;
+  outQty: number;
+  inQty: number;
 }

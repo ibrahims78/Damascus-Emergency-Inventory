@@ -1,5 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { useGetCurrentUser } from '@workspace/api-client-react';
+import {
+  useGetCurrentUser,
+  getGetDashboardStatsQueryOptions,
+  getGetDashboardChartsQueryOptions,
+  type DashboardStats,
+  type DashboardCharts,
+  type RecentTransaction,
+} from '@workspace/api-client-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,39 +42,6 @@ import {
 import { cn } from '@/lib/utils';
 import { Link, useLocation } from 'wouter';
 import { useState, useEffect, type ReactNode } from 'react';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface DashboardStats {
-  totalItems: number;
-  belowMinCount: number;
-  nearExpiryCount: number;
-  expiredCount: number;
-  zeroStockCount: number;
-  totalEquipment: number;
-  equipmentAlertCount: number;
-  monthlyIn: number;
-  monthlyOut: number;
-  expiryAlertDays: number;
-  recentTransactions: RecentTx[];
-}
-
-interface RecentTx {
-  id: number;
-  type: 'in' | 'out' | 'init' | 'adjust';
-  itemType: 'item' | 'equipment';
-  quantity: number | null;
-  documentNumber: string;
-  name: string;
-  createdAt: string;
-  createdByName: string;
-}
-
-interface DashboardCharts {
-  topItems: { name: string; outQty: number; inQty: number }[];
-  stockByCategory: { category: string; totalStock: number; itemCount: number }[];
-  dailyMovement: { day: string; inQty: number; outQty: number; txCount: number }[];
-}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -165,7 +139,7 @@ const TX_TYPE_META = {
   adjust: { label: 'تسوية',   icon: <RefreshCw className="w-3 h-3" />,        color: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' },
 } as const;
 
-function RecentTransactionsTable({ transactions, loading }: { transactions: RecentTx[]; loading: boolean }) {
+function RecentTransactionsTable({ transactions, loading }: { transactions: RecentTransaction[]; loading: boolean }) {
   const [, setLocation] = useLocation();
 
   return (
@@ -261,13 +235,8 @@ export function DashboardPage() {
     isFetching: statsFetching,
     isError: statsError,
     refetch: refetchStats,
-  } = useQuery<DashboardStats>({
-    queryKey: ['dashboard-stats'],
-    queryFn: async () => {
-      const res = await fetch('/api/dashboard/stats', { credentials: 'include' });
-      if (!res.ok) throw new Error('failed');
-      return res.json();
-    },
+  } = useQuery({
+    ...getGetDashboardStatsQueryOptions(),
     refetchInterval: REFETCH_INTERVAL,
   });
 
@@ -277,13 +246,8 @@ export function DashboardPage() {
     isFetching: chartsFetching,
     isError: chartsError,
     refetch: refetchCharts,
-  } = useQuery<DashboardCharts>({
-    queryKey: ['dashboard-charts'],
-    queryFn: async () => {
-      const res = await fetch('/api/dashboard/charts', { credentials: 'include' });
-      if (!res.ok) throw new Error('failed');
-      return res.json();
-    },
+  } = useQuery({
+    ...getGetDashboardChartsQueryOptions(),
     refetchInterval: REFETCH_INTERVAL,
   });
 

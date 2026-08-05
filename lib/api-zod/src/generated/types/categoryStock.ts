@@ -6,7 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface ChartBar {
-  name: string;
-  quantity: number;
+export interface CategoryStock {
+  category: string;
+  totalStock: number;
+  itemCount: number;
 }
