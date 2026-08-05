@@ -7,6 +7,7 @@
  */
 
 export * from './alert';
+export * from './alertEntityType';
 export * from './alertSeverity';
 export * from './alertType';
 export * from './authUser';
@@ -37,6 +38,7 @@ export * from './listEquipmentParams';
 export * from './listItemsParams';
 export * from './listTransactionsParams';
 export * from './loginCredentials';
+export * from './okResponse';
 export * from './outTransactionInput';
 export * from './outTransactionInputItemType';
 export * from './recipient';

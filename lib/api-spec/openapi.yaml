@@ -533,6 +533,70 @@ paths:
                 items:
                   $ref: "#/components/schemas/Alert"
 
+  /alerts/read-all:
+    post:
+      operationId: markAllAlertsRead
+      tags: [alerts]
+      summary: Mark all unresolved alerts as read for the current user
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+
+  /alerts/refresh:
+    post:
+      operationId: refreshAlerts
+      tags: [alerts]
+      summary: Trigger an immediate alert worker run (admin use)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+
+  /alerts/{id}/read:
+    post:
+      operationId: markAlertRead
+      tags: [alerts]
+      summary: Mark a single alert as read for the current user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+
+  /alerts/{id}/resolve:
+    post:
+      operationId: resolveAlert
+      tags: [alerts]
+      summary: Manually resolve an alert
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "404":
+          description: Alert not found or already resolved
+
   /reports/stock:
     get:
       operationId: getStockReport
@@ -1324,22 +1388,50 @@ components:
 
     Alert:
       type: object
-      required: [id, type, message, severity]
+      required: [id, dbId, type, message, severity, entityId, entityType, isRead, createdAt, updatedAt]
       properties:
         id:
           type: string
+          description: Legacy string id (type-entityId) for backward-compat
+        dbId:
+          type: integer
+          description: Numeric DB primary key — use this for read/resolve operations
         type:
           type: string
-          enum: [below_min, near_expiry, equipment_maintenance]
+          enum: [below_min, near_expiry, equipment_maintenance, equipment_below_min]
         message:
           type: string
         severity:
           type: string
           enum: [critical, warning, info]
+        entityId:
+          type: integer
+        entityType:
+          type: string
+          enum: [item, equipment]
+        entityName:
+          type: ["string", "null"]
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
         itemId:
           type: ["integer", "null"]
+          description: Legacy — same as entityId when entityType=item
         itemName:
           type: ["string", "null"]
+          description: Legacy — same as entityName when entityType=item
+
+    OkResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
 
     SystemSettings:
       type: object

@@ -658,14 +658,61 @@ export const GetDashboardChartsResponse = zod.object({
  * @summary Get active alerts (low stock, near expiry, equipment issues)
  */
 export const ListAlertsResponseItem = zod.object({
-  "id": zod.string(),
-  "type": zod.enum(['below_min', 'near_expiry', 'equipment_maintenance']),
+  "id": zod.string().describe('Legacy string id (type-entityId) for backward-compat'),
+  "dbId": zod.number().int().describe('Numeric DB primary key — use this for read\/resolve operations'),
+  "type": zod.enum(['below_min', 'near_expiry', 'equipment_maintenance', 'equipment_below_min']),
   "message": zod.string(),
   "severity": zod.enum(['critical', 'warning', 'info']),
-  "itemId": zod.number().int().nullish(),
-  "itemName": zod.string().nullish()
+  "entityId": zod.number().int(),
+  "entityType": zod.enum(['item', 'equipment']),
+  "entityName": zod.string().nullish(),
+  "isRead": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "itemId": zod.number().int().nullish().describe('Legacy — same as entityId when entityType=item'),
+  "itemName": zod.string().nullish().describe('Legacy — same as entityName when entityType=item')
 })
 export const ListAlertsResponse = zod.array(ListAlertsResponseItem)
+
+
+/**
+ * @summary Mark all unresolved alerts as read for the current user
+ */
+export const MarkAllAlertsReadResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Trigger an immediate alert worker run (admin use)
+ */
+export const RefreshAlertsResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Mark a single alert as read for the current user
+ */
+export const MarkAlertReadParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const MarkAlertReadResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Manually resolve an alert
+ */
+export const ResolveAlertParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ResolveAlertResponse = zod.object({
+  "ok": zod.boolean()
+})
 
 
 /**

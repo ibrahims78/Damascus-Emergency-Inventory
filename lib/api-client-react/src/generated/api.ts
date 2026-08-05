@@ -44,6 +44,7 @@ import type {
   ListItemsParams,
   ListTransactionsParams,
   LoginCredentials,
+  OkResponse,
   OutTransactionInput,
   Recipient,
   RecipientInput,
@@ -2192,6 +2193,290 @@ export function useListAlerts<TData = Awaited<ReturnType<typeof listAlerts>>, TE
 
 
 
+
+export const getMarkAllAlertsReadUrl = () => {
+
+
+
+
+  return `/api/alerts/read-all`
+}
+
+/**
+ * @summary Mark all unresolved alerts as read for the current user
+ */
+export const markAllAlertsRead = async ( options?: Parameters<typeof customFetch>[1]): Promise<OkResponse> => {
+
+  return customFetch<OkResponse>(getMarkAllAlertsReadUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkAllAlertsReadMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markAllAlertsRead>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markAllAlertsRead>>, TError,void, TContext> => {
+
+const mutationKey = ['markAllAlertsRead'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markAllAlertsRead>>, void> = () => {
+
+
+          return  markAllAlertsRead(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkAllAlertsReadMutationResult = NonNullable<Awaited<ReturnType<typeof markAllAlertsRead>>>
+
+    export type MarkAllAlertsReadMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Mark all unresolved alerts as read for the current user
+ */
+export const useMarkAllAlertsRead = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markAllAlertsRead>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markAllAlertsRead>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getMarkAllAlertsReadMutationOptions(options));
+    }
+
+export const getRefreshAlertsUrl = () => {
+
+
+
+
+  return `/api/alerts/refresh`
+}
+
+/**
+ * @summary Trigger an immediate alert worker run (admin use)
+ */
+export const refreshAlerts = async ( options?: Parameters<typeof customFetch>[1]): Promise<OkResponse> => {
+
+  return customFetch<OkResponse>(getRefreshAlertsUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRefreshAlertsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshAlerts>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof refreshAlerts>>, TError,void, TContext> => {
+
+const mutationKey = ['refreshAlerts'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshAlerts>>, void> = () => {
+
+
+          return  refreshAlerts(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RefreshAlertsMutationResult = NonNullable<Awaited<ReturnType<typeof refreshAlerts>>>
+
+    export type RefreshAlertsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Trigger an immediate alert worker run (admin use)
+ */
+export const useRefreshAlerts = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshAlerts>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof refreshAlerts>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRefreshAlertsMutationOptions(options));
+    }
+
+export const getMarkAlertReadUrl = (id: number,) => {
+
+
+
+
+  return `/api/alerts/${id}/read`
+}
+
+/**
+ * @summary Mark a single alert as read for the current user
+ */
+export const markAlertRead = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<OkResponse> => {
+
+  return customFetch<OkResponse>(getMarkAlertReadUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkAlertReadMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markAlertRead>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markAlertRead>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['markAlertRead'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markAlertRead>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  markAlertRead(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkAlertReadMutationResult = NonNullable<Awaited<ReturnType<typeof markAlertRead>>>
+
+    export type MarkAlertReadMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Mark a single alert as read for the current user
+ */
+export const useMarkAlertRead = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markAlertRead>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markAlertRead>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getMarkAlertReadMutationOptions(options));
+    }
+
+export const getResolveAlertUrl = (id: number,) => {
+
+
+
+
+  return `/api/alerts/${id}/resolve`
+}
+
+/**
+ * @summary Manually resolve an alert
+ */
+export const resolveAlert = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<OkResponse> => {
+
+  return customFetch<OkResponse>(getResolveAlertUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getResolveAlertMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveAlert>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resolveAlert>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['resolveAlert'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolveAlert>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  resolveAlert(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResolveAlertMutationResult = NonNullable<Awaited<ReturnType<typeof resolveAlert>>>
+
+    export type ResolveAlertMutationError = ErrorType<void>
+
+    /**
+ * @summary Manually resolve an alert
+ */
+export const useResolveAlert = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveAlert>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resolveAlert>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getResolveAlertMutationOptions(options));
+    }
 
 export const getGetStockReportUrl = () => {
 

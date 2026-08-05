@@ -38,6 +38,16 @@ Run with: `cd artifacts/api-server && node seed.mjs`
 - Designer signature (إبراهيم الصيداوي · 0933706403) in sidebar footer ✅
 - App version v1.0.0 in sidebar footer ✅
 
+## Professional Alerts System — Complete ✅ (August 2026)
+
+Full overhaul of the alerts bell:
+- `alerts` + `alert_reads` DB tables (already existed, confirmed)
+- `startAlertWorker()` wired into `app.ts` — runs every 2h + on boot
+- OpenAPI spec updated: Alert schema expanded (dbId, entityId, entityType, entityName, isRead, createdAt, updatedAt); 5 new endpoints added (read-all, refresh, :id/read, :id/resolve, stream)
+- Codegen re-run — all new hooks generated (useMarkAllAlertsRead, useMarkAlertRead, useResolveAlert, useRefreshAlerts)
+- Header rewritten: SSE replaces polling, unread badge (not total), severity sections (critical/warning), per-alert read+resolve buttons, mark-all-read, direct entity navigation
+- UserRole uses `warehouse_manager` not `accountant` (OpenAPI schema source of truth)
+
 ## Phase 7 (Deploy) — Pending
 
 ## Key architectural notes

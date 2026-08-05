@@ -433,6 +433,7 @@ export const AlertType = {
   below_min: 'below_min',
   near_expiry: 'near_expiry',
   equipment_maintenance: 'equipment_maintenance',
+  equipment_below_min: 'equipment_below_min',
 } as const;
 
 export type AlertSeverity = typeof AlertSeverity[keyof typeof AlertSeverity];
@@ -444,15 +445,43 @@ export const AlertSeverity = {
   info: 'info',
 } as const;
 
+export type AlertEntityType = typeof AlertEntityType[keyof typeof AlertEntityType];
+
+
+export const AlertEntityType = {
+  item: 'item',
+  equipment: 'equipment',
+} as const;
+
 export interface Alert {
+  /** Legacy string id (type-entityId) for backward-compat */
   id: string;
+  /** Numeric DB primary key — use this for read/resolve operations */
+  dbId: number;
   type: AlertType;
   message: string;
   severity: AlertSeverity;
+  entityId: number;
+  entityType: AlertEntityType;
   /** @nullable */
+  entityName?: string | null;
+  isRead: boolean;
+  createdAt: string;
+  updatedAt: string;
+  /**
+     * Legacy — same as entityId when entityType=item
+     * @nullable
+     */
   itemId?: number | null;
-  /** @nullable */
+  /**
+     * Legacy — same as entityName when entityType=item
+     * @nullable
+     */
   itemName?: string | null;
+}
+
+export interface OkResponse {
+  ok: boolean;
 }
 
 export interface SystemSettings {

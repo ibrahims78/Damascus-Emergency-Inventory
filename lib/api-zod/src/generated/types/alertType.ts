@@ -13,4 +13,5 @@ export const AlertType = {
   below_min: 'below_min',
   near_expiry: 'near_expiry',
   equipment_maintenance: 'equipment_maintenance',
+  equipment_below_min: 'equipment_below_min',
 } as const;

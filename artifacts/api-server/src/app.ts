@@ -6,6 +6,7 @@ import connectPgSimple from "connect-pg-simple";
 import { pool } from "@workspace/db";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { startAlertWorker } from "./lib/alert-worker";
 import "./types/session.d.ts";
 
 const app: Express = express();
@@ -64,5 +65,8 @@ app.use(
 );
 
 app.use("/api", router);
+
+// Start background alert worker (checks inventory every 2 h, runs once on boot)
+startAlertWorker();
 
 export default app;
