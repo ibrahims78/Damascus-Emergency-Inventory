@@ -2,10 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useGetCurrentUser } from '@workspace/api-client-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   Package,
-  AlertTriangle,
   Clock,
   ArrowRightLeft,
   Stethoscope,
@@ -36,7 +34,7 @@ import {
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import { Link, useLocation } from 'wouter';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -96,17 +94,13 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString('ar-SY', { day: 'numeric', month: 'short' });
 }
 
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('ar-SY', { hour: '2-digit', minute: '2-digit' });
-}
-
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 
 interface KpiCardProps {
   title: string;
   value: number | string;
-  icon: React.ReactNode;
-  sub?: React.ReactNode;
+  icon: ReactNode;
+  sub?: ReactNode;
   variant?: 'default' | 'warning' | 'danger' | 'success' | 'info';
   href?: string;
   loading?: boolean;
@@ -233,7 +227,6 @@ function LastUpdated({ fetchedAt }: { fetchedAt: Date | null }) {
 
 export function DashboardPage() {
   const { data: currentUser } = useGetCurrentUser();
-  const isAdmin = currentUser?.role === 'admin';
   const isWarehouse = currentUser?.role === 'admin' || currentUser?.role === 'warehouse_manager';
 
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
@@ -608,7 +601,7 @@ export function DashboardPage() {
               </div>
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer width="100%" height={Math.max(320, (charts.topItems.length) * 52)}>
               <BarChart
                 data={charts.topItems}
                 layout="vertical"
