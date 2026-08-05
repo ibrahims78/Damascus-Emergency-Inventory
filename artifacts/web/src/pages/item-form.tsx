@@ -15,6 +15,7 @@ import { ArrowRight, Save, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Form, 
   FormControl, 
@@ -38,7 +39,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 const itemSchema = z.object({
   name: z.string().min(2, 'الاسم مطلوب ويجب أن يكون حرفين على الأقل'),
@@ -57,9 +58,38 @@ const itemSchema = z.object({
 
 type ItemFormValues = z.infer<typeof itemSchema>;
 
+/* ──────────────────────────── Loading skeleton ──────────────────────────── */
+
+function FormSkeleton() {
+  return (
+    <div className="space-y-6 max-w-4xl mx-auto">
+      <div className="flex items-center gap-4">
+        <Skeleton className="h-9 w-9 rounded-md" />
+        <Skeleton className="h-7 w-48" />
+      </div>
+      <div className="bg-card border rounded-lg shadow-sm p-6 space-y-6">
+        <div className="grid grid-cols-2 gap-6">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="space-y-2">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ))}
+        </div>
+        <div className="space-y-2"><Skeleton className="h-4 w-20" /><Skeleton className="h-24 w-full" /></div>
+        <div className="flex justify-end gap-3 pt-4 border-t">
+          <Skeleton className="h-10 w-20" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ──────────────────────────── Form component ────────────────────────────── */
+
 export function ItemForm({ itemId }: { itemId?: number }) {
   const [, setLocation] = useLocation();
-  const { toast } = useToast();
   const qc = useQueryClient();
 
   // ── Category quick-add dialog state ──
@@ -119,9 +149,9 @@ export function ItemForm({ itemId }: { itemId?: number }) {
       form.setValue('categoryId', created.id);
       setCatDialogOpen(false);
       setNewCatName('');
-      toast({ description: `تم إضافة تصنيف "${created.name}" بنجاح` });
+      toast.success(`تم إضافة تصنيف "${created.name}" بنجاح`);
     },
-    onError: (err: Error) => toast({ description: err.message, variant: 'destructive' }),
+    onError: (err: Error) => toast.error(err.message),
   });
 
   const form = useForm<ItemFormValues>({
@@ -170,10 +200,11 @@ export function ItemForm({ itemId }: { itemId?: number }) {
         } 
       }, {
         onSuccess: () => {
-          toast({ description: "تم تعديل المادة بنجاح" });
+          qc.invalidateQueries({ queryKey: ['items-kpi'] });
+          toast.success("تم تعديل المادة بنجاح");
           setLocation('/items');
         },
-        onError: () => toast({ description: "حدث خطأ أثناء حفظ المادة", variant: "destructive" }),
+        onError: () => toast.error("حدث خطأ أثناء حفظ المادة"),
       });
     } else {
       createMutation.mutate({ 
@@ -184,16 +215,21 @@ export function ItemForm({ itemId }: { itemId?: number }) {
         } 
       }, {
         onSuccess: () => {
-          toast({ description: "تمت إضافة المادة بنجاح" });
+          qc.invalidateQueries({ queryKey: ['items-kpi'] });
+          toast.success("تمت إضافة المادة بنجاح");
           setLocation('/items');
         },
-        onError: () => toast({ description: "حدث خطأ أثناء إضافة المادة", variant: "destructive" }),
+        onError: () => toast.error("حدث خطأ أثناء إضافة المادة"),
       });
     }
   };
 
   if (isEditing && isLoadingItem) {
-    return <div className="p-8 text-center text-muted-foreground">جاري التحميل...</div>;
+    return (
+      <div className="p-6">
+        <FormSkeleton />
+      </div>
+    );
   }
 
   return (

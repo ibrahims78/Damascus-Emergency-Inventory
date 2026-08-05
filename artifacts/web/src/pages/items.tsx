@@ -475,7 +475,7 @@ function ItemsList() {
         const exp = i.expiryDate ? new Date(i.expiryDate).getTime() : null;
         const expired    = exp !== null && exp < now;
         const nearExp    = exp !== null && !expired && (exp - now) <= day30;
-        const belowMin   = i.currentStock <= i.minStock;
+        const belowMin   = i.minStock > 0 && i.currentStock <= i.minStock;
         return !expired && !nearExp && !belowMin;
       }).length,
       nearExpiry: list.filter((i) => {
@@ -484,7 +484,7 @@ function ItemsList() {
       }).length,
       critical:   list.filter((i) => {
         const exp = i.expiryDate ? new Date(i.expiryDate).getTime() : null;
-        return (exp !== null && exp < now) || i.currentStock <= i.minStock;
+        return (exp !== null && exp < now) || (i.minStock > 0 && i.currentStock <= i.minStock);
       }).length,
     };
   })();
@@ -737,7 +737,7 @@ function ItemsList() {
                     const exp = item.expiryDate ? new Date(item.expiryDate).getTime() : null;
                     const isExpired    = exp !== null && exp < now;
                     const isNearExpiry = exp !== null && !isExpired && (exp - now) <= 30 * 86_400_000;
-                    const isBelowMin   = item.currentStock <= item.minStock;
+                    const isBelowMin   = item.minStock > 0 && item.currentStock <= item.minStock;
 
                     const rowBg = isExpired || isBelowMin
                       ? 'bg-red-50 dark:bg-red-950/20 hover:bg-red-100/80 dark:hover:bg-red-950/30'

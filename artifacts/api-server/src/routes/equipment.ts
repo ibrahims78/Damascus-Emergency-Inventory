@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db, equipmentTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
+import { auditLog } from "../middlewares/audit";
 import { runAlertWorker } from "../lib/alert-worker";
 import { eq, and, ilike, or, sql, isNotNull } from "drizzle-orm";
 
@@ -405,12 +406,13 @@ router.delete(
       const [deleted] = await db
         .delete(equipmentTable)
         .where(eq(equipmentTable.id, id))
-        .returning({ id: equipmentTable.id });
+        .returning({ id: equipmentTable.id, name: equipmentTable.name });
 
       if (!deleted) {
         res.status(404).json({ error: "التجهيز غير موجود" });
         return;
       }
+      await auditLog({ req, action: "delete", entityType: "equipment", entityId: id, details: { name: deleted.name } });
       res.status(204).send();
     } catch (err) {
       console.error(err);

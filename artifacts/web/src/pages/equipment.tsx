@@ -442,7 +442,7 @@ function EquipmentList() {
       total:       list.length,
       good:        list.filter(e => e.condition === 'good').length,
       attention:   list.filter(e => e.condition === 'needs_inspection' || e.condition === 'maintenance').length,
-      broken:      list.filter(e => e.condition === 'broken').length,
+      broken:      list.filter(e => e.condition === 'broken' || e.condition === 'consumed').length,
       lowStock:    list.filter(e => (e.minQuantity ?? 0) > 0 && (e.quantity ?? 1) <= (e.minQuantity ?? 0)).length,
     };
   })();
@@ -692,7 +692,7 @@ function EquipmentList() {
                           </span>
                           {eq.condition === 'maintenance' && eq.maintenanceSentAt && (
                             <p className="text-[10px] text-muted-foreground mt-1">
-                              منذ {eq.maintenanceSentAt}
+                              منذ {new Date(eq.maintenanceSentAt).toLocaleDateString('ar-SY', { year: 'numeric', month: 'short', day: 'numeric' })}
                             </p>
                           )}
                         </TableCell>
