@@ -26,6 +26,7 @@ import {
   sql,
   inArray,
   notInArray,
+  isNotNull,
 } from "drizzle-orm";
 import { broadcastAlertUpdate } from "./sse-manager";
 import { logger } from "./logger";
@@ -176,12 +177,32 @@ export async function runAlertWorker(): Promise<void> {
       existing.map((a) => [`${a.type}:${a.entityId}:${a.entityType}`, a])
     );
 
+    // Fetch keys of alerts that were manually resolved (resolvedBy IS NOT NULL).
+    // The worker must never re-open these — the user explicitly dismissed them.
+    const manuallyResolved = await db
+      .select({
+        type: alertsTable.type,
+        entityId: alertsTable.entityId,
+        entityType: alertsTable.entityType,
+      })
+      .from(alertsTable)
+      .where(
+        and(eq(alertsTable.isResolved, true), isNotNull(alertsTable.resolvedBy))
+      );
+
+    const manuallyResolvedKeys = new Set(
+      manuallyResolved.map((a) => `${a.type}:${a.entityId}:${a.entityType}`)
+    );
+
     // 4. Upsert active alerts
     const upsertedIds: number[] = [];
     const escalatedIds: number[] = []; // alerts whose severity increased
 
     for (const alert of active) {
       const key = `${alert.type}:${alert.entityId}:${alert.entityType}`;
+
+      // Skip alerts the admin manually resolved — don't undo their action
+      if (manuallyResolvedKeys.has(key)) continue;
       const prev = existingMap.get(key);
 
       const [upserted] = await db

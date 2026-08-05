@@ -138,9 +138,15 @@ function AlertRow({ alert, isAdmin, onNavigate }: AlertRowProps) {
     (e: React.MouseEvent) => {
       e.stopPropagation();
       if (alert.isRead) return;
+      // Optimistic: mark as read immediately
+      queryClient.setQueryData(
+        getListAlertsQueryKey(),
+        (old: Alert[] | undefined) =>
+          old?.map(a => a.dbId === alert.dbId ? { ...a, isRead: true } : a) ?? []
+      );
       markRead.mutate(
         { id: alert.dbId },
-        { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListAlertsQueryKey() }) }
+        { onSettled: () => queryClient.invalidateQueries({ queryKey: getListAlertsQueryKey() }) }
       );
     },
     [alert.dbId, alert.isRead, markRead, queryClient]
@@ -149,20 +155,34 @@ function AlertRow({ alert, isAdmin, onNavigate }: AlertRowProps) {
   const handleResolve = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
+      // Optimistic: remove the alert from the list immediately
+      queryClient.setQueryData(
+        getListAlertsQueryKey(),
+        (old: Alert[] | undefined) =>
+          old?.filter(a => a.dbId !== alert.dbId) ?? []
+      );
       resolve.mutate(
         { id: alert.dbId },
-        { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListAlertsQueryKey() }) }
+        {
+          onError: () => queryClient.invalidateQueries({ queryKey: getListAlertsQueryKey() }),
+          onSettled: () => queryClient.invalidateQueries({ queryKey: getListAlertsQueryKey() }),
+        }
       );
     },
     [alert.dbId, resolve, queryClient]
   );
 
   const handleNavigate = useCallback(() => {
-    // Mark as read when navigating
+    // Optimistic: mark as read immediately when navigating
     if (!alert.isRead) {
+      queryClient.setQueryData(
+        getListAlertsQueryKey(),
+        (old: Alert[] | undefined) =>
+          old?.map(a => a.dbId === alert.dbId ? { ...a, isRead: true } : a) ?? []
+      );
       markRead.mutate(
         { id: alert.dbId },
-        { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListAlertsQueryKey() }) }
+        { onSettled: () => queryClient.invalidateQueries({ queryKey: getListAlertsQueryKey() }) }
       );
     }
     onNavigate(entityPath(alert));
