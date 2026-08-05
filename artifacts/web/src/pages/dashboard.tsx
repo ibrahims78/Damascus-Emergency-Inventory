@@ -142,10 +142,16 @@ const TX_TYPE_META = {
 function RecentTransactionsTable({ transactions, loading }: { transactions: RecentTransaction[]; loading: boolean }) {
   const [, setLocation] = useLocation();
 
+  const title = loading
+    ? 'آخر العمليات'
+    : transactions.length === 0
+      ? 'آخر العمليات'
+      : `آخر ${transactions.length === 1 ? 'عملية' : transactions.length <= 10 ? `${transactions.length} عمليات` : `${transactions.length} عملية`}`;
+
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
-        <CardTitle className="text-base">آخر 5 عمليات</CardTitle>
+        <CardTitle className="text-base">{title}</CardTitle>
         <Link href="/transactions">
           <span className="text-xs text-primary hover:underline cursor-pointer">عرض الكل ←</span>
         </Link>
@@ -176,8 +182,8 @@ function RecentTransactionsTable({ transactions, loading }: { transactions: Rece
                   role="button"
                   tabIndex={0}
                   className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors cursor-pointer group"
-                  onClick={() => setLocation('/transactions')}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setLocation('/transactions'); }}
+                  onClick={() => setLocation(tx.documentNumber ? `/transactions?search=${encodeURIComponent(tx.documentNumber)}` : '/transactions')}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setLocation(tx.documentNumber ? `/transactions?search=${encodeURIComponent(tx.documentNumber)}` : '/transactions'); }}
                 >
                   <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium shrink-0', meta.color)}>
                     {meta.icon}{meta.label}
@@ -211,7 +217,7 @@ function RecentTransactionsTable({ transactions, loading }: { transactions: Rece
 function LastUpdated({ fetchedAt }: { fetchedAt: Date | null }) {
   const [, setTick] = useState(0);
   useEffect(() => {
-    const id = setInterval(() => setTick(t => t + 1), 30_000);
+    const id = setInterval(() => setTick(t => t + 1), 60_000);
     return () => clearInterval(id);
   }, []);
 
@@ -336,7 +342,7 @@ export function DashboardPage() {
           icon={<TrendingDown className="h-4 w-4" />}
           sub={stats?.belowMinCount ? 'أصناف دون الحد الأدنى' : 'المخزون ضمن الحدود'}
           variant={belowMinVariant}
-          href="/items"
+          href="/reports?tab=below-min"
         />
         <KpiCard
           loading={statsLoading}
@@ -352,12 +358,25 @@ export function DashboardPage() {
           title={`عمليات ${monthName}`}
           value={(stats?.monthlyIn ?? 0) + (stats?.monthlyOut ?? 0)}
           icon={<ArrowRightLeft className="h-4 w-4" />}
-          sub={stats ? (
-            <span className="flex gap-2">
-              <span className="text-emerald-600">↓ {stats.monthlyIn} إدخال</span>
-              <span className="text-red-500">↑ {stats.monthlyOut} إخراج</span>
-            </span>
-          ) : '—'}
+          sub={stats ? (() => {
+            const curr = stats.monthlyIn + stats.monthlyOut;
+            const prev = (stats.prevMonthIn ?? 0) + (stats.prevMonthOut ?? 0);
+            const diff = curr - prev;
+            const pct = prev > 0 ? Math.round(Math.abs(diff) / prev * 100) : null;
+            return (
+              <span className="flex flex-col gap-0.5">
+                <span className="flex gap-2">
+                  <span className="text-emerald-600">↓ {stats.monthlyIn} إدخال</span>
+                  <span className="text-red-500">↑ {stats.monthlyOut} إخراج</span>
+                </span>
+                {pct !== null && (
+                  <span className={diff >= 0 ? 'text-emerald-600' : 'text-red-500'}>
+                    {diff >= 0 ? '▲' : '▼'} {pct}% مقارنةً بالشهر الماضي
+                  </span>
+                )}
+              </span>
+            );
+          })() : '—'}
           variant="info"
           href="/transactions"
         />
@@ -372,7 +391,7 @@ export function DashboardPage() {
           icon={<Clock className="h-4 w-4" />}
           sub={stats ? `خلال ${formatDays(stats.expiryAlertDays)} القادمة` : '—'}
           variant={nearExpiryVariant}
-          href="/reports"
+          href="/reports?tab=expiry"
         />
         <KpiCard
           loading={statsLoading}
@@ -381,7 +400,7 @@ export function DashboardPage() {
           icon={<ShieldAlert className="h-4 w-4" />}
           sub={stats?.expiredCount ? 'تحتاج إزالة فورية' : 'لا يوجد منتهي الصلاحية'}
           variant={expiredVariant}
-          href="/reports"
+          href="/reports?tab=expiry"
         />
         <KpiCard
           loading={statsLoading}
@@ -430,7 +449,7 @@ export function DashboardPage() {
                 </div>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={240}>
+              <ResponsiveContainer width="100%" height={240} aria-label="مخطط دائري يوضح توزيع المخزون حسب التصنيف">
                 <PieChart>
                   <Pie
                     data={charts.stockByCategory}
@@ -507,7 +526,7 @@ export function DashboardPage() {
               </div>
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={200} aria-label="مخطط مساحي يوضح حركة المستودع اليومية خلال آخر 30 يوماً">
               <AreaChart data={charts.dailyMovement} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorIn" x1="0" y1="0" x2="0" y2="1">
@@ -579,7 +598,7 @@ export function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-base">أعلى الأصناف نشاطاً — آخر 30 يوماً</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">مقارنة الكميات الداخلة والخارجة لكل صنف</p>
+              <p className="text-xs text-muted-foreground mt-0.5">مقارنة الكميات الداخلة والخارجة لكل صنف <span className="text-muted-foreground/60">(المواد فقط — التجهيزات مستثناة)</span></p>
             </div>
             <div className="flex items-center gap-4 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5">
@@ -604,7 +623,7 @@ export function DashboardPage() {
               </div>
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={Math.max(320, (charts.topItems.length) * 52)}>
+            <ResponsiveContainer width="100%" height={Math.max(320, (charts.topItems.length) * 52)} aria-label="مخطط أعمدة أفقي يوضح أعلى الأصناف نشاطاً خلال آخر 30 يوماً">
               <BarChart
                 data={charts.topItems}
                 layout="vertical"

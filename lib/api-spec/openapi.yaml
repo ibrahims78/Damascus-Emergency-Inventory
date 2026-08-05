@@ -1377,7 +1377,7 @@ components:
           description: Active items in the warehouse
         belowMinCount:
           type: integer
-          description: Active items with currentStock <= minStock (minStock > 0)
+          description: Active items with currentStock < minStock (minStock > 0, excludes zero-stock items counted separately)
         nearExpiryCount:
           type: integer
           description: Active items expiring within expiryAlertDays, not yet expired
@@ -1399,6 +1399,12 @@ components:
         monthlyOut:
           type: integer
           description: OUT transactions this calendar month
+        prevMonthIn:
+          type: integer
+          description: IN transactions previous calendar month
+        prevMonthOut:
+          type: integer
+          description: OUT transactions previous calendar month
         expiryAlertDays:
           type: integer
           description: Alert window in days (from system settings, default 30)

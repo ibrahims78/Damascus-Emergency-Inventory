@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import {
   useGetStockReport,
@@ -647,7 +647,27 @@ function EquipmentTab() {
 
 // ─── main page ──────────────────────────────────────────────────────────────
 
+const VALID_TABS = ['stock', 'movements', 'expiry', 'below-min', 'equipment'] as const;
+type TabValue = typeof VALID_TABS[number];
+
+function getInitialTab(): TabValue {
+  try {
+    const t = new URLSearchParams(window.location.search).get('tab');
+    return VALID_TABS.includes(t as TabValue) ? (t as TabValue) : 'stock';
+  } catch {
+    return 'stock';
+  }
+}
+
 export function ReportsPage() {
+  const [activeTab, setActiveTab] = useState<TabValue>(getInitialTab);
+
+  // Sync tab when URL changes (e.g. browser back/forward)
+  useEffect(() => {
+    const tab = getInitialTab();
+    setActiveTab(tab);
+  }, []);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -658,7 +678,7 @@ export function ReportsPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="stock" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="space-y-4">
         <TabsList className="grid w-full grid-cols-5 h-auto print:hidden">
           <TabsTrigger value="stock" className="gap-1.5 text-xs py-2">
             <PackageSearch className="w-3.5 h-3.5" />

@@ -8,7 +8,7 @@ import {
   systemSettingsTable,
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
-import { eq, lte, and, sql } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 
 const router = Router();
 
@@ -28,6 +28,9 @@ router.get("/stats", requireAuth, async (_req, res) => {
     const monthStart = new Date(
       Date.UTC(nowUtc.getUTCFullYear(), nowUtc.getUTCMonth(), 1)
     ).toISOString();
+    const prevMonthStart = new Date(
+      Date.UTC(nowUtc.getUTCFullYear(), nowUtc.getUTCMonth() - 1, 1)
+    ).toISOString();
 
     const [
       totalItemsResult,
@@ -39,6 +42,8 @@ router.get("/stats", requireAuth, async (_req, res) => {
       equipmentAlertResult,
       monthlyInResult,
       monthlyOutResult,
+      prevMonthInResult,
+      prevMonthOutResult,
       recentTransactionsResult,
     ] = await Promise.all([
       // Total active items
@@ -47,14 +52,15 @@ router.get("/stats", requireAuth, async (_req, res) => {
         .from(itemsTable)
         .where(eq(itemsTable.isActive, true)),
 
-      // Below min stock (stock ≤ min, excludes items with minStock = 0 AND stock = 0)
+      // Below min stock (stock < min, strictly; excludes zero-stock items counted separately)
       db
         .select({ count: sql<number>`count(*)` })
         .from(itemsTable)
         .where(
           and(
             eq(itemsTable.isActive, true),
-            lte(itemsTable.currentStock, itemsTable.minStock),
+            sql`${itemsTable.currentStock} < ${itemsTable.minStock}`,
+            sql`${itemsTable.currentStock} > 0`,
             sql`${itemsTable.minStock} > 0`
           )
         ),
@@ -130,6 +136,30 @@ router.get("/stats", requireAuth, async (_req, res) => {
           )
         ),
 
+      // Transactions previous month (in)
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(transactionsTable)
+        .where(
+          and(
+            eq(transactionsTable.type, "in"),
+            sql`${transactionsTable.createdAt} >= ${prevMonthStart}`,
+            sql`${transactionsTable.createdAt} < ${monthStart}`
+          )
+        ),
+
+      // Transactions previous month (out)
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(transactionsTable)
+        .where(
+          and(
+            eq(transactionsTable.type, "out"),
+            sql`${transactionsTable.createdAt} >= ${prevMonthStart}`,
+            sql`${transactionsTable.createdAt} < ${monthStart}`
+          )
+        ),
+
       // Last 5 transactions with item/equipment name and user
       db
         .select({
@@ -164,6 +194,8 @@ router.get("/stats", requireAuth, async (_req, res) => {
       equipmentAlertCount: Number(equipmentAlertResult[0]?.count ?? 0),
       monthlyIn: Number(monthlyInResult[0]?.count ?? 0),
       monthlyOut: Number(monthlyOutResult[0]?.count ?? 0),
+      prevMonthIn: Number(prevMonthInResult[0]?.count ?? 0),
+      prevMonthOut: Number(prevMonthOutResult[0]?.count ?? 0),
       expiryAlertDays: alertDays,
       recentTransactions: recentTransactionsResult.map((t) => ({
         id: t.id,
@@ -227,12 +259,12 @@ router.get("/charts", requireAuth, async (_req, res) => {
           COALESCE(SUM(CASE WHEN t.type = 'out' THEN COALESCE(t.quantity, 0) ELSE 0 END), 0)::int AS out_qty,
           COUNT(t.id)::int AS tx_count
         FROM generate_series(
-          CURRENT_DATE - INTERVAL '29 days',
-          CURRENT_DATE,
+          (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Damascus')::date - INTERVAL '29 days',
+          (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Damascus')::date,
           '1 day'::interval
         ) AS gs(d)
         LEFT JOIN transactions t
-          ON DATE(t.created_at AT TIME ZONE 'UTC') = gs.d::date
+          ON DATE(t.created_at AT TIME ZONE 'Asia/Damascus') = gs.d::date
           AND t.type IN ('in', 'out')
         GROUP BY gs.d
         ORDER BY gs.d ASC

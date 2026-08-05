@@ -628,7 +628,7 @@ export const CreateExitReasonResponse = zod.object({
  */
 export const GetDashboardStatsResponse = zod.object({
   "totalItems": zod.number().int().describe('Active items in the warehouse'),
-  "belowMinCount": zod.number().int().describe('Active items with currentStock <= minStock (minStock > 0)'),
+  "belowMinCount": zod.number().int().describe('Active items with currentStock < minStock (minStock > 0, excludes zero-stock items counted separately)'),
   "nearExpiryCount": zod.number().int().describe('Active items expiring within expiryAlertDays, not yet expired'),
   "expiredCount": zod.number().int().describe('Active items whose expiryDate <= today'),
   "zeroStockCount": zod.number().int().describe('Active items with currentStock = 0'),
@@ -636,6 +636,8 @@ export const GetDashboardStatsResponse = zod.object({
   "equipmentAlertCount": zod.number().int().describe('Equipment in maintenance, needs_inspection, or broken state'),
   "monthlyIn": zod.number().int().describe('IN transactions this calendar month'),
   "monthlyOut": zod.number().int().describe('OUT transactions this calendar month'),
+  "prevMonthIn": zod.number().int().optional().describe('IN transactions previous calendar month'),
+  "prevMonthOut": zod.number().int().optional().describe('OUT transactions previous calendar month'),
   "expiryAlertDays": zod.number().int().describe('Alert window in days (from system settings, default 30)'),
   "recentTransactions": zod.array(zod.object({
   "id": zod.number().int(),

@@ -289,8 +289,15 @@ export function Header() {
   const hasCritical = critical.some(a => !a.isRead);
 
   const handleMarkAllRead = () => {
+    // Optimistic update: mark all alerts as read immediately in the cache
+    queryClient.setQueryData(
+      getListAlertsQueryKey(),
+      (old: Alert[] | undefined) => old?.map(a => ({ ...a, isRead: true })) ?? []
+    );
     markAllRead.mutate(undefined, {
       onSuccess: () =>
+        queryClient.invalidateQueries({ queryKey: getListAlertsQueryKey() }),
+      onError: () =>
         queryClient.invalidateQueries({ queryKey: getListAlertsQueryKey() }),
     });
   };
@@ -303,7 +310,12 @@ export function Header() {
         {/* ── Alerts bell ── */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative"
+              aria-label={unreadCount > 0 ? `التنبيهات — ${unreadCount} غير مقروء` : 'التنبيهات'}
+            >
               <Bell className={cn(
                 'h-5 w-5',
                 unreadCount > 0 ? 'text-foreground' : 'text-muted-foreground'
@@ -424,6 +436,7 @@ export function Header() {
           variant="ghost"
           size="icon"
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          aria-label={theme === 'dark' ? 'التبديل إلى الوضع النهاري' : 'التبديل إلى الوضع الليلي'}
         >
           {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </Button>

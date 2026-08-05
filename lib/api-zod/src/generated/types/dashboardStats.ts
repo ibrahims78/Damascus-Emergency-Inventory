@@ -10,7 +10,7 @@ import type { RecentTransaction } from './recentTransaction';
 export interface DashboardStats {
   /** Active items in the warehouse */
   totalItems: number;
-  /** Active items with currentStock <= minStock (minStock > 0) */
+  /** Active items with currentStock < minStock (minStock > 0, excludes zero-stock items counted separately) */
   belowMinCount: number;
   /** Active items expiring within expiryAlertDays, not yet expired */
   nearExpiryCount: number;
@@ -26,6 +26,10 @@ export interface DashboardStats {
   monthlyIn: number;
   /** OUT transactions this calendar month */
   monthlyOut: number;
+  /** IN transactions previous calendar month */
+  prevMonthIn?: number;
+  /** OUT transactions previous calendar month */
+  prevMonthOut?: number;
   /** Alert window in days (from system settings, default 30) */
   expiryAlertDays: number;
   recentTransactions: RecentTransaction[];

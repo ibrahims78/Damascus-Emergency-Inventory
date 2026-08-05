@@ -89,7 +89,9 @@ function TransactionsList() {
   const [itemTypeFilter, setItemTypeFilter] = useState<ItemTypeFilter>('all');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
-  const [searchInput, setSearchInput] = useState('');
+  const [searchInput, setSearchInput] = useState(() => {
+    try { return new URLSearchParams(window.location.search).get('search') ?? ''; } catch { return ''; }
+  });
   const search = useDebounce(searchInput, 400);
 
   const { data, isLoading } = useListTransactions({
