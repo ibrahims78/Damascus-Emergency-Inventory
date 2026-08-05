@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   useListEquipment,
   useDeleteEquipment,
   useGetCurrentUser,
+  getEquipmentReport,
   type Equipment,
 } from '@workspace/api-client-react';
 import {
@@ -22,6 +23,13 @@ import {
   ShieldAlert,
   CheckCircle2,
   Package,
+  Download,
+  Upload,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  FileSpreadsheet,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -117,6 +125,263 @@ function StatCard({
   );
 }
 
+/* ─────────────────────── Sortable header ────────────────────────────────── */
+
+type SortKey = 'name' | 'condition' | 'quantity' | 'manufactureYear' | 'createdAt';
+
+function SortableHead({
+  label,
+  col,
+  current,
+  dir,
+  onSort,
+  className,
+}: {
+  label: string;
+  col: SortKey;
+  current: SortKey;
+  dir: 'asc' | 'desc';
+  onSort: (col: SortKey) => void;
+  className?: string;
+}) {
+  const isActive = current === col;
+  return (
+    <TableHead
+      className={`cursor-pointer select-none hover:bg-muted/50 transition-colors ${className ?? ''}`}
+      onClick={() => onSort(col)}
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {isActive ? (
+          dir === 'asc'
+            ? <ArrowUp className="w-3 h-3 text-primary" />
+            : <ArrowDown className="w-3 h-3 text-primary" />
+        ) : (
+          <ArrowUpDown className="w-3 h-3 text-muted-foreground/50" />
+        )}
+      </span>
+    </TableHead>
+  );
+}
+
+/* ─────────────────────── Export button ─────────────────────────────────── */
+
+function ExportButton() {
+  const [exporting, setExporting] = useState(false);
+
+  const conditionLabels: Record<string, string> = {
+    good: 'جيد', needs_inspection: 'يحتاج فحص',
+    maintenance: 'تحت الصيانة', broken: 'معطل', consumed: 'مستهلك',
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const data = await getEquipmentReport();
+      if (!data || data.length === 0) { toast.info('لا توجد بيانات للتصدير'); return; }
+      const XLSX = await import('xlsx');
+      const headers = ['الاسم', 'النوع', 'الموديل', 'الرقم التسلسلي', 'الحالة', 'الكمية', 'الحد الأدنى', 'سنة الصنع', 'بلد المنشأ', 'العهدة الحالية', 'ملاحظات'];
+      const rows = (data as Equipment[]).map((eq) => [
+        eq.name,
+        eq.equipmentType ?? '',
+        eq.model ?? '',
+        eq.serialNumber ?? '',
+        conditionLabels[eq.condition] ?? eq.condition,
+        eq.quantity ?? 1,
+        eq.minQuantity ?? 0,
+        eq.manufactureYear ?? '',
+        eq.originCountry ?? '',
+        eq.currentHolder ?? '',
+        eq.notes ?? '',
+      ]);
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      ws['!cols'] = headers.map((_, i) => ({ wch: [20, 15, 15, 18, 14, 8, 10, 10, 14, 18, 25][i] }));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'التجهيزات');
+      XLSX.writeFile(wb, `التجهيزات-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast.success(`تم تصدير ${data.length} تجهيز بنجاح`);
+    } catch {
+      toast.error('حدث خطأ أثناء التصدير');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={handleExport} disabled={exporting}>
+          {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+          تصدير
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>تصدير جميع التجهيزات إلى Excel</TooltipContent>
+    </Tooltip>
+  );
+}
+
+/* ─────────────────────── Bulk import dialog ─────────────────────────────── */
+
+function BulkImportDialog({
+  open,
+  onClose,
+  onDone,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [status, setStatus] = useState<'idle' | 'parsing' | 'uploading' | 'done' | 'error'>('idle');
+  const [result, setResult] = useState<{ created: number; updated: number; errors: {row:number;name:string;error:string}[] } | null>(null);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const reset = () => { setStatus('idle'); setResult(null); setErrorMsg(''); if (fileRef.current) fileRef.current.value = ''; };
+
+  const handleClose = () => { reset(); onClose(); };
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setStatus('parsing');
+    setResult(null);
+    setErrorMsg('');
+    try {
+      const XLSX = await import('xlsx');
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: 'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: '' });
+
+      const COL_MAP: Record<string, string> = {
+        'الاسم': 'name', 'اسم التجهيز': 'name',
+        'النوع': 'equipmentType', 'نوع التجهيز': 'equipmentType',
+        'الموديل': 'model', 'موديل': 'model',
+        'الرقم التسلسلي': 'serialNumber', 'S/N': 'serialNumber', 'سيريال': 'serialNumber',
+        'الحالة': 'condition', 'الحالة الفنية': 'condition',
+        'سنة الصنع': 'manufactureYear',
+        'بلد المنشأ': 'originCountry', 'البلد': 'originCountry',
+        'العهدة': 'currentHolder', 'العهدة الحالية': 'currentHolder',
+        'ملاحظات': 'notes',
+        'الكمية': 'quantity',
+        'الحد الأدنى': 'minQuantity', 'حد التنبيه': 'minQuantity',
+      };
+
+      const mapped = rows.map((row) => {
+        const out: Record<string, any> = {};
+        for (const [k, v] of Object.entries(row)) {
+          const mapped_key = COL_MAP[k.trim()] ?? k;
+          out[mapped_key] = v;
+        }
+        return out;
+      }).filter(r => r.name);
+
+      if (mapped.length === 0) { setStatus('error'); setErrorMsg('لم يُعثر على بيانات قابلة للقراءة. تأكد من وجود صف رأس وعمود "الاسم".'); return; }
+
+      setStatus('uploading');
+      const res = await fetch('/api/equipment/bulk-import?mode=upsert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mapped),
+        credentials: 'include',
+      });
+      if (!res.ok) { const d = await res.json(); setStatus('error'); setErrorMsg(d.error ?? 'حدث خطأ أثناء الاستيراد'); return; }
+      const data = await res.json();
+      setResult(data);
+      setStatus('done');
+      onDone();
+    } catch (err: any) {
+      setStatus('error');
+      setErrorMsg(err.message ?? 'خطأ غير متوقع');
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-card border rounded-lg shadow-xl w-full max-w-lg mx-4 p-6 space-y-4" dir="rtl">
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-lg font-bold flex items-center gap-2"><FileSpreadsheet className="w-5 h-5 text-emerald-600" />استيراد تجهيزات من Excel</h2>
+            <p className="text-sm text-muted-foreground mt-1">يُقبل الملف بصيغة .xlsx أو .xls — الصف الأول رؤوس الأعمدة</p>
+          </div>
+          <button onClick={handleClose} className="text-muted-foreground hover:text-foreground p-1"><X className="w-4 h-4" /></button>
+        </div>
+
+        {/* Format hint */}
+        <div className="rounded-md bg-muted/50 border p-3 text-xs space-y-1">
+          <p className="font-semibold mb-1">الأعمدة المدعومة (رؤوس الأعمدة بالعربية أو الإنجليزية):</p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground">
+            <span>• <b>الاسم</b> (إلزامي)</span>
+            <span>• النوع</span>
+            <span>• الموديل</span>
+            <span>• الرقم التسلسلي</span>
+            <span>• الحالة</span>
+            <span>• سنة الصنع</span>
+            <span>• بلد المنشأ</span>
+            <span>• العهدة</span>
+            <span>• الكمية</span>
+            <span>• الحد الأدنى</span>
+          </div>
+          <p className="text-muted-foreground mt-1">إذا وُجد رقم تسلسلي متطابق، يُحدَّث السجل (upsert).</p>
+        </div>
+
+        {/* Upload area */}
+        {status === 'idle' && (
+          <label className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors gap-2">
+            <Upload className="w-8 h-8 text-muted-foreground" />
+            <span className="text-sm font-medium">اضغط لاختيار ملف Excel</span>
+            <span className="text-xs text-muted-foreground">.xlsx أو .xls</span>
+            <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFile} />
+          </label>
+        )}
+
+        {(status === 'parsing' || status === 'uploading') && (
+          <div className="flex items-center justify-center gap-3 py-8 text-muted-foreground">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span>{status === 'parsing' ? 'جاري قراءة الملف...' : 'جاري رفع البيانات...'}</span>
+          </div>
+        )}
+
+        {status === 'error' && (
+          <div className="rounded-md bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive">{errorMsg}</div>
+        )}
+
+        {status === 'done' && result && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-4 rounded-md bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-4">
+              <FileSpreadsheet className="w-8 h-8 text-emerald-600 shrink-0" />
+              <div>
+                <p className="font-semibold text-emerald-700 dark:text-emerald-400">تم الاستيراد بنجاح</p>
+                <p className="text-sm text-emerald-600 dark:text-emerald-500">
+                  تمت إضافة {result.created} تجهيز · تحديث {result.updated}
+                  {result.errors.length > 0 && ` · ${result.errors.length} خطأ`}
+                </p>
+              </div>
+            </div>
+            {result.errors.length > 0 && (
+              <div className="rounded-md border p-3 text-xs space-y-1 max-h-32 overflow-y-auto">
+                <p className="font-semibold text-destructive mb-1">أخطاء تفصيلية:</p>
+                {result.errors.map((e, i) => (
+                  <p key={i} className="text-muted-foreground">صف {e.row}: {e.name} — {e.error}</p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2 pt-2">
+          {status === 'error' && <button onClick={reset} className="text-sm text-primary underline">إعادة المحاولة</button>}
+          <Button variant="outline" size="sm" onClick={handleClose}>
+            {status === 'done' ? 'إغلاق' : 'إلغاء'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ──────────────────────────── Main list ─────────────────────────────────── */
 
 const PAGE_SIZE = 20;
@@ -131,6 +396,9 @@ function EquipmentList() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage]                   = useState(1);
   const [deleteTarget, setDeleteTarget]   = useState<Equipment | null>(null);
+  const [sortBy, setSortBy]               = useState<SortKey>('createdAt');
+  const [sortDir, setSortDir]             = useState<'asc' | 'desc'>('desc');
+  const [importOpen, setImportOpen]       = useState(false);
 
   /* debounce search */
   useEffect(() => {
@@ -146,12 +414,24 @@ function EquipmentList() {
 
   const canEdit = currentUser?.role === 'admin' || currentUser?.role === 'warehouse_manager';
 
+  const handleSort = (col: SortKey) => {
+    if (col === sortBy) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(col);
+      setSortDir('asc');
+    }
+    setPage(1);
+  };
+
   const { data, isLoading } = useListEquipment({
     search: debouncedSearch,
     condition: condition === 'all' ? undefined : condition || undefined,
     page,
     limit: PAGE_SIZE,
-  });
+    sortBy,
+    sortDir,
+  } as any);
 
   /* KPI counters derived from full (unfiltered) totals */
   const { data: allData } = useListEquipment({ limit: 1000 });
@@ -215,6 +495,13 @@ function EquipmentList() {
           <StatCard icon={ShieldAlert}  label="معطلة / نقص"       value={stats.broken + stats.lowStock} colorClass="bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400" loading={!allData} />
         </div>
 
+        {/* Bulk import dialog */}
+        <BulkImportDialog
+          open={importOpen}
+          onClose={() => setImportOpen(false)}
+          onDone={() => queryClient.invalidateQueries({ queryKey: ['listEquipment'] })}
+        />
+
         {/* Table card */}
         <div className="bg-card border rounded-lg shadow-sm">
 
@@ -231,19 +518,24 @@ function EquipmentList() {
                 />
               </div>
               {hasFilters && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="مسح الفلاتر"
-                  onClick={() => { setSearch(''); setCondition(''); setPage(1); }}
-                  className="shrink-0 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="مسح الفلاتر"
+                      onClick={() => { setSearch(''); setCondition(''); setPage(1); }}
+                      className="shrink-0 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>مسح الفلاتر</TooltipContent>
+                </Tooltip>
               )}
             </div>
-            <div className="flex items-center gap-3 shrink-0">
-              <div className="w-48">
+            <div className="flex items-center gap-2 shrink-0 flex-wrap">
+              <div className="w-44">
                 <Select value={condition} onValueChange={(v) => { setCondition(v); setPage(1); }}>
                   <SelectTrigger>
                     <div className="flex items-center gap-2">
@@ -266,6 +558,25 @@ function EquipmentList() {
                   {data.total} تجهيز
                 </span>
               )}
+              {/* Export button */}
+              <ExportButton />
+              {/* Import button — admins/managers only */}
+              {canEdit && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => setImportOpen(true)}
+                    >
+                      <Upload className="w-4 h-4" />
+                      استيراد
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>استيراد تجهيزات من ملف Excel</TooltipContent>
+                </Tooltip>
+              )}
             </div>
           </div>
 
@@ -275,11 +586,11 @@ function EquipmentList() {
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="w-[140px]">الرقم التسلسلي</TableHead>
-                  <TableHead>اسم التجهيز</TableHead>
-                  <TableHead className="text-center w-[90px]">الكمية</TableHead>
+                  <SortableHead label="اسم التجهيز"   col="name"            current={sortBy} dir={sortDir} onSort={handleSort} />
+                  <SortableHead label="الكمية"         col="quantity"        current={sortBy} dir={sortDir} onSort={handleSort} className="text-center w-[90px]" />
                   <TableHead className="w-[160px]">العهدة</TableHead>
-                  <TableHead className="w-[90px]">سنة الصنع</TableHead>
-                  <TableHead className="w-[130px]">الحالة الفنية</TableHead>
+                  <SortableHead label="سنة الصنع"     col="manufactureYear" current={sortBy} dir={sortDir} onSort={handleSort} className="w-[100px]" />
+                  <SortableHead label="الحالة الفنية" col="condition"       current={sortBy} dir={sortDir} onSort={handleSort} className="w-[140px]" />
                   {canEdit && <TableHead className="w-[90px] text-left">إجراءات</TableHead>}
                 </TableRow>
               </TableHeader>

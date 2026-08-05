@@ -14,11 +14,23 @@ router.get("/", requireAuth, async (req, res) => {
       search,
       page = "1",
       limit = "50",
+      sortBy = "createdAt",
+      sortDir = "desc",
     } = req.query as Record<string, string>;
 
     const pageNum = Math.max(1, parseInt(page, 10));
     const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10)));
     const offset = (pageNum - 1) * limitNum;
+
+    const SORT_COLS: Record<string, any> = {
+      name: equipmentTable.name,
+      condition: equipmentTable.condition,
+      quantity: equipmentTable.quantity,
+      manufactureYear: equipmentTable.manufactureYear,
+      createdAt: equipmentTable.createdAt,
+    };
+    const sortCol = SORT_COLS[sortBy] ?? equipmentTable.createdAt;
+    const dir = sortDir === "asc" ? "asc" : "desc";
 
     const conditions = [];
     if (condition) conditions.push(eq(equipmentTable.condition, condition as never));
@@ -39,7 +51,7 @@ router.get("/", requireAuth, async (req, res) => {
     const [equipment, totalResult] = await Promise.all([
       db.query.equipmentTable.findMany({
         where,
-        orderBy: (e, { desc }) => [desc(e.createdAt)],
+        orderBy: dir === "asc" ? (_, { asc }) => [asc(sortCol)] : (_, { desc }) => [desc(sortCol)],
         limit: limitNum,
         offset,
       }),

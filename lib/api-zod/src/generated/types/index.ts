@@ -35,6 +35,8 @@ export * from './itemInput';
 export * from './itemListResponse';
 export * from './itemUpdate';
 export * from './listEquipmentParams';
+export * from './listEquipmentSortBy';
+export * from './listEquipmentSortDir';
 export * from './listItemsParams';
 export * from './listTransactionsParams';
 export * from './loginCredentials';

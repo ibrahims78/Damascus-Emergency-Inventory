@@ -250,7 +250,9 @@ export const ListEquipmentQueryParams = zod.object({
   "condition": zod.coerce.string().optional(),
   "search": zod.coerce.string().optional(),
   "page": zod.coerce.number().int().optional(),
-  "limit": zod.coerce.number().int().optional()
+  "limit": zod.coerce.number().int().optional(),
+  "sortBy": zod.enum(['name', 'condition', 'quantity', 'manufactureYear', 'createdAt']).optional(),
+  "sortDir": zod.enum(['asc', 'desc']).optional()
 })
 
 export const listEquipmentResponseEquipmentItemQuantityDefault = 1;

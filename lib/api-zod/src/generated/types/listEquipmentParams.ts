@@ -5,10 +5,14 @@
  * Ambulance & Emergency Warehouse Management System API — Damascus
  * OpenAPI spec version: 0.1.0
  */
+import type { ListEquipmentSortBy } from './listEquipmentSortBy';
+import type { ListEquipmentSortDir } from './listEquipmentSortDir';
 
 export type ListEquipmentParams = {
 condition?: string;
 search?: string;
 page?: number;
 limit?: number;
+sortBy?: ListEquipmentSortBy;
+sortDir?: ListEquipmentSortDir;
 };

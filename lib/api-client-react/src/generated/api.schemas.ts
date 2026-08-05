@@ -600,7 +600,28 @@ condition?: string;
 search?: string;
 page?: number;
 limit?: number;
+sortBy?: ListEquipmentSortBy;
+sortDir?: ListEquipmentSortDir;
 };
+
+export type ListEquipmentSortBy = typeof ListEquipmentSortBy[keyof typeof ListEquipmentSortBy];
+
+
+export const ListEquipmentSortBy = {
+  name: 'name',
+  condition: 'condition',
+  quantity: 'quantity',
+  manufactureYear: 'manufactureYear',
+  createdAt: 'createdAt',
+} as const;
+
+export type ListEquipmentSortDir = typeof ListEquipmentSortDir[keyof typeof ListEquipmentSortDir];
+
+
+export const ListEquipmentSortDir = {
+  asc: 'asc',
+  desc: 'desc',
+} as const;
 
 export type ListTransactionsParams = {
 type?: string;

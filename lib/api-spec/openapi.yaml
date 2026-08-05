@@ -250,6 +250,16 @@ paths:
         - name: limit
           in: query
           schema: { type: integer }
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [name, condition, quantity, manufactureYear, createdAt]
+        - name: sortDir
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
       responses:
         "200":
           description: Paginated list of equipment
