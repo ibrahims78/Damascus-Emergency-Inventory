@@ -17,6 +17,8 @@ router.get("/", requireAuth, async (req, res) => {
       nearExpiry,
       page = "1",
       limit = "50",
+      sortBy = "name",
+      sortDir = "asc",
     } = req.query as Record<string, string>;
 
     const pageNum = Math.max(1, parseInt(page, 10));
@@ -26,7 +28,16 @@ router.get("/", requireAuth, async (req, res) => {
     const conditions = [eq(itemsTable.isActive, true)];
 
     if (categoryId) conditions.push(eq(itemsTable.categoryId, parseInt(categoryId, 10)));
-    if (search) conditions.push(ilike(itemsTable.name, `%${search}%`));
+    if (search) {
+      conditions.push(
+        or(
+          ilike(itemsTable.name, `%${search}%`),
+          ilike(itemsTable.code, `%${search}%`),
+          ilike(itemsTable.batchNumber, `%${search}%`),
+          ilike(itemsTable.supplier, `%${search}%`)
+        )!
+      );
+    }
     if (belowMin === "true")
       conditions.push(lte(itemsTable.currentStock, itemsTable.minStock));
     if (nearExpiry === "true") {
@@ -40,6 +51,22 @@ router.get("/", requireAuth, async (req, res) => {
     }
 
     const where = and(...conditions);
+
+    // Sort
+    const allowedSortCols = ["name", "currentStock", "minStock", "expiryDate", "createdAt"] as const;
+    type SortCol = (typeof allowedSortCols)[number];
+    const col: SortCol = allowedSortCols.includes(sortBy as SortCol) ? (sortBy as SortCol) : "name";
+    const direction = sortDir === "desc" ? "desc" : "asc";
+
+    const colMap: Record<SortCol, typeof itemsTable.name> = {
+      name: itemsTable.name,
+      currentStock: itemsTable.currentStock,
+      minStock: itemsTable.minStock,
+      expiryDate: itemsTable.expiryDate,
+      createdAt: itemsTable.createdAt,
+    };
+
+    const orderExpr = direction === "asc" ? asc(colMap[col]) : desc(colMap[col]);
 
     const [items, totalResult] = await Promise.all([
       db
@@ -65,7 +92,7 @@ router.get("/", requireAuth, async (req, res) => {
         .from(itemsTable)
         .leftJoin(categoriesTable, eq(itemsTable.categoryId, categoriesTable.id))
         .where(where)
-        .orderBy(itemsTable.name)
+        .orderBy(orderExpr)
         .limit(limitNum)
         .offset(offset),
       db
@@ -244,7 +271,6 @@ router.post(
 
         try {
           if (mode === "upsert" && code !== null) {
-            // Upsert: update all fields when code already exists
             const [saved] = await db
               .insert(itemsTable)
               .values(values)
@@ -278,7 +304,6 @@ router.post(
               });
             }
           } else {
-            // Insert-only mode
             const [created] = await db.insert(itemsTable).values(values).returning();
             results.created++;
             await auditLog({
@@ -298,7 +323,6 @@ router.post(
       }
 
       res.json(results);
-      // Trigger worker after import so new alerts reflect imported data immediately
       runAlertWorker();
     } catch (err) {
       console.error(err);
@@ -394,7 +418,7 @@ router.put(
       }
       await auditLog({ req, action: "update", entityType: "item", entityId: item.id, details: { name: item.name } });
       res.json(item);
-      runAlertWorker(); // re-evaluate: expiry date / minStock may have changed
+      runAlertWorker();
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Internal server error" });
@@ -416,7 +440,7 @@ router.delete(
         .where(eq(itemsTable.id, id));
       await auditLog({ req, action: "delete", entityType: "item", entityId: id, details: {} });
       res.status(204).send();
-      runAlertWorker(); // item deactivated — auto-resolve its alerts
+      runAlertWorker();
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Internal server error" });
