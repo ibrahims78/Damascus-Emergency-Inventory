@@ -27,6 +27,12 @@ export interface Equipment {
   notes?: string | null;
   quantity?: number;
   minQuantity?: number;
+  /** @nullable */
+  maintenanceSentAt?: string | null;
+  /** @nullable */
+  maintenanceReturnedAt?: string | null;
+  /** @nullable */
+  maintenanceNotes?: string | null;
   createdAt: string;
   updatedAt?: string;
 }

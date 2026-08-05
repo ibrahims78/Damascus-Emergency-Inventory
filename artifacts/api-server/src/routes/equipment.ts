@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db, equipmentTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
 import { runAlertWorker } from "../lib/alert-worker";
-import { eq, and, ilike, sql, isNotNull } from "drizzle-orm";
+import { eq, and, ilike, or, sql, isNotNull } from "drizzle-orm";
 
 const router = Router();
 
@@ -22,7 +22,17 @@ router.get("/", requireAuth, async (req, res) => {
 
     const conditions = [];
     if (condition) conditions.push(eq(equipmentTable.condition, condition as never));
-    if (search) conditions.push(ilike(equipmentTable.name, `%${search}%`));
+    if (search) {
+      const pattern = `%${search}%`;
+      conditions.push(
+        or(
+          ilike(equipmentTable.name, pattern),
+          ilike(equipmentTable.model, pattern),
+          ilike(equipmentTable.serialNumber, pattern),
+          ilike(equipmentTable.equipmentType, pattern),
+        )!
+      );
+    }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -70,6 +80,9 @@ router.post(
         notes,
         quantity,
         minQuantity,
+        maintenanceSentAt,
+        maintenanceReturnedAt,
+        maintenanceNotes,
       } = req.body;
       if (!name) {
         res.status(400).json({ error: "name is required" });
@@ -102,9 +115,14 @@ router.post(
           notes: notes || null,
           quantity: finalQty,
           minQuantity: isNaN(minQty) || minQty < 0 ? 0 : minQty,
+          maintenanceSentAt: maintenanceSentAt || null,
+          maintenanceReturnedAt: maintenanceReturnedAt || null,
+          maintenanceNotes: maintenanceNotes || null,
         })
         .returning();
       res.status(201).json(eq_);
+      // Trigger alert worker so new equipment alerts are generated immediately
+      runAlertWorker();
     } catch (err: any) {
       if (err?.cause?.code === "23505" || err?.code === "23505") {
         res.status(409).json({ error: "الرقم التسلسلي مسجّل مسبقاً لتجهيز آخر في النظام" });
@@ -294,6 +312,9 @@ router.put(
         notes,
         quantity,
         minQuantity,
+        maintenanceSentAt,
+        maintenanceReturnedAt,
+        maintenanceNotes,
       } = req.body;
 
       const updates: Partial<typeof equipmentTable.$inferInsert> = {};
@@ -315,9 +336,12 @@ router.put(
         const minQty = parseInt(String(minQuantity), 10);
         updates.minQuantity = isNaN(minQty) || minQty < 0 ? 0 : minQty;
       }
+      // Maintenance tracking fields
+      if (maintenanceSentAt !== undefined) updates.maintenanceSentAt = maintenanceSentAt || null;
+      if (maintenanceReturnedAt !== undefined) updates.maintenanceReturnedAt = maintenanceReturnedAt || null;
+      if (maintenanceNotes !== undefined) updates.maintenanceNotes = maintenanceNotes || null;
 
       // Determine effective serialNumber and quantity after merges
-      // We must check against the current record if only one of them is being updated
       if (updates.serialNumber !== undefined || updates.quantity !== undefined) {
         const current = await db.query.equipmentTable.findFirst({
           where: (e, { eq: eqFn }) => eqFn(e.id, id),
@@ -352,6 +376,31 @@ router.put(
         res.status(409).json({ error: "الرقم التسلسلي مسجّل مسبقاً لتجهيز آخر في النظام" });
         return;
       }
+      console.error(err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);
+
+// DELETE /api/equipment/:id
+router.delete(
+  "/:id",
+  requireAuth,
+  requireRole("admin", "warehouse_manager"),
+  async (req, res) => {
+    try {
+      const id = parseInt(String(req.params.id), 10);
+      const [deleted] = await db
+        .delete(equipmentTable)
+        .where(eq(equipmentTable.id, id))
+        .returning({ id: equipmentTable.id });
+
+      if (!deleted) {
+        res.status(404).json({ error: "التجهيز غير موجود" });
+        return;
+      }
+      res.status(204).send();
+    } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Internal server error" });
     }

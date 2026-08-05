@@ -29,4 +29,10 @@ export interface EquipmentUpdate {
   quantity?: number | null;
   /** @nullable */
   minQuantity?: number | null;
+  /** @nullable */
+  maintenanceSentAt?: string | null;
+  /** @nullable */
+  maintenanceReturnedAt?: string | null;
+  /** @nullable */
+  maintenanceNotes?: string | null;
 }

@@ -1287,6 +1287,77 @@ export const useUpdateEquipment = <TError = ErrorType<unknown>,
       return useMutation(getUpdateEquipmentMutationOptions(options));
     }
 
+export const getDeleteEquipmentUrl = (id: number,) => {
+
+
+
+
+  return `/api/equipment/${id}`
+}
+
+/**
+ * @summary Delete equipment by ID
+ */
+export const deleteEquipment = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteEquipmentUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteEquipmentMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteEquipment>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteEquipment>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteEquipment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteEquipment>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteEquipment(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteEquipmentMutationResult = NonNullable<Awaited<ReturnType<typeof deleteEquipment>>>
+
+    export type DeleteEquipmentMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete equipment by ID
+ */
+export const useDeleteEquipment = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteEquipment>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteEquipment>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteEquipmentMutationOptions(options));
+    }
+
 export const getListTransactionsUrl = (params?: ListTransactionsParams,) => {
   const normalizedParams = new URLSearchParams();
 

@@ -1,26 +1,37 @@
 import { useState, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
-import { 
+import { useQueryClient } from '@tanstack/react-query';
+import {
   useListEquipment,
+  useDeleteEquipment,
+  useGetCurrentUser,
   type Equipment,
 } from '@workspace/api-client-react';
-import { 
-  Plus, 
-  Search, 
-  Edit, 
-  Stethoscope,
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
   Filter,
   AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Activity,
+  Wrench,
+  ShieldAlert,
+  CheckCircle2,
+  Package,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '@/components/ui/table';
 import {
   Select,
@@ -30,169 +41,452 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { formatDateTime } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { toast } from 'sonner';
 import { EquipmentForm } from './equipment-form';
 
-const conditionMap: Record<string, { label: string, variant: string }> = {
-  good: { label: 'جيد', variant: 'success' },
-  maintenance: { label: 'تحت الصيانة', variant: 'warning' },
-  broken: { label: 'معطل', variant: 'destructive' },
-  consumed: { label: 'مستهلك', variant: 'secondary' },
-  needs_inspection: { label: 'يحتاج فحص', variant: 'default' },
+/* ─────────────────────────── Condition config ───────────────────────────── */
+
+type ConditionKey = 'good' | 'maintenance' | 'broken' | 'consumed' | 'needs_inspection';
+
+const conditionConfig: Record<ConditionKey, { label: string; className: string }> = {
+  good:             { label: 'جيد',          className: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800' },
+  needs_inspection: { label: 'يحتاج فحص',   className: 'bg-amber-100  text-amber-700  border-amber-200  dark:bg-amber-900/30  dark:text-amber-400  dark:border-amber-800' },
+  maintenance:      { label: 'تحت الصيانة', className: 'bg-blue-100   text-blue-700   border-blue-200   dark:bg-blue-900/30   dark:text-blue-400   dark:border-blue-800' },
+  broken:           { label: 'معطل',         className: 'bg-red-100    text-red-700    border-red-200    dark:bg-red-900/30    dark:text-red-400    dark:border-red-800' },
+  consumed:         { label: 'مستهلك',       className: 'bg-zinc-100   text-zinc-600   border-zinc-200   dark:bg-zinc-800      dark:text-zinc-400   dark:border-zinc-700' },
 };
+
+/* ──────────────────────────── Page router ───────────────────────────────── */
 
 export function EquipmentPage() {
   const [matchNew] = useRoute('/equipment/new');
   const [matchEdit, params] = useRoute('/equipment/:id/edit');
-  
+
   if (matchNew) return <EquipmentForm />;
   if (matchEdit && params?.id) return <EquipmentForm equipmentId={parseInt(params.id)} />;
 
   return <EquipmentList />;
 }
 
-function EquipmentList() {
-  const [, setLocation] = useLocation();
-  const [search, setSearch] = useState('');
-  const [condition, setCondition] = useState<string>('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  
-  useEffect(() => {
-    const handler = setTimeout(() => setDebouncedSearch(search), 500);
-    return () => clearTimeout(handler);
-  }, [search]);
+/* ──────────────────────────── KPI card ──────────────────────────────────── */
 
-  const { data, isLoading } = useListEquipment({ 
-    search: debouncedSearch,
-    condition: condition === 'all' ? undefined : condition || undefined
-  });
-
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  colorClass,
+  loading,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: number;
+  colorClass: string;
+  loading: boolean;
+}) {
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl font-bold tracking-tight">التجهيزات الطبية</h1>
-        <Button onClick={() => setLocation('/equipment/new')} className="gap-2">
-          <Plus className="w-4 h-4" />
-          إضافة تجهيز جديد
-        </Button>
+    <div className="bg-card border rounded-lg p-4 flex items-center gap-4 shadow-sm">
+      <div className={`p-2.5 rounded-lg ${colorClass}`}>
+        <Icon className="w-5 h-5" />
       </div>
-
-      <div className="bg-card border rounded-lg shadow-sm">
-        <div className="p-4 border-b flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="relative w-full max-w-sm">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input 
-              placeholder="بحث باسم التجهيز، الموديل، السيريال..." 
-              className="pl-3 pr-9"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <div className="w-full sm:w-48">
-            <Select value={condition} onValueChange={setCondition}>
-              <SelectTrigger>
-                <div className="flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-muted-foreground" />
-                  <SelectValue placeholder="تصفية حسب الحالة" />
-                </div>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">الكل</SelectItem>
-                <SelectItem value="good">جيد</SelectItem>
-                <SelectItem value="needs_inspection">يحتاج فحص</SelectItem>
-                <SelectItem value="maintenance">تحت الصيانة</SelectItem>
-                <SelectItem value="broken">معطل</SelectItem>
-                <SelectItem value="consumed">مستهلك</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>رقم التسلسل</TableHead>
-                <TableHead>الاسم والموديل</TableHead>
-                <TableHead className="text-center">الكمية</TableHead>
-                <TableHead>العهدة الحالية</TableHead>
-                <TableHead>سنة الصنع</TableHead>
-                <TableHead>الحالة</TableHead>
-                <TableHead className="w-[80px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    جاري التحميل...
-                  </TableCell>
-                </TableRow>
-              ) : !data?.equipment.length ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    لا يوجد تجهيزات مطابقة
-                  </TableCell>
-                </TableRow>
-              ) : (
-                data.equipment.map((eq: Equipment) => {
-                  const cond = conditionMap[eq.condition] || { label: eq.condition, variant: 'default' };
-                  
-                  const qty = eq.quantity ?? 1;
-                  const minQty = eq.minQuantity ?? 0;
-                  const isLow = minQty > 0 && qty <= minQty;
-
-                  return (
-                    <TableRow key={eq.id}>
-                      <TableCell className="font-mono text-xs">{eq.serialNumber || '-'}</TableCell>
-                      <TableCell>
-                        <div className="font-medium flex items-center gap-2">
-                          <Stethoscope className="w-4 h-4 text-muted-foreground" />
-                          {eq.name}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {eq.model || 'بدون موديل'} {eq.equipmentType ? `• ${eq.equipmentType}` : ''}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex flex-col items-center gap-0.5">
-                          <span className={`font-semibold tabular-nums ${isLow ? 'text-destructive' : ''}`}>
-                            {qty}
-                          </span>
-                          {isLow && (
-                            <span className="flex items-center gap-0.5 text-[10px] text-destructive font-medium">
-                              <AlertTriangle className="h-3 w-3" />
-                              نقص
-                            </span>
-                          )}
-                          {minQty > 0 && (
-                            <span className="text-[10px] text-muted-foreground">حد: {minQty}</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>{eq.currentHolder || '-'}</TableCell>
-                      <TableCell>{eq.manufactureYear || '-'}</TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant={cond.variant as any}
-                          className={cond.variant === 'warning' ? "bg-warning/20 text-warning border-warning/30" : ""}
-                        >
-                          {cond.label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="sm" onClick={() => setLocation(`/equipment/${eq.id}/edit`)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
+      <div>
+        {loading ? (
+          <Skeleton className="h-6 w-10 mb-1" />
+        ) : (
+          <p className="text-2xl font-bold tabular-nums">{value}</p>
+        )}
+        <p className="text-xs text-muted-foreground leading-tight">{label}</p>
       </div>
     </div>
+  );
+}
+
+/* ──────────────────────────── Main list ─────────────────────────────────── */
+
+const PAGE_SIZE = 20;
+
+function EquipmentList() {
+  const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
+  const { data: currentUser } = useGetCurrentUser();
+
+  const [search, setSearch]               = useState('');
+  const [condition, setCondition]         = useState<string>('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage]                   = useState(1);
+  const [deleteTarget, setDeleteTarget]   = useState<Equipment | null>(null);
+
+  /* debounce search */
+  useEffect(() => {
+    const h = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 450);
+    return () => clearTimeout(h);
+  }, [search]);
+
+  /* reset page on filter change */
+  useEffect(() => { setPage(1); }, [condition]);
+
+  const canEdit = currentUser?.role === 'admin' || currentUser?.role === 'warehouse_manager';
+
+  const { data, isLoading } = useListEquipment({
+    search: debouncedSearch,
+    condition: condition === 'all' ? undefined : condition || undefined,
+    page,
+    limit: PAGE_SIZE,
+  });
+
+  /* KPI counters derived from full (unfiltered) totals */
+  const { data: allData } = useListEquipment({ limit: 1000 });
+
+  const stats = (() => {
+    const list = allData?.equipment ?? [];
+    return {
+      total:       list.length,
+      good:        list.filter(e => e.condition === 'good').length,
+      attention:   list.filter(e => e.condition === 'needs_inspection' || e.condition === 'maintenance').length,
+      broken:      list.filter(e => e.condition === 'broken').length,
+      lowStock:    list.filter(e => (e.minQuantity ?? 0) > 0 && (e.quantity ?? 1) <= (e.minQuantity ?? 0)).length,
+    };
+  })();
+
+  /* delete mutation */
+  const deleteMutation = useDeleteEquipment({
+    mutation: {
+      onSuccess: () => {
+        toast.success('تم حذف التجهيز بنجاح');
+        queryClient.invalidateQueries({ queryKey: ['listEquipment'] });
+        setDeleteTarget(null);
+      },
+      onError: () => {
+        toast.error('حدث خطأ أثناء حذف التجهيز');
+        setDeleteTarget(null);
+      },
+    },
+  });
+
+  const hasFilters = !!(debouncedSearch || (condition && condition !== 'all'));
+  const totalPages = data ? Math.ceil(data.total / PAGE_SIZE) : 1;
+  const equipment  = data?.equipment ?? [];
+
+  /* ── Render ────────────────────────────────────────────────────────────── */
+  return (
+    <TooltipProvider>
+      <div className="space-y-6">
+
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">التجهيزات الطبية</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              إدارة التجهيزات والمعدات الطبية في المستودع
+            </p>
+          </div>
+          {canEdit && (
+            <Button onClick={() => setLocation('/equipment/new')} className="gap-2 shrink-0">
+              <Plus className="w-4 h-4" />
+              إضافة تجهيز
+            </Button>
+          )}
+        </div>
+
+        {/* KPI cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <StatCard icon={Package}      label="إجمالي التجهيزات" value={stats.total}     colorClass="bg-primary/10 text-primary"            loading={!allData} />
+          <StatCard icon={CheckCircle2} label="بحالة جيدة"        value={stats.good}      colorClass="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" loading={!allData} />
+          <StatCard icon={Wrench}       label="تحت الصيانة / فحص" value={stats.attention} colorClass="bg-amber-100   text-amber-600   dark:bg-amber-900/30   dark:text-amber-400"   loading={!allData} />
+          <StatCard icon={ShieldAlert}  label="معطلة / نقص"       value={stats.broken + stats.lowStock} colorClass="bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400" loading={!allData} />
+        </div>
+
+        {/* Table card */}
+        <div className="bg-card border rounded-lg shadow-sm">
+
+          {/* Toolbar */}
+          <div className="p-4 border-b flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+            <div className="flex gap-2 flex-1 max-w-lg">
+              <div className="relative flex-1">
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="بحث بالاسم، الموديل، الرقم التسلسلي..."
+                  className="pl-3 pr-9"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              {hasFilters && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="مسح الفلاتر"
+                  onClick={() => { setSearch(''); setCondition(''); setPage(1); }}
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="w-48">
+                <Select value={condition} onValueChange={(v) => { setCondition(v); setPage(1); }}>
+                  <SelectTrigger>
+                    <div className="flex items-center gap-2">
+                      <Filter className="w-4 h-4 text-muted-foreground" />
+                      <SelectValue placeholder="تصفية بالحالة" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">جميع الحالات</SelectItem>
+                    <SelectItem value="good">جيد</SelectItem>
+                    <SelectItem value="needs_inspection">يحتاج فحص</SelectItem>
+                    <SelectItem value="maintenance">تحت الصيانة</SelectItem>
+                    <SelectItem value="broken">معطل</SelectItem>
+                    <SelectItem value="consumed">مستهلك</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {data && (
+                <span className="text-sm text-muted-foreground whitespace-nowrap">
+                  {data.total} تجهيز
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-[140px]">الرقم التسلسلي</TableHead>
+                  <TableHead>اسم التجهيز</TableHead>
+                  <TableHead className="text-center w-[90px]">الكمية</TableHead>
+                  <TableHead className="w-[160px]">العهدة</TableHead>
+                  <TableHead className="w-[90px]">سنة الصنع</TableHead>
+                  <TableHead className="w-[130px]">الحالة الفنية</TableHead>
+                  {canEdit && <TableHead className="w-[90px] text-left">إجراءات</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                      <TableCell>
+                        <Skeleton className="h-4 w-40 mb-1.5" />
+                        <Skeleton className="h-3 w-28" />
+                      </TableCell>
+                      <TableCell className="text-center"><Skeleton className="h-4 w-8 mx-auto" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
+                      {canEdit && <TableCell />}
+                    </TableRow>
+                  ))
+                ) : equipment.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={canEdit ? 7 : 6}
+                      className="text-center py-16 text-muted-foreground"
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <Activity className="w-10 h-10 opacity-20" />
+                        <p className="font-medium">
+                          {hasFilters ? 'لا توجد نتائج مطابقة لبحثك' : 'لا توجد تجهيزات مسجّلة بعد'}
+                        </p>
+                        {hasFilters && (
+                          <button
+                            className="text-sm text-primary underline underline-offset-2"
+                            onClick={() => { setSearch(''); setCondition(''); }}
+                          >
+                            مسح الفلاتر
+                          </button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  equipment.map((eq: Equipment) => {
+                    const cond = conditionConfig[eq.condition as ConditionKey] ?? {
+                      label: eq.condition,
+                      className: '',
+                    };
+                    const qty    = eq.quantity ?? 1;
+                    const minQty = eq.minQuantity ?? 0;
+                    const isLow  = minQty > 0 && qty <= minQty;
+
+                    return (
+                      <TableRow key={eq.id} className="group">
+                        {/* S/N */}
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {eq.serialNumber || <span className="opacity-40">—</span>}
+                        </TableCell>
+
+                        {/* Name + model */}
+                        <TableCell>
+                          <p className="font-medium leading-snug">{eq.name}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {[eq.model, eq.equipmentType].filter(Boolean).join(' • ') || 'بدون موديل'}
+                          </p>
+                        </TableCell>
+
+                        {/* Quantity */}
+                        <TableCell className="text-center">
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span className={`text-base font-semibold tabular-nums ${isLow ? 'text-destructive' : ''}`}>
+                              {qty}
+                            </span>
+                            {isLow && (
+                              <span className="flex items-center gap-0.5 text-[10px] text-destructive font-medium">
+                                <AlertTriangle className="h-2.5 w-2.5" />
+                                نقص
+                              </span>
+                            )}
+                            {minQty > 0 && !isLow && (
+                              <span className="text-[10px] text-muted-foreground">حد: {minQty}</span>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        {/* Holder */}
+                        <TableCell className="text-sm">
+                          {eq.currentHolder || <span className="text-muted-foreground opacity-50">—</span>}
+                        </TableCell>
+
+                        {/* Year */}
+                        <TableCell className="text-sm tabular-nums text-muted-foreground">
+                          {eq.manufactureYear || <span className="opacity-40">—</span>}
+                        </TableCell>
+
+                        {/* Condition badge */}
+                        <TableCell>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${cond.className}`}>
+                            {cond.label}
+                          </span>
+                          {eq.condition === 'maintenance' && eq.maintenanceSentAt && (
+                            <p className="text-[10px] text-muted-foreground mt-1">
+                              منذ {eq.maintenanceSentAt}
+                            </p>
+                          )}
+                        </TableCell>
+
+                        {/* Actions */}
+                        {canEdit && (
+                          <TableCell>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    aria-label={`تعديل ${eq.name}`}
+                                    onClick={() => setLocation(`/equipment/${eq.id}/edit`)}
+                                  >
+                                    <Edit className="h-3.5 w-3.5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>تعديل</TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    aria-label={`حذف ${eq.name}`}
+                                    onClick={() => setDeleteTarget(eq)}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>حذف</TooltipContent>
+                              </Tooltip>
+                            </div>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination */}
+          {!isLoading && totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t">
+              <span className="text-sm text-muted-foreground">
+                صفحة {page} من {totalPages}
+                {data && ` • إجمالي ${data.total} تجهيز`}
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="gap-1"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                  السابق
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="gap-1"
+                >
+                  التالي
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Delete confirmation dialog */}
+        <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
+              <AlertDialogDescription>
+                هل تريد حذف التجهيز{' '}
+                <span className="font-semibold text-foreground">«{deleteTarget?.name}»</span>؟
+                <br />
+                هذا الإجراء لا يمكن التراجع عنه.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-row-reverse gap-2">
+              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => deleteTarget && deleteMutation.mutate({ id: deleteTarget.id })}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? 'جاري الحذف...' : 'حذف التجهيز'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </TooltipProvider>
   );
 }

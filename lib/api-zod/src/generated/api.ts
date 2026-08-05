@@ -270,6 +270,9 @@ export const ListEquipmentResponse = zod.object({
   "notes": zod.string().nullish(),
   "quantity": zod.number().int().default(listEquipmentResponseEquipmentItemQuantityDefault),
   "minQuantity": zod.number().int().default(listEquipmentResponseEquipmentItemMinQuantityDefault),
+  "maintenanceSentAt": zod.string().nullish(),
+  "maintenanceReturnedAt": zod.string().nullish(),
+  "maintenanceNotes": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().optional()
 })),
@@ -293,7 +296,10 @@ export const CreateEquipmentBody = zod.object({
   "currentHolder": zod.string().nullish(),
   "notes": zod.string().nullish(),
   "quantity": zod.number().int().optional(),
-  "minQuantity": zod.number().int().optional()
+  "minQuantity": zod.number().int().optional(),
+  "maintenanceSentAt": zod.string().nullish(),
+  "maintenanceReturnedAt": zod.string().nullish(),
+  "maintenanceNotes": zod.string().nullish()
 })
 
 export const createEquipmentResponseQuantityDefault = 1;
@@ -312,6 +318,9 @@ export const CreateEquipmentResponse = zod.object({
   "notes": zod.string().nullish(),
   "quantity": zod.number().int().default(createEquipmentResponseQuantityDefault),
   "minQuantity": zod.number().int().default(createEquipmentResponseMinQuantityDefault),
+  "maintenanceSentAt": zod.string().nullish(),
+  "maintenanceReturnedAt": zod.string().nullish(),
+  "maintenanceNotes": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().optional()
 })
@@ -340,6 +349,9 @@ export const GetEquipmentResponse = zod.object({
   "notes": zod.string().nullish(),
   "quantity": zod.number().int().default(getEquipmentResponseQuantityDefault),
   "minQuantity": zod.number().int().default(getEquipmentResponseMinQuantityDefault),
+  "maintenanceSentAt": zod.string().nullish(),
+  "maintenanceReturnedAt": zod.string().nullish(),
+  "maintenanceNotes": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().optional()
 })
@@ -363,7 +375,10 @@ export const UpdateEquipmentBody = zod.object({
   "currentHolder": zod.string().nullish(),
   "notes": zod.string().nullish(),
   "quantity": zod.number().int().nullish(),
-  "minQuantity": zod.number().int().nullish()
+  "minQuantity": zod.number().int().nullish(),
+  "maintenanceSentAt": zod.string().nullish(),
+  "maintenanceReturnedAt": zod.string().nullish(),
+  "maintenanceNotes": zod.string().nullish()
 })
 
 export const updateEquipmentResponseQuantityDefault = 1;
@@ -382,9 +397,22 @@ export const UpdateEquipmentResponse = zod.object({
   "notes": zod.string().nullish(),
   "quantity": zod.number().int().default(updateEquipmentResponseQuantityDefault),
   "minQuantity": zod.number().int().default(updateEquipmentResponseMinQuantityDefault),
+  "maintenanceSentAt": zod.string().nullish(),
+  "maintenanceReturnedAt": zod.string().nullish(),
+  "maintenanceNotes": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().optional()
 })
+
+
+/**
+ * @summary Delete equipment by ID
+ */
+export const DeleteEquipmentParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeleteEquipmentResponse = zod.void()
 
 
 /**
@@ -865,6 +893,9 @@ export const GetEquipmentReportResponseItem = zod.object({
   "notes": zod.string().nullish(),
   "quantity": zod.number().int().default(getEquipmentReportResponseQuantityDefault),
   "minQuantity": zod.number().int().default(getEquipmentReportResponseMinQuantityDefault),
+  "maintenanceSentAt": zod.string().nullish(),
+  "maintenanceReturnedAt": zod.string().nullish(),
+  "maintenanceNotes": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().optional()
 })

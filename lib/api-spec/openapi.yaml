@@ -316,6 +316,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Equipment"
+    delete:
+      operationId: deleteEquipment
+      tags: [equipment]
+      summary: Delete equipment by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
 
   /transactions:
     get:
@@ -1108,6 +1122,12 @@ components:
         minQuantity:
           type: integer
           default: 0
+        maintenanceSentAt:
+          type: ["string", "null"]
+        maintenanceReturnedAt:
+          type: ["string", "null"]
+        maintenanceNotes:
+          type: ["string", "null"]
         createdAt:
           type: string
         updatedAt:
@@ -1139,6 +1159,12 @@ components:
           type: integer
         minQuantity:
           type: integer
+        maintenanceSentAt:
+          type: ["string", "null"]
+        maintenanceReturnedAt:
+          type: ["string", "null"]
+        maintenanceNotes:
+          type: ["string", "null"]
 
     EquipmentUpdate:
       type: object
@@ -1165,6 +1191,12 @@ components:
           type: ["integer", "null"]
         minQuantity:
           type: ["integer", "null"]
+        maintenanceSentAt:
+          type: ["string", "null"]
+        maintenanceReturnedAt:
+          type: ["string", "null"]
+        maintenanceNotes:
+          type: ["string", "null"]
 
     EquipmentListResponse:
       type: object
