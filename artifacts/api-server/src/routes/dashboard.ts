@@ -19,14 +19,14 @@ router.get("/stats", requireAuth, async (_req, res) => {
     const settings = await db.query.systemSettingsTable.findFirst();
     const alertDays = settings?.expiryAlertDays ?? 30;
 
-    const alertDate = new Date();
-    alertDate.setDate(alertDate.getDate() + alertDays);
+    // Use UTC explicitly to avoid timezone drift on the server
+    const nowUtc = new Date();
+    const alertDate = new Date(nowUtc);
+    alertDate.setUTCDate(alertDate.getUTCDate() + alertDays);
     const alertDateStr = alertDate.toISOString().split("T")[0];
-    const today = new Date().toISOString().split("T")[0];
+    const today = nowUtc.toISOString().split("T")[0];
     const monthStart = new Date(
-      new Date().getFullYear(),
-      new Date().getMonth(),
-      1
+      Date.UTC(nowUtc.getUTCFullYear(), nowUtc.getUTCMonth(), 1)
     ).toISOString();
 
     const [
@@ -194,7 +194,8 @@ router.get("/charts", requireAuth, async (_req, res) => {
         WHERE t.item_type = 'item'
           AND t.created_at >= NOW() - INTERVAL '30 days'
           AND t.type IN ('in', 'out')
-        GROUP BY i.name
+          AND i.is_active = true
+        GROUP BY i.id, i.name
         ORDER BY (SUM(COALESCE(t.quantity, 0))) DESC
         LIMIT 8
       `),
@@ -208,7 +209,7 @@ router.get("/charts", requireAuth, async (_req, res) => {
         FROM items i
         LEFT JOIN categories c ON i.category_id = c.id
         WHERE i.is_active = true
-        GROUP BY c.name
+        GROUP BY c.id, c.name
         HAVING SUM(i.current_stock) > 0
         ORDER BY total_stock DESC
       `),
@@ -216,7 +217,7 @@ router.get("/charts", requireAuth, async (_req, res) => {
       // Daily movement for the last 30 days — COALESCE handles null quantities
       db.execute(sql`
         SELECT
-          TO_CHAR(DATE(t.created_at AT TIME ZONE 'UTC'), 'MM/DD') AS day,
+          TO_CHAR(DATE(t.created_at AT TIME ZONE 'UTC'), 'DD/MM') AS day,
           SUM(CASE WHEN t.type = 'in'  THEN COALESCE(t.quantity, 0) ELSE 0 END)::int AS in_qty,
           SUM(CASE WHEN t.type = 'out' THEN COALESCE(t.quantity, 0) ELSE 0 END)::int AS out_qty,
           COUNT(*)::int AS tx_count

@@ -194,7 +194,13 @@ function RecentTransactionsTable({ transactions, loading }: { transactions: Rece
                   {tx.quantity !== null && (
                     <span className="text-sm tabular-nums text-muted-foreground shrink-0">{tx.quantity}</span>
                   )}
-                  <div className="text-right shrink-0">
+                  <div
+                    className="text-right shrink-0"
+                    title={new Date(tx.createdAt).toLocaleString('ar-SY', {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    })}
+                  >
                     <p className="text-[11px] text-muted-foreground">{timeAgo(tx.createdAt)}</p>
                     <p className="text-[10px] text-muted-foreground/60">{tx.createdByName}</p>
                   </div>
@@ -235,6 +241,7 @@ export function DashboardPage() {
     data: stats,
     isLoading: statsLoading,
     isFetching: statsFetching,
+    isError: statsError,
     refetch: refetchStats,
   } = useQuery<DashboardStats>({
     queryKey: ['dashboard-stats'],
@@ -250,6 +257,7 @@ export function DashboardPage() {
     data: charts,
     isLoading: chartsLoading,
     isFetching: chartsFetching,
+    isError: chartsError,
     refetch: refetchCharts,
   } = useQuery<DashboardCharts>({
     queryKey: ['dashboard-charts'],
@@ -316,6 +324,17 @@ export function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* ── Error banner ── */}
+      {(statsError || chartsError) && (
+        <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          <ShieldAlert className="h-4 w-4 shrink-0" />
+          <span>تعذّر تحميل بيانات لوحة التحكم. يتم عرض آخر بيانات متاحة — </span>
+          <button onClick={handleRefresh} className="underline hover:no-underline font-medium">
+            إعادة المحاولة
+          </button>
+        </div>
+      )}
 
       {/* ── KPI Row 1: Stock status ── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -505,7 +524,7 @@ export function DashboardPage() {
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={charts.dailyMovement} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+              <AreaChart data={charts.dailyMovement} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorIn" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
