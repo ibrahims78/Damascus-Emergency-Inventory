@@ -473,6 +473,7 @@ export function DashboardPage() {
                       textAlign: 'right',
                       direction: 'rtl',
                       fontSize: 12,
+                      color: 'hsl(var(--foreground))',
                     }}
                     formatter={(v: number, name: string, entry: { payload?: { itemCount?: number } }) => [
                       `${v.toLocaleString('ar')} وحدة (${entry.payload?.itemCount ?? 0} صنف)`,
@@ -562,6 +563,7 @@ export function DashboardPage() {
                     textAlign: 'right',
                     direction: 'rtl',
                     fontSize: 12,
+                    color: 'hsl(var(--foreground))',
                   }}
                   formatter={(v: number, key: string) => [
                     `${v} وحدة`,
@@ -656,6 +658,7 @@ export function DashboardPage() {
                     textAlign: 'right',
                     direction: 'rtl',
                     fontSize: 12,
+                    color: 'hsl(var(--foreground))',
                   }}
                   formatter={(v: number, key: string) => [
                     `${v} وحدة`,

@@ -96,11 +96,11 @@ export function Sidebar() {
             )}
           />
           {!collapsed && (
-            <div className="overflow-hidden">
-              <h1 className="font-bold text-sm text-foreground leading-snug whitespace-nowrap">
+            <div className="min-w-0">
+              <h1 className="font-bold text-sm text-foreground leading-snug">
                 منظومة الإسعاف والطوارئ
               </h1>
-              <p className="text-[11px] text-muted-foreground mt-0.5 whitespace-nowrap">
+              <p className="text-[11px] text-muted-foreground mt-0.5">
                 مديرية الاحالة والاسعاف - دمشق
               </p>
             </div>
