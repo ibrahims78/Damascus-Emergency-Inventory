@@ -394,6 +394,7 @@ router.put(
       }
       await auditLog({ req, action: "update", entityType: "item", entityId: item.id, details: { name: item.name } });
       res.json(item);
+      runAlertWorker(); // re-evaluate: expiry date / minStock may have changed
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Internal server error" });
@@ -415,6 +416,7 @@ router.delete(
         .where(eq(itemsTable.id, id));
       await auditLog({ req, action: "delete", entityType: "item", entityId: id, details: {} });
       res.status(204).send();
+      runAlertWorker(); // item deactivated — auto-resolve its alerts
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Internal server error" });

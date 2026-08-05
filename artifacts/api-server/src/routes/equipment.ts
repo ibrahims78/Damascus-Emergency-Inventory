@@ -346,6 +346,7 @@ router.put(
         return;
       }
       res.json(eq_);
+      runAlertWorker(); // re-evaluate: condition / minQuantity may have changed
     } catch (err: any) {
       if (err?.cause?.code === "23505" || err?.code === "23505") {
         res.status(409).json({ error: "الرقم التسلسلي مسجّل مسبقاً لتجهيز آخر في النظام" });
