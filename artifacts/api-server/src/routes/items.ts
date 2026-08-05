@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, itemsTable, categoriesTable, systemSettingsTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
 import { auditLog } from "../middlewares/audit";
+import { runAlertWorker } from "../lib/alert-worker";
 import { eq, and, ilike, lte, sql, isNotNull } from "drizzle-orm";
 
 const router = Router();
@@ -297,6 +298,8 @@ router.post(
       }
 
       res.json(results);
+      // Trigger worker after import so new alerts reflect imported data immediately
+      runAlertWorker();
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Internal server error" });

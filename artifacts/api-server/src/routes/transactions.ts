@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, transactionsTable, itemsTable, equipmentTable, recipientsTable, exitReasonsTable, usersTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
 import { auditLog } from "../middlewares/audit";
+import { runAlertWorker } from "../lib/alert-worker";
 import { eq, and, or, ilike, gte, lte, sql } from "drizzle-orm";
 import { systemSettingsTable } from "@workspace/db";
 
@@ -152,6 +153,7 @@ router.post(
 
         await auditLog({ req, action: "in", entityType: "transaction", entityId: transaction.id, details: { documentNumber: transaction.documentNumber, itemType, quantity } });
         res.status(201).json(transaction);
+        runAlertWorker(); // re-evaluate alerts after stock change
       });
     } catch (err) {
       console.error(err);
@@ -258,6 +260,7 @@ router.post(
 
         await auditLog({ req, action: "out", entityType: "transaction", entityId: transaction.id, details: { documentNumber: transaction.documentNumber, itemType, quantity } });
         res.status(201).json(transaction);
+        runAlertWorker(); // re-evaluate alerts after stock change
       });
     } catch (err) {
       console.error(err);
@@ -390,6 +393,7 @@ router.post(
         });
 
         res.status(201).json(transaction);
+        runAlertWorker(); // re-evaluate alerts after stock adjustment
       });
     } catch (err) {
       console.error(err);

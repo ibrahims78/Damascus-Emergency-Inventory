@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db, equipmentTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
+import { runAlertWorker } from "../lib/alert-worker";
 import { eq, and, ilike, sql, isNotNull } from "drizzle-orm";
 
 const router = Router();
@@ -246,6 +247,8 @@ router.post(
       }
 
       res.json(results);
+      // Trigger worker after import so equipment alerts are generated immediately
+      runAlertWorker();
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Internal server error" });
