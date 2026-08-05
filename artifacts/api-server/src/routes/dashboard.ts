@@ -1,5 +1,12 @@
 import { Router } from "express";
-import { db, itemsTable, equipmentTable, transactionsTable, usersTable } from "@workspace/db";
+import {
+  db,
+  itemsTable,
+  equipmentTable,
+  transactionsTable,
+  usersTable,
+  systemSettingsTable,
+} from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { eq, lte, and, sql } from "drizzle-orm";
 
@@ -8,30 +15,126 @@ const router = Router();
 // GET /api/dashboard/stats
 router.get("/stats", requireAuth, async (_req, res) => {
   try {
-    const thirtyDaysFromNow = new Date();
-    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+    // Read expiryAlertDays from system settings (default: 30)
+    const settings = await db.query.systemSettingsTable.findFirst();
+    const alertDays = settings?.expiryAlertDays ?? 30;
+
+    const alertDate = new Date();
+    alertDate.setDate(alertDate.getDate() + alertDays);
+    const alertDateStr = alertDate.toISOString().split("T")[0];
     const today = new Date().toISOString().split("T")[0];
+    const monthStart = new Date(
+      new Date().getFullYear(),
+      new Date().getMonth(),
+      1
+    ).toISOString();
 
     const [
       totalItemsResult,
       belowMinResult,
       nearExpiryResult,
+      expiredResult,
+      zeroStockResult,
       totalEquipmentResult,
-      lastTransactionResult,
+      equipmentAlertResult,
+      monthlyInResult,
+      monthlyOutResult,
+      recentTransactionsResult,
     ] = await Promise.all([
-      db.select({ count: sql<number>`count(*)` }).from(itemsTable).where(eq(itemsTable.isActive, true)),
-      db.select({ count: sql<number>`count(*)` }).from(itemsTable).where(and(eq(itemsTable.isActive, true), lte(itemsTable.currentStock, itemsTable.minStock))),
-      db.select({ count: sql<number>`count(*)` }).from(itemsTable).where(
-        and(
-          eq(itemsTable.isActive, true),
-          sql`${itemsTable.expiryDate} IS NOT NULL AND ${itemsTable.expiryDate} <= ${thirtyDaysFromNow.toISOString().split("T")[0]}`
-        )
-      ),
+      // Total active items
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(itemsTable)
+        .where(eq(itemsTable.isActive, true)),
+
+      // Below min stock (stock ≤ min, excludes items with minStock = 0 AND stock = 0)
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(itemsTable)
+        .where(
+          and(
+            eq(itemsTable.isActive, true),
+            lte(itemsTable.currentStock, itemsTable.minStock),
+            sql`${itemsTable.minStock} > 0`
+          )
+        ),
+
+      // Near expiry: within alertDays window, not yet expired
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(itemsTable)
+        .where(
+          and(
+            eq(itemsTable.isActive, true),
+            sql`${itemsTable.expiryDate} IS NOT NULL
+                AND ${itemsTable.expiryDate} > ${today}
+                AND ${itemsTable.expiryDate} <= ${alertDateStr}`
+          )
+        ),
+
+      // Already expired (expiryDate < today)
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(itemsTable)
+        .where(
+          and(
+            eq(itemsTable.isActive, true),
+            sql`${itemsTable.expiryDate} IS NOT NULL AND ${itemsTable.expiryDate} < ${today}`
+          )
+        ),
+
+      // Zero stock (active items with currentStock = 0)
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(itemsTable)
+        .where(
+          and(
+            eq(itemsTable.isActive, true),
+            sql`${itemsTable.currentStock} = 0`
+          )
+        ),
+
+      // Total equipment
       db.select({ count: sql<number>`count(*)` }).from(equipmentTable),
+
+      // Equipment in maintenance, needs inspection, or broken
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(equipmentTable)
+        .where(
+          sql`${equipmentTable.condition} IN ('maintenance', 'needs_inspection', 'broken')`
+        ),
+
+      // Transactions this month (in)
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(transactionsTable)
+        .where(
+          and(
+            eq(transactionsTable.type, "in"),
+            sql`${transactionsTable.createdAt} >= ${monthStart}`
+          )
+        ),
+
+      // Transactions this month (out)
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(transactionsTable)
+        .where(
+          and(
+            eq(transactionsTable.type, "out"),
+            sql`${transactionsTable.createdAt} >= ${monthStart}`
+          )
+        ),
+
+      // Last 5 transactions with item/equipment name and user
       db
         .select({
           id: transactionsTable.id,
           type: transactionsTable.type,
+          itemType: transactionsTable.itemType,
+          quantity: transactionsTable.quantity,
+          documentNumber: transactionsTable.documentNumber,
           itemName: itemsTable.name,
           equipmentName: equipmentTable.name,
           createdAt: transactionsTable.createdAt,
@@ -39,23 +142,36 @@ router.get("/stats", requireAuth, async (_req, res) => {
         })
         .from(transactionsTable)
         .leftJoin(itemsTable, eq(transactionsTable.itemId, itemsTable.id))
-        .leftJoin(equipmentTable, eq(transactionsTable.equipmentId, equipmentTable.id))
+        .leftJoin(
+          equipmentTable,
+          eq(transactionsTable.equipmentId, equipmentTable.id)
+        )
         .leftJoin(usersTable, eq(transactionsTable.createdBy, usersTable.id))
         .orderBy(sql`${transactionsTable.createdAt} DESC`)
-        .limit(1),
+        .limit(5),
     ]);
 
-    const last = lastTransactionResult[0];
     res.json({
       totalItems: Number(totalItemsResult[0]?.count ?? 0),
       belowMinCount: Number(belowMinResult[0]?.count ?? 0),
       nearExpiryCount: Number(nearExpiryResult[0]?.count ?? 0),
+      expiredCount: Number(expiredResult[0]?.count ?? 0),
+      zeroStockCount: Number(zeroStockResult[0]?.count ?? 0),
       totalEquipment: Number(totalEquipmentResult[0]?.count ?? 0),
-      lastTransactionId: last?.id ?? null,
-      lastTransactionType: last?.type ?? null,
-      lastTransactionItemName: last?.itemName ?? last?.equipmentName ?? null,
-      lastTransactionAt: last?.createdAt ?? null,
-      lastTransactionBy: last?.createdByName ?? null,
+      equipmentAlertCount: Number(equipmentAlertResult[0]?.count ?? 0),
+      monthlyIn: Number(monthlyInResult[0]?.count ?? 0),
+      monthlyOut: Number(monthlyOutResult[0]?.count ?? 0),
+      expiryAlertDays: alertDays,
+      recentTransactions: recentTransactionsResult.map((t) => ({
+        id: t.id,
+        type: t.type,
+        itemType: t.itemType,
+        quantity: t.quantity,
+        documentNumber: t.documentNumber,
+        name: t.itemName ?? t.equipmentName ?? "—",
+        createdAt: t.createdAt,
+        createdByName: t.createdByName ?? "—",
+      })),
     });
   } catch (err) {
     console.error(err);
@@ -66,37 +182,88 @@ router.get("/stats", requireAuth, async (_req, res) => {
 // GET /api/dashboard/charts
 router.get("/charts", requireAuth, async (_req, res) => {
   try {
-    const [topConsumed, stockByCategory] = await Promise.all([
-      // Top consumed items (by out transactions in last 90 days)
+    const [topItems, stockByCategory, dailyMovement] = await Promise.all([
+      // Top 8 items by outbound volume (last 30 days), with inbound for comparison
       db.execute(sql`
-        SELECT i.name, SUM(t.quantity) as quantity
+        SELECT
+          i.name,
+          SUM(CASE WHEN t.type = 'out' THEN t.quantity ELSE 0 END)::int AS out_qty,
+          SUM(CASE WHEN t.type = 'in'  THEN t.quantity ELSE 0 END)::int AS in_qty
         FROM transactions t
         JOIN items i ON t.item_id = i.id
-        WHERE t.type = 'out' AND t.item_type = 'item'
-          AND t.created_at >= NOW() - INTERVAL '90 days'
+        WHERE t.item_type = 'item'
+          AND t.created_at >= NOW() - INTERVAL '30 days'
+          AND t.type IN ('in', 'out')
         GROUP BY i.name
-        ORDER BY quantity DESC
-        LIMIT 10
+        ORDER BY out_qty DESC
+        LIMIT 8
       `),
-      // Stock count grouped by category
+
+      // Stock distribution by category — quantity-based (not just count)
       db.execute(sql`
-        SELECT COALESCE(c.name, 'غير مصنف') as "categoryName", COUNT(i.id) as count
+        SELECT
+          COALESCE(c.name, 'غير مصنف') AS category,
+          SUM(i.current_stock)::int     AS total_stock,
+          COUNT(i.id)::int              AS item_count
         FROM items i
         LEFT JOIN categories c ON i.category_id = c.id
         WHERE i.is_active = true
         GROUP BY c.name
-        ORDER BY count DESC
+        ORDER BY total_stock DESC
+      `),
+
+      // Daily movement for the last 30 days (aggregated by day)
+      db.execute(sql`
+        SELECT
+          TO_CHAR(DATE(t.created_at AT TIME ZONE 'UTC'), 'MM/DD') AS day,
+          SUM(CASE WHEN t.type = 'in'  THEN t.quantity ELSE 0 END)::int AS in_qty,
+          SUM(CASE WHEN t.type = 'out' THEN t.quantity ELSE 0 END)::int AS out_qty,
+          COUNT(*)::int AS tx_count
+        FROM transactions t
+        WHERE t.created_at >= NOW() - INTERVAL '30 days'
+          AND t.type IN ('in', 'out')
+        GROUP BY DATE(t.created_at AT TIME ZONE 'UTC')
+        ORDER BY DATE(t.created_at AT TIME ZONE 'UTC') ASC
       `),
     ]);
 
     res.json({
-      topConsumed: (topConsumed.rows as Array<{ name: string; quantity: string }>).map((r) => ({
+      topItems: (
+        topItems.rows as Array<{
+          name: string;
+          out_qty: number;
+          in_qty: number;
+        }>
+      ).map((r) => ({
         name: r.name,
-        quantity: Number(r.quantity),
+        outQty: Number(r.out_qty),
+        inQty: Number(r.in_qty),
       })),
-      stockByCategory: (stockByCategory.rows as Array<{ categoryName: string; count: string }>).map((r) => ({
-        categoryName: r.categoryName,
-        count: Number(r.count),
+
+      stockByCategory: (
+        stockByCategory.rows as Array<{
+          category: string;
+          total_stock: number;
+          item_count: number;
+        }>
+      ).map((r) => ({
+        category: r.category,
+        totalStock: Number(r.total_stock),
+        itemCount: Number(r.item_count),
+      })),
+
+      dailyMovement: (
+        dailyMovement.rows as Array<{
+          day: string;
+          in_qty: number;
+          out_qty: number;
+          tx_count: number;
+        }>
+      ).map((r) => ({
+        day: r.day,
+        inQty: Number(r.in_qty),
+        outQty: Number(r.out_qty),
+        txCount: Number(r.tx_count),
       })),
     });
   } catch (err) {
