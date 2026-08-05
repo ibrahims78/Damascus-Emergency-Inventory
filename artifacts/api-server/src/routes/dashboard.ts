@@ -183,23 +183,23 @@ router.get("/stats", requireAuth, async (_req, res) => {
 router.get("/charts", requireAuth, async (_req, res) => {
   try {
     const [topItems, stockByCategory, dailyMovement] = await Promise.all([
-      // Top 8 items by outbound volume (last 30 days), with inbound for comparison
+      // Top 8 most-active items (last 30 days) — sorted by total activity (in+out)
       db.execute(sql`
         SELECT
           i.name,
-          SUM(CASE WHEN t.type = 'out' THEN t.quantity ELSE 0 END)::int AS out_qty,
-          SUM(CASE WHEN t.type = 'in'  THEN t.quantity ELSE 0 END)::int AS in_qty
+          SUM(CASE WHEN t.type = 'out' THEN COALESCE(t.quantity, 0) ELSE 0 END)::int AS out_qty,
+          SUM(CASE WHEN t.type = 'in'  THEN COALESCE(t.quantity, 0) ELSE 0 END)::int AS in_qty
         FROM transactions t
         JOIN items i ON t.item_id = i.id
         WHERE t.item_type = 'item'
           AND t.created_at >= NOW() - INTERVAL '30 days'
           AND t.type IN ('in', 'out')
         GROUP BY i.name
-        ORDER BY out_qty DESC
+        ORDER BY (SUM(COALESCE(t.quantity, 0))) DESC
         LIMIT 8
       `),
 
-      // Stock distribution by category — quantity-based (not just count)
+      // Stock distribution by category — quantity-based, exclude zero-stock categories
       db.execute(sql`
         SELECT
           COALESCE(c.name, 'غير مصنف') AS category,
@@ -209,15 +209,16 @@ router.get("/charts", requireAuth, async (_req, res) => {
         LEFT JOIN categories c ON i.category_id = c.id
         WHERE i.is_active = true
         GROUP BY c.name
+        HAVING SUM(i.current_stock) > 0
         ORDER BY total_stock DESC
       `),
 
-      // Daily movement for the last 30 days (aggregated by day)
+      // Daily movement for the last 30 days — COALESCE handles null quantities
       db.execute(sql`
         SELECT
           TO_CHAR(DATE(t.created_at AT TIME ZONE 'UTC'), 'MM/DD') AS day,
-          SUM(CASE WHEN t.type = 'in'  THEN t.quantity ELSE 0 END)::int AS in_qty,
-          SUM(CASE WHEN t.type = 'out' THEN t.quantity ELSE 0 END)::int AS out_qty,
+          SUM(CASE WHEN t.type = 'in'  THEN COALESCE(t.quantity, 0) ELSE 0 END)::int AS in_qty,
+          SUM(CASE WHEN t.type = 'out' THEN COALESCE(t.quantity, 0) ELSE 0 END)::int AS out_qty,
           COUNT(*)::int AS tx_count
         FROM transactions t
         WHERE t.created_at >= NOW() - INTERVAL '30 days'
