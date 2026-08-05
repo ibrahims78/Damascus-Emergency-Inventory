@@ -94,10 +94,13 @@ router.get("/stats", requireAuth, async (_req, res) => {
           )
         ),
 
-      // Total equipment
-      db.select({ count: sql<number>`count(*)` }).from(equipmentTable),
+      // Total equipment — excludes consumed (scrapped/written-off) units
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(equipmentTable)
+        .where(sql`${equipmentTable.condition} != 'consumed'`),
 
-      // Equipment in maintenance, needs inspection, or broken
+      // Equipment in maintenance, needs inspection, or broken (excludes consumed)
       db
         .select({ count: sql<number>`count(*)` })
         .from(equipmentTable)

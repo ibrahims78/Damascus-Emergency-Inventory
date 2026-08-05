@@ -88,6 +88,14 @@ const REFETCH_INTERVAL = 3 * 60 * 1_000; // 3 minutes
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/** Arabic-aware pluralization for a number of days */
+function formatDays(n: number): string {
+  if (n === 1) return 'يوم واحد';
+  if (n === 2) return 'يومين';
+  if (n >= 3 && n <= 10) return `${n} أيام`;
+  return `${n} يوماً`;
+}
+
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60_000);
@@ -191,8 +199,11 @@ function RecentTransactionsTable({ transactions, loading }: { transactions: Rece
               return (
                 <div
                   key={tx.id}
+                  role="button"
+                  tabIndex={0}
                   className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors cursor-pointer group"
                   onClick={() => setLocation('/transactions')}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setLocation('/transactions'); }}
                 >
                   <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium shrink-0', meta.color)}>
                     {meta.icon}{meta.label}
@@ -307,6 +318,7 @@ export function DashboardPage() {
               disabled={isRefreshing}
               className="text-muted-foreground hover:text-foreground transition-colors"
               title="تحديث البيانات"
+              aria-label="تحديث البيانات"
             >
               <RefreshCw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
             </button>
@@ -394,7 +406,7 @@ export function DashboardPage() {
           title="قرب انتهاء الصلاحية"
           value={stats?.nearExpiryCount ?? 0}
           icon={<Clock className="h-4 w-4" />}
-          sub={stats ? `خلال ${stats.expiryAlertDays} يوماً القادمة` : '—'}
+          sub={stats ? `خلال ${formatDays(stats.expiryAlertDays)} القادمة` : '—'}
           variant={nearExpiryVariant}
           href="/reports"
         />
