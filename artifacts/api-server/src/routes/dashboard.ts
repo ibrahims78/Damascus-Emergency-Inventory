@@ -214,18 +214,25 @@ router.get("/charts", requireAuth, async (_req, res) => {
         ORDER BY total_stock DESC
       `),
 
-      // Daily movement for the last 30 days — COALESCE handles null quantities
+      // Daily movement — ALL 30 days, zeros for days with no activity.
+      // generate_series ensures every day appears even if there are no transactions.
+      // Type filter is in the JOIN condition (not WHERE) so empty days still appear.
       db.execute(sql`
         SELECT
-          TO_CHAR(DATE(t.created_at AT TIME ZONE 'UTC'), 'DD/MM') AS day,
-          SUM(CASE WHEN t.type = 'in'  THEN COALESCE(t.quantity, 0) ELSE 0 END)::int AS in_qty,
-          SUM(CASE WHEN t.type = 'out' THEN COALESCE(t.quantity, 0) ELSE 0 END)::int AS out_qty,
-          COUNT(*)::int AS tx_count
-        FROM transactions t
-        WHERE t.created_at >= NOW() - INTERVAL '30 days'
+          TO_CHAR(gs.d::date, 'DD/MM') AS day,
+          COALESCE(SUM(CASE WHEN t.type = 'in'  THEN COALESCE(t.quantity, 0) ELSE 0 END), 0)::int AS in_qty,
+          COALESCE(SUM(CASE WHEN t.type = 'out' THEN COALESCE(t.quantity, 0) ELSE 0 END), 0)::int AS out_qty,
+          COUNT(t.id)::int AS tx_count
+        FROM generate_series(
+          CURRENT_DATE - INTERVAL '29 days',
+          CURRENT_DATE,
+          '1 day'::interval
+        ) AS gs(d)
+        LEFT JOIN transactions t
+          ON DATE(t.created_at AT TIME ZONE 'UTC') = gs.d::date
           AND t.type IN ('in', 'out')
-        GROUP BY DATE(t.created_at AT TIME ZONE 'UTC')
-        ORDER BY DATE(t.created_at AT TIME ZONE 'UTC') ASC
+        GROUP BY gs.d
+        ORDER BY gs.d ASC
       `),
     ]);
 

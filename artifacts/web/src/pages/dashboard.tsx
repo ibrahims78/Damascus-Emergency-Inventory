@@ -78,6 +78,10 @@ const CHART_COLORS = [
   'hsl(var(--chart-4))',
   'hsl(var(--chart-5))',
   'hsl(var(--primary))',
+  '#f59e0b',
+  '#8b5cf6',
+  '#06b6d4',
+  '#ec4899',
 ];
 
 const REFETCH_INTERVAL = 3 * 60 * 1_000; // 3 minutes
@@ -144,14 +148,17 @@ function KpiCard({ title, value, icon, sub, variant = 'default', href, loading }
 
 // ─── Recent Transactions Table ─────────────────────────────────────────────────
 
+// Defined outside the component — static, contains JSX elements that must not be
+// recreated on every render (would generate new React element objects each time).
+const TX_TYPE_META = {
+  in:     { label: 'إدخال',    icon: <ArrowDownToLine className="w-3 h-3" />, color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' },
+  out:    { label: 'إخراج',    icon: <ArrowUpFromLine className="w-3 h-3" />, color: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300' },
+  init:   { label: 'افتتاحي', icon: <Package className="w-3 h-3" />,          color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' },
+  adjust: { label: 'تسوية',   icon: <RefreshCw className="w-3 h-3" />,        color: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' },
+} as const;
+
 function RecentTransactionsTable({ transactions, loading }: { transactions: RecentTx[]; loading: boolean }) {
   const [, setLocation] = useLocation();
-  const TYPE_META = {
-    in:     { label: 'إدخال',    icon: <ArrowDownToLine className="w-3 h-3" />, color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' },
-    out:    { label: 'إخراج',    icon: <ArrowUpFromLine className="w-3 h-3" />, color: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300' },
-    init:   { label: 'افتتاحي', icon: <Package className="w-3 h-3" />,          color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' },
-    adjust: { label: 'تسوية',   icon: <RefreshCw className="w-3 h-3" />,        color: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' },
-  };
 
   return (
     <Card className="h-full flex flex-col">
@@ -180,7 +187,7 @@ function RecentTransactionsTable({ transactions, loading }: { transactions: Rece
         ) : (
           <div className="divide-y">
             {transactions.map(tx => {
-              const meta = TYPE_META[tx.type] ?? TYPE_META.adjust;
+              const meta = TX_TYPE_META[tx.type] ?? TX_TYPE_META.adjust;
               return (
                 <div
                   key={tx.id}
@@ -472,17 +479,17 @@ export function DashboardPage() {
                       direction: 'rtl',
                       fontSize: 12,
                     }}
-                    formatter={(v: number, _: string, entry: { payload?: { category?: string; itemCount?: number } }) => [
+                    formatter={(v: number, name: string, entry: { payload?: { itemCount?: number } }) => [
                       `${v.toLocaleString('ar')} وحدة (${entry.payload?.itemCount ?? 0} صنف)`,
-                      entry.payload?.category ?? '',
+                      name,
                     ]}
                   />
                   <Legend
                     verticalAlign="bottom"
-                    height={48}
                     iconSize={8}
+                    wrapperStyle={{ paddingTop: '12px', fontSize: '11px' }}
                     formatter={(value) => (
-                      <span className="text-[11px] text-foreground">{value}</span>
+                      <span className="text-foreground">{value}</span>
                     )}
                   />
                 </PieChart>
