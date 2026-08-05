@@ -3,7 +3,7 @@ import { db, itemsTable, categoriesTable, systemSettingsTable } from "@workspace
 import { requireAuth, requireRole } from "../middlewares/auth";
 import { auditLog } from "../middlewares/audit";
 import { runAlertWorker } from "../lib/alert-worker";
-import { eq, and, ilike, lte, sql, isNotNull } from "drizzle-orm";
+import { eq, and, ilike, or, lte, sql, isNotNull, asc, desc } from "drizzle-orm";
 
 const router = Router();
 
