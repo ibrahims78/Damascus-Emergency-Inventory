@@ -62,8 +62,8 @@ function entityIcon(entityType: Alert['entityType']) {
 
 function entityPath(alert: Alert): string {
   return alert.entityType === 'item'
-    ? `/items/${alert.entityId}`
-    : `/equipment/${alert.entityId}`;
+    ? `/items/${alert.entityId}/edit`
+    : `/equipment/${alert.entityId}/edit`;
 }
 
 // ─── SSE hook — connects once, refetches alerts on push ───────────────────────
