@@ -23,6 +23,7 @@ import {
   Info,
   Package,
   Wrench,
+  Settings,
 } from 'lucide-react';
 import { useTheme } from '@/components/theme-provider';
 import { useLocation } from 'wouter';
@@ -30,6 +31,7 @@ import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -430,8 +432,17 @@ export function Header() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex items-center gap-2 pl-2">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                <UserIcon className="h-4 w-4" />
+              <div className={cn(
+                'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0',
+                user?.role === 'admin'
+                  ? 'bg-primary'
+                  : user?.role === 'warehouse_manager'
+                    ? 'bg-amber-500'
+                    : 'bg-slate-400'
+              )}>
+                {user?.fullName
+                  ? user.fullName.split(' ').map(w => w[0]).slice(0, 2).join('')
+                  : <UserIcon className="h-4 w-4" />}
               </div>
               <div className="hidden md:flex flex-col items-start">
                 <span className="text-sm font-medium leading-none">{user?.fullName}</span>
@@ -439,16 +450,43 @@ export function Header() {
               </div>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>حسابي</DropdownMenuLabel>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuLabel className="font-normal pb-2">
+              <div className="flex items-center gap-2.5">
+                <div className={cn(
+                  'w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0',
+                  user?.role === 'admin'
+                    ? 'bg-primary'
+                    : user?.role === 'warehouse_manager'
+                      ? 'bg-amber-500'
+                      : 'bg-slate-400'
+                )}>
+                  {user?.fullName
+                    ? user.fullName.split(' ').map(w => w[0]).slice(0, 2).join('')
+                    : <UserIcon className="h-4 w-4" />}
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="font-semibold text-sm truncate">{user?.fullName}</span>
+                  <span className="text-xs text-muted-foreground">{roleLabel[user?.role ?? 'viewer'] ?? 'مراقب'}</span>
+                </div>
+              </div>
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <div
-              className="relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-destructive outline-none transition-colors hover:bg-accent focus:bg-accent focus:text-accent-foreground"
-              onClick={handleLogout}
+            <DropdownMenuItem
+              onClick={() => setLocation('/settings')}
+              className="gap-2 cursor-pointer"
             >
-              <LogOut className="h-4 w-4 ml-2" />
+              <Settings className="h-4 w-4" />
+              حسابي والإعدادات
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={handleLogout}
+              className="gap-2 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
+            >
+              <LogOut className="h-4 w-4" />
               تسجيل الخروج
-            </div>
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

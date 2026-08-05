@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useGetCurrentUser } from '@workspace/api-client-react';
+import { useGetCurrentUser, getGetCurrentUserQueryKey } from '@workspace/api-client-react';
 import {
   Settings2,
   KeyRound,
@@ -19,6 +19,14 @@ import {
   FileSpreadsheet,
   Upload,
   Loader2,
+  Activity,
+  LogIn,
+  LogOut as LogOutIcon,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  ShieldCheck,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -112,6 +120,9 @@ export function SettingsPage() {
           <TabsTrigger value="password" className="gap-2">
             <KeyRound className="h-4 w-4" />كلمة المرور
           </TabsTrigger>
+          <TabsTrigger value="activity" className="gap-2">
+            <Activity className="h-4 w-4" />سجل نشاطي
+          </TabsTrigger>
           {isAdmin && (
             <TabsTrigger value="org" className="gap-2">
               <Building2 className="h-4 w-4" />إعدادات المنظومة
@@ -152,6 +163,10 @@ export function SettingsPage() {
           <PasswordTab />
         </TabsContent>
 
+        <TabsContent value="activity">
+          <ActivityTab />
+        </TabsContent>
+
         {isAdmin && (
           <TabsContent value="org">
             <OrgTab />
@@ -189,47 +204,178 @@ export function SettingsPage() {
 
 // ─── Profile Tab ──────────────────────────────────────────────────────────────
 
+const ROLE_META: Record<string, { label: string; color: string; bg: string }> = {
+  admin:             { label: 'مدير نظام',    color: 'text-primary',     bg: 'bg-primary' },
+  warehouse_manager: { label: 'أمين مستودع', color: 'text-amber-600',    bg: 'bg-amber-500' },
+  viewer:            { label: 'مراقب',        color: 'text-slate-500',    bg: 'bg-slate-400' },
+};
+
+function getInitials(name?: string | null) {
+  if (!name) return '?';
+  return name.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('');
+}
+
 function ProfileTab({
   user,
 }: {
-  user?: { fullName?: string; username?: string; role?: string } | null;
+  user?: { id?: number; fullName?: string; username?: string; role?: string } | null;
 }) {
-  const roleLabel: Record<string, string> = {
-    admin: 'مدير نظام',
-    warehouse_manager: 'أمين مستودع',
-    viewer: 'مراقب',
-  };
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+
+  useEffect(() => {
+    if (user?.fullName) setNameInput(user.fullName);
+  }, [user?.fullName]);
+
+  const updateMutation = useMutation({
+    mutationFn: async (fullName: string) => {
+      const res = await fetch('/api/settings/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ fullName }),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(err.error || 'فشل تحديث الاسم');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
+      toast.success('تم تحديث الاسم بنجاح');
+      setEditing(false);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const roleMeta = ROLE_META[user?.role ?? ''] ?? ROLE_META.viewer;
 
   return (
-    <div className="bg-card border rounded-lg p-6 space-y-5">
-      <h2 className="font-semibold text-lg">معلومات الحساب</h2>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label className="text-muted-foreground text-xs">الاسم الكامل</Label>
-          <p className="font-medium">{user?.fullName || '—'}</p>
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-muted-foreground text-xs">اسم المستخدم</Label>
-          <p className="font-mono font-medium">{user?.username || '—'}</p>
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-muted-foreground text-xs">الدور</Label>
-          <Badge variant="secondary">{roleLabel[user?.role ?? ''] || user?.role || '—'}</Badge>
+    <div className="space-y-4">
+      {/* Identity card */}
+      <div className="bg-card border rounded-xl p-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+          {/* Avatar */}
+          <div className={`w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-bold text-white shrink-0 shadow-md ${roleMeta.bg}`}>
+            {getInitials(user?.fullName)}
+          </div>
+
+          {/* Info */}
+          <div className="flex-1 min-w-0 space-y-1">
+            {editing ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={nameInput}
+                  onChange={e => setNameInput(e.target.value)}
+                  className="h-9 text-lg font-semibold max-w-xs"
+                  autoFocus
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') updateMutation.mutate(nameInput.trim());
+                    if (e.key === 'Escape') setEditing(false);
+                  }}
+                />
+                <Button
+                  size="sm"
+                  className="gap-1.5 h-9"
+                  onClick={() => updateMutation.mutate(nameInput.trim())}
+                  disabled={updateMutation.isPending || !nameInput.trim()}
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  {updateMutation.isPending ? 'جاري الحفظ...' : 'حفظ'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-9"
+                  onClick={() => { setEditing(false); setNameInput(user?.fullName ?? ''); }}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold truncate">{user?.fullName || '—'}</h2>
+                <button
+                  onClick={() => setEditing(true)}
+                  className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted"
+                  title="تعديل الاسم"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+            <div className="flex items-center gap-2 flex-wrap mt-1">
+              <span className="text-sm text-muted-foreground font-mono">@{user?.username}</span>
+              <Badge
+                variant="secondary"
+                className={`text-xs font-medium ${roleMeta.color}`}
+              >
+                <ShieldCheck className="h-3 w-3 mr-1" />
+                {roleMeta.label}
+              </Badge>
+            </div>
+          </div>
         </div>
       </div>
-      <p className="text-xs text-muted-foreground border-t pt-4">
-        لتعديل الاسم أو الدور، تواصل مع مدير النظام.
-      </p>
+
+      {/* Account details */}
+      <div className="bg-card border rounded-xl p-6">
+        <h3 className="font-semibold mb-4 text-sm text-muted-foreground uppercase tracking-wider">
+          تفاصيل الحساب
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">الاسم الكامل</Label>
+            <p className="font-medium">{user?.fullName || '—'}</p>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">اسم المستخدم</Label>
+            <p className="font-mono text-sm bg-muted/50 rounded px-2 py-1 inline-block">{user?.username || '—'}</p>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">مستوى الصلاحية</Label>
+            <p className={`font-medium ${roleMeta.color}`}>{roleMeta.label}</p>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground border-t pt-4 mt-4">
+          يمكنك تعديل اسمك الكامل بالضغط على أيقونة القلم. لتغيير الدور أو اسم المستخدم تواصل مع مدير النظام.
+        </p>
+      </div>
     </div>
   );
+}
+
+// ─── Password strength ────────────────────────────────────────────────────────
+
+function calcStrength(pwd: string): { score: number; label: string; color: string } {
+  if (!pwd) return { score: 0, label: '', color: '' };
+  let score = 0;
+  if (pwd.length >= 8)  score++;
+  if (pwd.length >= 12) score++;
+  if (/[A-Z]/.test(pwd)) score++;
+  if (/[0-9]/.test(pwd)) score++;
+  if (/[^A-Za-z0-9]/.test(pwd)) score++;
+  if (score <= 1) return { score: 1, label: 'ضعيفة جداً',  color: 'bg-destructive' };
+  if (score === 2) return { score: 2, label: 'ضعيفة',       color: 'bg-orange-500' };
+  if (score === 3) return { score: 3, label: 'متوسطة',      color: 'bg-amber-500'  };
+  if (score === 4) return { score: 4, label: 'جيدة',        color: 'bg-blue-500'   };
+  return              { score: 5, label: 'قوية جداً',   color: 'bg-green-500'  };
 }
 
 // ─── Password Tab ─────────────────────────────────────────────────────────────
 
 function PasswordTab() {
-  const [current, setCurrent] = useState('');
-  const [next, setNext]       = useState('');
-  const [confirm, setConfirm] = useState('');
+  const [current, setCurrent]   = useState('');
+  const [next, setNext]         = useState('');
+  const [confirm, setConfirm]   = useState('');
+  const [showCur, setShowCur]   = useState(false);
+  const [showNext, setShowNext] = useState(false);
+  const [showCnf, setShowCnf]   = useState(false);
+
+  const strength = calcStrength(next);
+  const mismatch = confirm.length > 0 && next !== confirm;
 
   const mutation = useMutation({
     mutationFn: changePassword,
@@ -242,31 +388,232 @@ function PasswordTab() {
 
   const handleSave = () => {
     if (!current || !next || !confirm) { toast.error('يرجى تعبئة جميع الحقول'); return; }
-    if (next.length < 8) { toast.error('كلمة المرور يجب أن تكون 8 أحرف على الأقل'); return; }
-    if (next !== confirm) { toast.error('كلمتا المرور غير متطابقتين'); return; }
+    if (next.length < 8)  { toast.error('كلمة المرور يجب أن تكون 8 أحرف على الأقل'); return; }
+    if (next !== confirm)  { toast.error('كلمتا المرور غير متطابقتين'); return; }
     mutation.mutate({ currentPassword: current, newPassword: next });
   };
 
   return (
-    <div className="bg-card border rounded-lg p-6 space-y-5 max-w-sm">
-      <h2 className="font-semibold text-lg">تغيير كلمة المرور</h2>
+    <div className="bg-card border rounded-xl p-6 space-y-5 max-w-sm">
+      <div>
+        <h2 className="font-semibold text-lg">تغيير كلمة المرور</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">اختر كلمة مرور قوية تحتوي على أحرف وأرقام ورموز</p>
+      </div>
+
+      {/* Current password */}
       <div className="space-y-1.5">
         <Label htmlFor="cur">كلمة المرور الحالية</Label>
-        <Input id="cur" type="password" value={current} onChange={(e) => setCurrent(e.target.value)} />
+        <div className="relative">
+          <Input
+            id="cur"
+            type={showCur ? 'text' : 'password'}
+            value={current}
+            onChange={e => setCurrent(e.target.value)}
+            className="pl-10"
+          />
+          <button
+            type="button"
+            onClick={() => setShowCur(v => !v)}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {showCur ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
+
+      {/* New password + strength */}
       <div className="space-y-1.5">
         <Label htmlFor="nxt">كلمة المرور الجديدة</Label>
-        <Input id="nxt" type="password" value={next} onChange={(e) => setNext(e.target.value)} />
-        <p className="text-xs text-muted-foreground">8 أحرف على الأقل</p>
+        <div className="relative">
+          <Input
+            id="nxt"
+            type={showNext ? 'text' : 'password'}
+            value={next}
+            onChange={e => setNext(e.target.value)}
+            className="pl-10"
+          />
+          <button
+            type="button"
+            onClick={() => setShowNext(v => !v)}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {showNext ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+        {/* Strength bar */}
+        {next && (
+          <div className="space-y-1 pt-0.5">
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5].map(i => (
+                <div
+                  key={i}
+                  className={`h-1 flex-1 rounded-full transition-colors duration-300 ${
+                    i <= strength.score ? strength.color : 'bg-muted'
+                  }`}
+                />
+              ))}
+            </div>
+            <p className={`text-xs font-medium transition-colors ${
+              strength.score <= 2 ? 'text-destructive' :
+              strength.score === 3 ? 'text-amber-600 dark:text-amber-400' :
+              'text-green-600 dark:text-green-400'
+            }`}>
+              {strength.label}
+              <span className="text-muted-foreground font-normal mr-1.5">
+                — أضف {[
+                  next.length < 12 && 'المزيد من الأحرف',
+                  !/[A-Z]/.test(next) && 'حرف كبير',
+                  !/[0-9]/.test(next) && 'رقم',
+                  !/[^A-Za-z0-9]/.test(next) && 'رمز (!@#...)',
+                ].filter(Boolean).join('، ')}
+              </span>
+            </p>
+          </div>
+        )}
       </div>
+
+      {/* Confirm */}
       <div className="space-y-1.5">
         <Label htmlFor="cnf">تأكيد كلمة المرور</Label>
-        <Input id="cnf" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+        <div className="relative">
+          <Input
+            id="cnf"
+            type={showCnf ? 'text' : 'password'}
+            value={confirm}
+            onChange={e => setConfirm(e.target.value)}
+            className={`pl-10 ${mismatch ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+          />
+          <button
+            type="button"
+            onClick={() => setShowCnf(v => !v)}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {showCnf ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+        {mismatch && (
+          <p className="text-xs text-destructive">كلمتا المرور غير متطابقتين</p>
+        )}
       </div>
-      <Button onClick={handleSave} disabled={mutation.isPending} className="gap-2 w-full">
+
+      <Button
+        onClick={handleSave}
+        disabled={mutation.isPending || !current || !next || !confirm || mismatch}
+        className="gap-2 w-full"
+      >
         <Save className="h-4 w-4" />
         {mutation.isPending ? 'جاري الحفظ...' : 'حفظ كلمة المرور'}
       </Button>
+    </div>
+  );
+}
+
+// ─── Activity Tab ─────────────────────────────────────────────────────────────
+
+interface AuditEntry {
+  id: number;
+  action: string;
+  entityType: string;
+  entityId: number | null;
+  details: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+const ACT_META: Record<string, { label: string; icon: ReactNode; color: string }> = {
+  login:           { label: 'دخول للنظام',   icon: <LogIn className="w-3.5 h-3.5" />,              color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' },
+  logout:          { label: 'خروج',           icon: <LogOutIcon className="w-3.5 h-3.5" />,         color: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' },
+  create:          { label: 'إضافة',          icon: <Plus className="w-3.5 h-3.5" />,               color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' },
+  update:          { label: 'تعديل',          icon: <Pencil className="w-3.5 h-3.5" />,             color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' },
+  delete:          { label: 'حذف',            icon: <Trash2 className="w-3.5 h-3.5" />,             color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' },
+  transaction_in:  { label: 'إدخال مواد',    icon: <ArrowDownToLine className="w-3.5 h-3.5" />,    color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300' },
+  transaction_out: { label: 'إخراج مواد',    icon: <ArrowUpFromLine className="w-3.5 h-3.5" />,    color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300' },
+};
+
+const ENTITY_AR: Record<string, string> = {
+  item:        'مادة',
+  equipment:   'تجهيزة',
+  transaction: 'عملية',
+  user:        'مستخدم',
+  category:    'تصنيف',
+};
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60_000);
+  if (m < 1)  return 'الآن';
+  if (m < 60) return `منذ ${m} د`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `منذ ${h} س`;
+  const d = Math.floor(h / 24);
+  if (d < 7)  return `منذ ${d} يوم`;
+  return new Date(iso).toLocaleDateString('ar-SY', { day: 'numeric', month: 'short' });
+}
+
+function ActivityTab() {
+  const { data: entries = [], isLoading } = useQuery<AuditEntry[]>({
+    queryKey: ['my-activity'],
+    queryFn: async () => {
+      const res = await fetch('/api/settings/my-activity', { credentials: 'include' });
+      if (!res.ok) throw new Error('فشل جلب السجل');
+      return res.json();
+    },
+    refetchInterval: 30_000,
+  });
+
+  return (
+    <div className="bg-card border rounded-xl overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b bg-muted/30">
+        <div className="flex items-center gap-2">
+          <Activity className="h-4 w-4 text-muted-foreground" />
+          <span className="font-semibold text-sm">آخر {entries.length} نشاطات</span>
+        </div>
+        <span className="text-xs text-muted-foreground">يتجدد تلقائياً</span>
+      </div>
+
+      {isLoading ? (
+        <div className="py-12 text-center text-sm text-muted-foreground">
+          <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 opacity-40" />
+          جاري التحميل...
+        </div>
+      ) : entries.length === 0 ? (
+        <div className="py-12 text-center">
+          <Activity className="h-8 w-8 mx-auto mb-2 opacity-20" />
+          <p className="text-sm text-muted-foreground">لا توجد نشاطات مسجّلة بعد</p>
+        </div>
+      ) : (
+        <div className="divide-y">
+          {entries.map(entry => {
+            const meta = ACT_META[entry.action];
+            const entityAr = ENTITY_AR[entry.entityType] ?? entry.entityType;
+            const detailText = entry.details
+              ? (entry.details.username as string) ||
+                (entry.details.fullName as string) ||
+                (entry.details.name as string) ||
+                (entry.entityId ? `#${entry.entityId}` : '')
+              : '';
+            return (
+              <div key={entry.id} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/20 transition-colors">
+                {/* Action badge */}
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium shrink-0 ${meta?.color ?? 'bg-muted text-muted-foreground'}`}>
+                  {meta?.icon}
+                  {meta?.label ?? entry.action}
+                </span>
+                {/* Entity */}
+                <span className="text-sm text-muted-foreground shrink-0">{entityAr}</span>
+                {/* Detail */}
+                {detailText && (
+                  <span className="text-sm font-medium truncate flex-1">{detailText}</span>
+                )}
+                <div className="flex-1" />
+                {/* Time */}
+                <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
+                  {timeAgo(entry.createdAt)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,9 +1,9 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
-import { db, systemSettingsTable, usersTable } from "@workspace/db";
+import { db, systemSettingsTable, usersTable, auditLogTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
 import { auditLog } from "../middlewares/audit";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 const router = Router();
 
@@ -92,6 +92,56 @@ router.post("/change-password", requireAuth, async (req, res) => {
     await db.update(usersTable).set({ passwordHash }).where(eq(usersTable.id, user.id));
     await auditLog({ req, action: "update", entityType: "user", entityId: user.id, details: { action: "password_changed" } });
     res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// PATCH /api/settings/profile — authenticated user updates their own fullName
+router.patch("/profile", requireAuth, async (req, res) => {
+  try {
+    const user = res.locals.user;
+    const { fullName } = req.body as { fullName?: string };
+    if (!fullName || typeof fullName !== "string" || fullName.trim().length < 2) {
+      res.status(400).json({ error: "الاسم الكامل مطلوب (حرفان على الأقل)" });
+      return;
+    }
+    const [updated] = await db
+      .update(usersTable)
+      .set({ fullName: fullName.trim() })
+      .where(eq(usersTable.id, user.id))
+      .returning({
+        id: usersTable.id,
+        username: usersTable.username,
+        fullName: usersTable.fullName,
+        role: usersTable.role,
+      });
+    await auditLog({
+      req,
+      action: "update",
+      entityType: "user",
+      entityId: user.id,
+      details: { fullName: updated.fullName },
+    });
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /api/settings/my-activity — current user's recent 20 audit log entries
+router.get("/my-activity", requireAuth, async (req, res) => {
+  try {
+    const user = res.locals.user;
+    const logs = await db
+      .select()
+      .from(auditLogTable)
+      .where(eq(auditLogTable.userId, user.id))
+      .orderBy(desc(auditLogTable.createdAt))
+      .limit(20);
+    res.json(logs);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal server error" });
