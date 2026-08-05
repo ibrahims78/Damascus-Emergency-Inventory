@@ -1,15 +1,13 @@
 #!/usr/bin/env node
 /**
- * استيراد بيانات المخزون الأولي من ملف Excel
- * يقرأ ملف عهدة المستودع ويُنشئ سجلات "رصيد افتتاحي" في جدول transactions
+ * استيراد بيانات المخزون الأولي من ملف Excel (المواد والمستهلكات والثوابت)
  *
  * الاستخدام:
  *   node scripts/import-excel.mjs <مسار الملف>
- *   node scripts/import-excel.mjs /path/to/عهدة_المستودع.xlsx
  */
 
 import { readFileSync } from "fs";
-import { join, resolve } from "path";
+import { resolve } from "path";
 import { fileURLToPath } from "url";
 import { read, utils } from "xlsx";
 import postgres from "postgres";
@@ -17,51 +15,57 @@ import postgres from "postgres";
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const ROOT = resolve(__dirname, "..");
 
-// ─── DB Connection ────────────────────────────────────────────────────────────
+// ─── DB ──────────────────────────────────────────────────────────────────────
 
 const DATABASE_URL = process.env.DATABASE_URL;
-if (!DATABASE_URL) {
-  console.error("❌ DATABASE_URL environment variable not set");
-  process.exit(1);
-}
-
+if (!DATABASE_URL) { console.error("❌ DATABASE_URL not set"); process.exit(1); }
 const sql = postgres(DATABASE_URL);
-
-// ─── Config ───────────────────────────────────────────────────────────────────
 
 const EXCEL_PATH = process.argv[2];
 if (!EXCEL_PATH) {
-  console.error("❌ يجب تمرير مسار ملف Excel كوسيط:");
-  console.error("   node scripts/import-excel.mjs <مسار الملف>");
+  console.error("❌ يجب تمرير مسار ملف Excel:\n   node scripts/import-excel.mjs <مسار الملف>");
   process.exit(1);
 }
 
-// Column name mappings — Arabic names as they appear in the Excel sheet
-// We try multiple common variants in order
-const NAME_COLS = ["الاسم", "اسم المادة", "الصنف", "اسم الصنف", "المادة", "البيان", "اسم المستهلك", "الجهاز"];
-const QTY_COLS = ["الكمية", "عدد", "العدد", "الرصيد", "الرصيد الحالي", "الكمية الحالية"];
-const UNIT_COLS = ["الوحدة", "وحدة القياس", "الوحدة القياسية"];
-const CATEGORY_COLS = ["التصنيف", "الفئة", "القسم"]; // exclude "النوع" — ambiguous with item type
+// ─── Column candidates ────────────────────────────────────────────────────────
+// Column names normalized: strip trailing " *", leading/trailing spaces, collapse inner spaces
 
-// Map sheet name → item type stored in items.item_type
-// Must be a valid non-null string per schema
+const NAME_COLS     = ["الاسم", "اسم المادة", "الصنف", "اسم الصنف", "المادة", "البيان", "الجهاز"];
+const QTY_COLS      = ["الكمية الحالية", "الكمية", "عدد", "العدد", "الرصيد", "الرصيد الحالي"];
+const UNIT_COLS     = ["الوحدة", "وحدة القياس", "الوحدة القياسية"];
+const CATEGORY_COLS = ["التصنيف", "الفئة", "القسم"];
+const MIN_STOCK_COLS = ["الحد الأدنى", "الحد الادنى", "الحد الأدنى للمخزون"];
+const EXPIRY_COLS   = ["تاريخ الانتهاء", "تاريخ انتهاء الصلاحية", "الصلاحية"];
+const BATCH_COLS    = ["رقم الدفعة", "رقم الدُّفعة", "الدفعة"];
+const SUPPLIER_COLS = ["المورد", "اسم المورد", "الموردون"];
+const LOCATION_COLS = ["الموقع", "مكان التخزين", "موقع التخزين"];
+const CODE_COLS     = ["الرمز", "الكود", "الرقم", "رقم المادة"];
+
 const SHEET_ITEM_TYPE = {
   "المستهلكات الطبية": "consumable",
-  "مستهلكات منوعة": "consumable",
-  "الثوابت": "fixed",
-  "التجهيزات": "equipment",
+  "مستهلكات منوعة":   "consumable",
+  "الثوابت":          "fixed",
+  "البيانات":         "consumable", // default sheet name in template
 };
 const DEFAULT_ITEM_TYPE = "consumable";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/** Normalize a header: strip " *" suffix, trim, collapse inner spaces */
+function normalizeHeader(s) {
+  return String(s ?? "")
+    .trim()
+    .replace(/\s*\*+\s*$/, "")   // remove trailing asterisks with surrounding spaces
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 function pickCol(headers, candidates) {
-  const normalized = (s) => String(s ?? "").trim().replace(/\s+/g, " ");
+  const normedHeaders = headers.map(normalizeHeader);
   for (const c of candidates) {
-    const found = headers.find(
-      (h) => normalized(h).toLowerCase() === normalized(c).toLowerCase()
-    );
-    if (found !== undefined) return found;
+    const nc = normalizeHeader(c);
+    const idx = normedHeaders.findIndex(h => h.toLowerCase() === nc.toLowerCase());
+    if (idx >= 0) return headers[idx]; // return the original header key
   }
   return null;
 }
@@ -72,99 +76,107 @@ function toNumber(v) {
   return isNaN(n) ? null : Math.round(n);
 }
 
+function toDateStr(v) {
+  if (!v) return null;
+  if (v instanceof Date) {
+    if (isNaN(v.getTime())) return null;
+    return v.toISOString().split("T")[0];
+  }
+  const s = String(v).trim();
+  if (!s || s === "-" || s === "—") return null;
+  // Try parsing common formats
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
+  return null;
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
   console.log(`\n📂 قراءة الملف: ${EXCEL_PATH}\n`);
 
   let fileBuffer;
-  try {
-    fileBuffer = readFileSync(EXCEL_PATH);
-  } catch {
-    console.error(`❌ الملف غير موجود: ${EXCEL_PATH}`);
-    process.exit(1);
-  }
+  try { fileBuffer = readFileSync(EXCEL_PATH); }
+  catch { console.error(`❌ الملف غير موجود: ${EXCEL_PATH}`); process.exit(1); }
 
   const workbook = read(fileBuffer, { type: "buffer", cellDates: true });
-  const sheetNames = workbook.SheetNames;
-  console.log(`📊 الأوراق المتاحة: ${sheetNames.join(", ")}\n`);
+  console.log(`📊 الأوراق المتاحة: ${workbook.SheetNames.join(", ")}\n`);
 
-  let totalImported = 0;
-  let totalSkipped = 0;
-  let totalErrors = 0;
+  let totalImported = 0, totalSkipped = 0, totalErrors = 0;
 
-  // Get or create admin user id for the import
   const adminRows = await sql`SELECT id FROM users WHERE username = 'admin' LIMIT 1`;
   const adminId = adminRows[0]?.id ?? null;
 
-  for (const sheetName of sheetNames) {
+  for (const sheetName of workbook.SheetNames) {
+    // Skip instruction/stats sheets
+    if (["التعليمات", "إحصائيات", "ملاحظات"].includes(sheetName)) {
+      console.log(`⏭️  تخطي الورقة "${sheetName}" (تعليمات)\n`);
+      continue;
+    }
+
     const sheetItemType = SHEET_ITEM_TYPE[sheetName] ?? DEFAULT_ITEM_TYPE;
     const sheet = workbook.Sheets[sheetName];
-    const rows = utils.sheet_to_json(sheet, { defval: null });
-
-    if (rows.length === 0) {
-      console.log(`⚠️  الورقة "${sheetName}" فارغة — تخطي`);
-      continue;
-    }
-
-    // The sheet layout: row 0 = sheet title (merged), row 1 = actual headers
-    // Use header:1 mode and offset by 2 rows
     const rawRows = utils.sheet_to_json(sheet, { header: 1, defval: null });
-    // Find the real header row — first row that has > 1 non-null cell
+
+    // Find header row: first row with > 1 non-empty cell
     const headerRowIdx = rawRows.findIndex(
-      (r) => Array.isArray(r) && r.filter((c) => c != null && String(c).trim()).length > 1
+      r => Array.isArray(r) && r.filter(c => c != null && String(c).trim()).length > 1
     );
     if (headerRowIdx < 0) {
-      console.log(`   ⚠️  لم يُعثر على صف رؤوس — تخطي الورقة\n`);
-      totalSkipped += rows.length;
+      console.log(`⚠️  لم يُعثر على رؤوس في "${sheetName}" — تخطي\n`);
       continue;
     }
-    const headers = (rawRows[headerRowIdx]).map((c) => (c != null ? String(c).trim() : ""));
-    // Re-parse rows using the real header row
-    const dataRows = rawRows.slice(headerRowIdx + 1).map((row) => {
+
+    const headers = rawRows[headerRowIdx].map(c => c != null ? String(c).trim() : "");
+    const dataRows = rawRows.slice(headerRowIdx + 1).map(row => {
       const obj = {};
       headers.forEach((h, i) => { if (h) obj[h] = row[i] ?? null; });
       return obj;
     });
 
-    console.log(`📋 الورقة: "${sheetName}" (${dataRows.length} صف بيانات)`);
-    console.log(`   الأعمدة: ${headers.filter(Boolean).join(" | ")}\n`);
+    console.log(`📋 الورقة: "${sheetName}" → نوع: ${sheetItemType} (${dataRows.length} صف)`);
+    console.log(`   الأعمدة: ${headers.filter(Boolean).map(h => normalizeHeader(h)).join(" | ")}\n`);
 
-    const nameCol = pickCol(headers, NAME_COLS);
-    const qtyCol = pickCol(headers, QTY_COLS);
-    const unitCol = pickCol(headers, UNIT_COLS);
+    const nameCol     = pickCol(headers, NAME_COLS);
+    const qtyCol      = pickCol(headers, QTY_COLS);
+    const unitCol     = pickCol(headers, UNIT_COLS);
     const categoryCol = pickCol(headers, CATEGORY_COLS);
+    const minStockCol = pickCol(headers, MIN_STOCK_COLS);
+    const expiryCol   = pickCol(headers, EXPIRY_COLS);
+    const batchCol    = pickCol(headers, BATCH_COLS);
+    const supplierCol = pickCol(headers, SUPPLIER_COLS);
+    const locationCol = pickCol(headers, LOCATION_COLS);
+    const codeCol     = pickCol(headers, CODE_COLS);
 
     if (!nameCol) {
       console.log(`   ⚠️  لم يُعثر على عمود الاسم — تخطي الورقة\n`);
-      totalSkipped += rows.length;
       continue;
     }
 
-    let sheetImported = 0;
-    let sheetSkipped = 0;
+    console.log(`   عمود الاسم: "${nameCol}"${qtyCol ? ` | الكمية: "${qtyCol}"` : ""}\n`);
+
+    let sheetImported = 0, sheetSkipped = 0;
 
     for (const row of dataRows) {
       const name = String(row[nameCol] ?? "").trim();
-      if (!name || name === "—" || name === "-") {
-        sheetSkipped++;
-        continue;
-      }
+      if (!name || name === "—" || name === "-") { sheetSkipped++; continue; }
 
-      const qty = qtyCol ? toNumber(row[qtyCol]) : null;
-      const unit = unitCol ? String(row[unitCol] ?? "").trim() || null : null;
+      const qty       = qtyCol      ? toNumber(row[qtyCol])             : null;
+      const unit      = unitCol     ? String(row[unitCol] ?? "").trim() || null : null;
+      const minStock  = minStockCol ? (toNumber(row[minStockCol]) ?? 0) : 0;
+      const expiry    = expiryCol   ? toDateStr(row[expiryCol])         : null;
+      const batch     = batchCol    ? String(row[batchCol] ?? "").trim() || null : null;
+      const supplier  = supplierCol ? String(row[supplierCol] ?? "").trim() || null : null;
+      const location  = locationCol ? String(row[locationCol] ?? "").trim() || null : null;
+      const code      = codeCol     ? String(row[codeCol] ?? "").trim() || null : null;
       const categoryName = categoryCol ? String(row[categoryCol] ?? "").trim() || null : null;
 
       try {
-        // Determine category type — equipment sheets get "equipment", others "consumable"
-        const categoryType = sheetItemType === "equipment" ? "equipment" : "consumable";
+        const categoryType = sheetItemType === "fixed" ? "consumable" : sheetItemType;
 
-        // Upsert category if present — must supply non-null `type`
         let categoryId = null;
         if (categoryName) {
-          const existing = await sql`
-            SELECT id FROM categories WHERE name = ${categoryName} LIMIT 1
-          `;
+          const existing = await sql`SELECT id FROM categories WHERE name = ${categoryName} LIMIT 1`;
           if (existing.length > 0) {
             categoryId = existing[0].id;
           } else {
@@ -178,7 +190,6 @@ async function main() {
           }
         }
 
-        // Check if this item already has an init transaction — if so, skip entirely (idempotent)
         const existingItem = await sql`
           SELECT id FROM items WHERE name = ${name} AND is_active = true LIMIT 1
         `;
@@ -186,87 +197,77 @@ async function main() {
         let itemId;
         if (existingItem.length > 0) {
           itemId = existingItem[0].id;
-          // Check if an init transaction already exists for this item
           const existingTx = await sql`
             SELECT id FROM transactions WHERE item_id = ${itemId} AND type = 'init' LIMIT 1
           `;
           if (existingTx.length > 0) {
-            console.log(`   ⏭️  ${name} — رصيد افتتاحي موجود مسبقاً، تخطي`);
+            console.log(`   ⏭️  ${name} — رصيد افتتاحي موجود، تخطي`);
             sheetSkipped++;
             continue;
           }
-          // Item exists but no init tx — only set stock if not already non-zero from other transactions
           const [stockRow] = await sql`SELECT current_stock FROM items WHERE id = ${itemId}`;
           if ((stockRow?.current_stock ?? 0) === 0 && qty !== null && qty > 0) {
             await sql`
               UPDATE items SET
                 current_stock = ${qty},
-                unit = COALESCE(NULLIF(${unit ?? ""}, ''), unit),
-                category_id = COALESCE(${categoryId}, category_id),
-                updated_at = NOW()
+                min_stock     = ${minStock},
+                unit          = COALESCE(NULLIF(${unit ?? ""}, ''), unit),
+                category_id   = COALESCE(${categoryId}, category_id),
+                expiry_date   = COALESCE(${expiry}, expiry_date),
+                batch_number  = COALESCE(${batch}, batch_number),
+                supplier      = COALESCE(${supplier}, supplier),
+                location      = COALESCE(${location}, location),
+                updated_at    = NOW()
               WHERE id = ${itemId}
             `;
           }
         } else {
-          // Insert new item — must supply non-null item_type and unit
           const inserted = await sql`
-            INSERT INTO items (name, unit, item_type, category_id, current_stock, min_stock)
+            INSERT INTO items
+              (name, code, unit, item_type, category_id, current_stock, min_stock,
+               expiry_date, batch_number, supplier, location)
             VALUES (
-              ${name},
-              ${unit ?? "وحدة"},
-              ${sheetItemType},
-              ${categoryId},
-              ${qty ?? 0},
-              0
+              ${name}, ${code}, ${unit ?? "وحدة"}, ${sheetItemType}, ${categoryId},
+              ${qty ?? 0}, ${minStock}, ${expiry}, ${batch}, ${supplier}, ${location}
             )
             RETURNING id
           `;
           itemId = inserted[0]?.id;
         }
 
-        // Insert init transaction only if qty > 0 and no duplicate
         if (qty !== null && qty > 0 && itemId) {
-          const year = new Date().getFullYear();
-          const countResult = await sql`
-            SELECT count(*) FROM transactions WHERE type = 'init'
-          `;
+          const countResult = await sql`SELECT count(*) FROM transactions WHERE type = 'init'`;
           const seq = Number(countResult[0].count) + 1;
-          const docNum = `INIT-${year}-${String(seq).padStart(4, "0")}`;
+          const docNum = `INIT-${new Date().getFullYear()}-${String(seq).padStart(4, "0")}`;
 
           await sql`
             INSERT INTO transactions
               (type, item_type, item_id, quantity, document_number, notes, created_by)
             VALUES
               ('init', 'item', ${itemId}, ${qty}, ${docNum},
-               ${"رصيد افتتاحي — استيراد من ملف Excel"},
-               ${adminId})
+               ${"رصيد افتتاحي — استيراد من ملف Excel"}, ${adminId})
           `;
         }
 
         sheetImported++;
-        console.log(`   ✅ ${name}${qty !== null ? ` (${qty}${unit ? " " + unit : ""})` : ""}`);
+        console.log(`   ✅ ${name}${qty !== null ? ` (${qty}${unit ? " " + unit : ""})` : ""}${expiry ? ` | انتهاء: ${expiry}` : ""}`);
       } catch (err) {
-        console.error(`   ❌ خطأ عند معالجة "${name}": ${err.message}`);
+        console.error(`   ❌ خطأ: "${name}": ${err.message}`);
         totalErrors++;
       }
     }
 
-    console.log(`\n   📦 الورقة "${sheetName}": ${sheetImported} مستورد، ${sheetSkipped} متخطى\n`);
+    console.log(`\n   📦 "${sheetName}": ${sheetImported} مستورد، ${sheetSkipped} متخطى\n`);
     totalImported += sheetImported;
-    totalSkipped += sheetSkipped;
+    totalSkipped  += sheetSkipped;
   }
 
   await sql.end();
-
   console.log("─".repeat(50));
   console.log(`\n🎉 اكتمل الاستيراد:`);
-  console.log(`   ✅ مستورد بنجاح : ${totalImported}`);
-  console.log(`   ⏭️  متخطى        : ${totalSkipped}`);
-  console.log(`   ❌ أخطاء        : ${totalErrors}`);
-  console.log();
+  console.log(`   ✅ مستورد  : ${totalImported}`);
+  console.log(`   ⏭️  متخطى  : ${totalSkipped}`);
+  console.log(`   ❌ أخطاء  : ${totalErrors}\n`);
 }
 
-main().catch((err) => {
-  console.error("خطأ فادح:", err);
-  process.exit(1);
-});
+main().catch(err => { console.error("خطأ فادح:", err); process.exit(1); });
