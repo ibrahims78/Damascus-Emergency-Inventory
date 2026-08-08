@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
 import bcrypt from "bcryptjs";
 import { db, usersTable, systemSettingsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
@@ -6,6 +6,35 @@ import { auditLog } from "../middlewares/audit";
 import { eq } from "drizzle-orm";
 
 const router = Router();
+
+// ── Simple in-memory rate limiter for auth endpoints ─────────────────────────
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+const RATE_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const MAX_ATTEMPTS = 10;
+
+function loginRateLimiter(req: Request, res: Response, next: NextFunction) {
+  const key = String(req.ip ?? "unknown");
+  const now = Date.now();
+  const entry = loginAttempts.get(key);
+  if (entry && now < entry.resetAt) {
+    if (entry.count >= MAX_ATTEMPTS) {
+      res.status(429).json({ error: "Too many attempts. Please try again later." });
+      return;
+    }
+    entry.count++;
+  } else {
+    loginAttempts.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS });
+  }
+  next();
+}
+
+// Clean stale entries periodically (every 30 min)
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of loginAttempts.entries()) {
+    if (now >= v.resetAt) loginAttempts.delete(k);
+  }
+}, 30 * 60 * 1000).unref();
 
 // GET /api/auth/setup-status
 router.get("/setup-status", async (_req, res) => {
@@ -22,7 +51,7 @@ router.get("/setup-status", async (_req, res) => {
 });
 
 // POST /api/auth/setup
-router.post("/setup", async (req, res) => {
+router.post("/setup", loginRateLimiter, async (req, res) => {
   try {
     // Only allowed if no admin exists
     const existing = await db.query.usersTable.findFirst({
@@ -63,6 +92,10 @@ router.post("/setup", async (req, res) => {
       await db.insert(systemSettingsTable).values({ setupCompleted: true, setupAt: new Date() });
     }
 
+    // Regenerate session to prevent session fixation
+    await new Promise<void>((resolve, reject) =>
+      req.session.regenerate((err) => (err ? reject(err) : resolve()))
+    );
     req.session.userId = user.id;
     res.json({ id: user.id, username: user.username, fullName: user.fullName, role: user.role });
   } catch (err: any) {
@@ -76,10 +109,10 @@ router.post("/setup", async (req, res) => {
 });
 
 // POST /api/auth/login
-router.post("/login", async (req, res) => {
+router.post("/login", loginRateLimiter, async (req, res) => {
   try {
     const { username, password } = req.body as { username?: string; password?: string };
-    if (!username || !password) {
+    if (!username || !password || typeof username !== "string" || typeof password !== "string") {
       res.status(400).json({ error: "Username and password are required" });
       return;
     }
@@ -95,6 +128,10 @@ router.post("/login", async (req, res) => {
       res.status(401).json({ error: "Invalid credentials" });
       return;
     }
+    // Regenerate session to prevent session fixation
+    await new Promise<void>((resolve, reject) =>
+      req.session.regenerate((err) => (err ? reject(err) : resolve()))
+    );
     req.session.userId = user.id;
     await auditLog({ req, action: "login", entityType: "user", entityId: user.id, details: { username: user.username } });
     res.json({
@@ -111,12 +148,19 @@ router.post("/login", async (req, res) => {
 
 // POST /api/auth/logout
 router.post("/logout", requireAuth, async (req, res) => {
-  const user = res.locals.user as { id?: number; username?: string } | undefined;
-  await auditLog({ req, action: "logout", entityType: "user", entityId: user?.id, details: { username: user?.username } });
-  req.session.destroy(() => {
-    res.clearCookie("connect.sid");
-    res.json({ ok: true });
-  });
+  try {
+    const user = res.locals.user as { id?: number; username?: string } | undefined;
+    await auditLog({ req, action: "logout", entityType: "user", entityId: user?.id, details: { username: user?.username } });
+    req.session.destroy(() => {
+      res.clearCookie("connect.sid");
+      res.json({ ok: true });
+    });
+  } catch {
+    req.session.destroy(() => {
+      res.clearCookie("connect.sid");
+      res.json({ ok: true });
+    });
+  }
 });
 
 // GET /api/auth/me

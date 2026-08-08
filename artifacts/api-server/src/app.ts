@@ -9,6 +9,13 @@ import { logger } from "./lib/logger";
 import { startAlertWorker } from "./lib/alert-worker";
 import "./types/session.d.ts";
 
+// ── Enforce SESSION_SECRET in production ─────────────────────────────────────
+const sessionSecret = process.env.SESSION_SECRET;
+if (!sessionSecret && process.env.NODE_ENV === "production") {
+  logger.error("SESSION_SECRET environment variable is required in production. Exiting.");
+  process.exit(1);
+}
+
 const app: Express = express();
 
 app.set("trust proxy", 1);
@@ -33,15 +40,22 @@ app.use(
   }),
 );
 
+// ── CORS: restrict to same-origin and known Replit preview domains ────────────
+const allowedOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$|\.replit\.dev(:\d+)?$/;
 app.use(
   cors({
-    origin: true,
+    origin: (origin, callback) => {
+      // Allow server-to-server (no Origin header) and same-origin requests
+      if (!origin) return callback(null, true);
+      if (allowedOriginPattern.test(origin)) return callback(null, true);
+      callback(new Error(`CORS: origin not allowed — ${origin}`));
+    },
     credentials: true,
   }),
 );
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 
 const PgSession = connectPgSimple(session);
 
@@ -52,7 +66,7 @@ app.use(
       tableName: "user_sessions",
       createTableIfMissing: true,
     }),
-    secret: process.env.SESSION_SECRET || "fallback-dev-secret-change-in-prod",
+    secret: sessionSecret || "fallback-dev-secret-change-in-prod",
     resave: false,
     saveUninitialized: false,
     cookie: {

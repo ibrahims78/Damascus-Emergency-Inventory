@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, alertsTable, alertReadsTable, itemsTable, equipmentTable } from "@workspace/db";
-import { requireAuth } from "../middlewares/auth";
+import { requireAuth, requireRole } from "../middlewares/auth";
 import { eq, and, desc, inArray, sql, notInArray } from "drizzle-orm";
 import { addSSEClient, broadcastAlertUpdate } from "../lib/sse-manager";
 import { runAlertWorker } from "../lib/alert-worker";
@@ -147,7 +147,8 @@ router.post("/read-all", requireAuth, async (_req, res) => {
 router.post("/:id/read", requireAuth, async (req, res) => {
   try {
     const userId = res.locals.user.id as number;
-    const alertId = Number(req.params.id);
+    const alertId = parseInt(req.params.id, 10);
+    if (isNaN(alertId)) { res.status(400).json({ error: "Invalid alert id" }); return; }
 
     await db
       .insert(alertReadsTable)
@@ -167,10 +168,11 @@ router.post("/:id/read", requireAuth, async (req, res) => {
 // ─── POST /api/alerts/:id/resolve ────────────────────────────────────────────
 // Manually resolve an alert (admin or warehouse_manager only).
 // The worker will not re-open it unless the entity's condition changes again.
-router.post("/:id/resolve", requireAuth, async (req, res) => {
+router.post("/:id/resolve", requireAuth, requireRole("admin", "warehouse_manager"), async (req, res) => {
   try {
     const userId = res.locals.user.id as number;
-    const alertId = Number(req.params.id);
+    const alertId = parseInt(req.params.id, 10);
+    if (isNaN(alertId)) { res.status(400).json({ error: "Invalid alert id" }); return; }
 
     const [updated] = await db
       .update(alertsTable)
@@ -192,9 +194,9 @@ router.post("/:id/resolve", requireAuth, async (req, res) => {
 });
 
 // ─── POST /api/alerts/refresh ────────────────────────────────────────────────
-// Trigger an immediate worker run (admin use).
-router.post("/refresh", requireAuth, (_req, res) => {
-  runAlertWorker(); // fire-and-forget
+// Trigger an immediate worker run (admin/warehouse_manager use).
+router.post("/refresh", requireAuth, requireRole("admin", "warehouse_manager"), (_req, res) => {
+  runAlertWorker().catch((err) => console.error("Alert worker error:", err));
   res.json({ ok: true, message: "Worker triggered" });
 });
 

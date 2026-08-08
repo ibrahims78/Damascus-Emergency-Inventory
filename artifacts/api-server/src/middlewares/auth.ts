@@ -7,17 +7,21 @@ export const requireAuth: RequestHandler = async (req, res, next) => {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
-  const user = await db.query.usersTable.findFirst({
-    where: (u, { eq, and }) => and(eq(u.id, userId), eq(u.isActive, true)),
-    columns: { passwordHash: false },
-  });
-  if (!user) {
-    req.session.destroy(() => {});
-    res.status(401).json({ error: "Unauthorized" });
-    return;
+  try {
+    const user = await db.query.usersTable.findFirst({
+      where: (u, { eq, and }) => and(eq(u.id, userId), eq(u.isActive, true)),
+      columns: { passwordHash: false },
+    });
+    if (!user) {
+      req.session.destroy(() => {});
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+    res.locals.user = user;
+    next();
+  } catch {
+    res.status(503).json({ error: "Service unavailable" });
   }
-  res.locals.user = user;
-  next();
 };
 
 export const requireRole =

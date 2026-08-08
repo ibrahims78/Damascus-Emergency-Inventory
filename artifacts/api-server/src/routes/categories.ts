@@ -49,7 +49,8 @@ router.post("/", requireAuth, async (req, res) => {
 // PUT /api/categories/:id
 router.put("/:id", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(String(req.params.id));
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid category id" }); return; }
     const { name, type } = req.body as { name?: string; type?: string };
     if (!name || !name.trim()) {
       res.status(400).json({ error: "اسم التصنيف مطلوب" });
@@ -82,7 +83,8 @@ router.put("/:id", requireAuth, async (req, res) => {
 // DELETE /api/categories/:id
 router.delete("/:id", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(String(req.params.id));
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid category id" }); return; }
     const [deleted] = await db
       .delete(categoriesTable)
       .where(eq(categoriesTable.id, id))

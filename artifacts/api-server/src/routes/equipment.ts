@@ -135,7 +135,7 @@ router.post(
         .returning();
       res.status(201).json(eq_);
       // Trigger alert worker so new equipment alerts are generated immediately
-      runAlertWorker();
+      runAlertWorker().catch((e) => console.error("Alert worker:", e));
     } catch (err: any) {
       if (err?.cause?.code === "23505" || err?.code === "23505") {
         res.status(409).json({ error: "الرقم التسلسلي مسجّل مسبقاً لتجهيز آخر في النظام" });

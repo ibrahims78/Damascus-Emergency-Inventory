@@ -36,6 +36,10 @@ router.post("/", requireAuth, requireRole("admin"), async (req, res) => {
       res.status(400).json({ error: "username, password, fullName, and role are required" });
       return;
     }
+    if (typeof password !== "string" || password.length < 8) {
+      res.status(400).json({ error: "Password must be at least 8 characters" });
+      return;
+    }
     const validRoles = ["admin", "warehouse_manager", "viewer"];
     if (!validRoles.includes(role)) {
       res.status(400).json({ error: "Invalid role" });
@@ -72,12 +76,23 @@ router.post("/", requireAuth, requireRole("admin"), async (req, res) => {
 router.put("/:id", requireAuth, requireRole("admin"), async (req, res) => {
   try {
     const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid user id" }); return; }
     const { fullName, role, password, isActive } = req.body;
     const updates: Partial<typeof usersTable.$inferInsert> = {};
     if (fullName !== undefined) updates.fullName = fullName;
-    if (role !== undefined) updates.role = role;
+    if (role !== undefined) {
+      if (!["admin", "warehouse_manager", "viewer"].includes(role)) {
+        res.status(400).json({ error: "Invalid role" }); return;
+      }
+      updates.role = role;
+    }
     if (isActive !== undefined) updates.isActive = isActive;
-    if (password) updates.passwordHash = await bcrypt.hash(password, 10);
+    if (password) {
+      if (typeof password !== "string" || password.length < 8) {
+        res.status(400).json({ error: "Password must be at least 8 characters" }); return;
+      }
+      updates.passwordHash = await bcrypt.hash(password, 10);
+    }
 
     const [user] = await db
       .update(usersTable)
@@ -107,6 +122,7 @@ router.put("/:id", requireAuth, requireRole("admin"), async (req, res) => {
 router.delete("/:id", requireAuth, requireRole("admin"), async (req, res) => {
   try {
     const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid user id" }); return; }
     const user = res.locals.user;
     if (user.id === id) {
       res.status(400).json({ error: "Cannot delete your own account" });

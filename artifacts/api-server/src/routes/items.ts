@@ -335,6 +335,7 @@ router.post(
 router.get("/:id", requireAuth, async (req, res) => {
   try {
     const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid item id" }); return; }
     const [item] = await db
       .select({
         id: itemsTable.id,
@@ -418,7 +419,7 @@ router.put(
       }
       await auditLog({ req, action: "update", entityType: "item", entityId: item.id, details: { name: item.name } });
       res.json(item);
-      runAlertWorker();
+      runAlertWorker().catch((e) => console.error("Alert worker:", e));
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Internal server error" });
@@ -434,13 +435,14 @@ router.delete(
   async (req, res) => {
     try {
       const id = parseInt(String(req.params.id), 10);
+      if (isNaN(id)) { res.status(400).json({ error: "Invalid item id" }); return; }
       await db
         .update(itemsTable)
         .set({ isActive: false, updatedAt: new Date() })
         .where(eq(itemsTable.id, id));
       await auditLog({ req, action: "delete", entityType: "item", entityId: id, details: {} });
       res.status(204).send();
-      runAlertWorker();
+      runAlertWorker().catch((e) => console.error("Alert worker:", e));
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Internal server error" });
