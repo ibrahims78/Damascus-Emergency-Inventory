@@ -40,8 +40,9 @@ app.use(
   }),
 );
 
-// ── CORS: restrict to same-origin and known Replit preview domains ────────────
-const allowedOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$|\.replit\.dev(:\d+)?$/;
+// ── CORS: restrict to same-origin and known Replit preview/deployment domains
+const allowedOriginPattern =
+  /^(?:https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?|https:\/\/[a-z0-9-]+\.replit\.(?:dev|app))$/i;
 app.use(
   cors({
     origin: (origin, callback) => {

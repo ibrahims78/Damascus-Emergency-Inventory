@@ -1,2 +1,3 @@
 - [Project overview & run commands](project-overview.md) — warehouse mgmt app for Damascus EMS; pnpm monorepo, Express + Drizzle + React/Vite; SESSION_SECRET required
 - [Phase completion status](phase-status.md) — all 6 functional phases verified complete; Phase 7 (deploy) pending; 3 fixes applied to header alerts bell
+- [Replit deployment CORS](replit-deployment-cors.md) — API CORS must allow both replit.dev previews and replit.app published origins
