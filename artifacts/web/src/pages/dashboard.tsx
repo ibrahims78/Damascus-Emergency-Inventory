@@ -46,25 +46,35 @@ import type { TooltipProps } from 'recharts';
 
 // ─── Custom dark-mode-safe Tooltip ───────────────────────────────────────────
 
+type ChartTooltipEntry = {
+  name?: string | number;
+  value?: number;
+  color?: string;
+  dataKey?: string | number;
+  payload?: Record<string, unknown>;
+};
+
 function ChartTooltip({ active, payload, label, labelFormatter, itemFormatter }: {
   active?: boolean;
-  payload?: Array<{ name: string; value: number; color?: string; dataKey?: string; payload?: Record<string, unknown> }>;
-  label?: string;
-  labelFormatter?: (label: string) => string;
-  itemFormatter?: (value: number, name: string, entry: typeof payload extends Array<infer E> ? E : never) => [string, string];
+  payload?: ChartTooltipEntry[];
+  label?: string | number;
+  labelFormatter?: (label: string | number, payload: ChartTooltipEntry[]) => ReactNode;
+  itemFormatter?: (value: number, name: string, entry: ChartTooltipEntry) => [string, string];
 }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border border-border bg-card px-3 py-2 text-sm shadow-md" dir="rtl">
       {label && (
         <p className="mb-1 font-medium text-foreground">
-          {labelFormatter ? labelFormatter(label) : label}
+            {labelFormatter ? labelFormatter(label, payload ?? []) : label}
         </p>
       )}
       {payload.map((entry, i) => {
+        const value = typeof entry.value === 'number' ? entry.value : Number(entry.value ?? 0);
+        const name = String(entry.name ?? '');
         const [valStr, nameStr] = itemFormatter
-          ? itemFormatter(entry.value, entry.name, entry as never)
-          : [`${entry.value}`, entry.name];
+          ? itemFormatter(value, name, entry)
+          : [`${value}`, name];
         return (
           <div key={i} className="flex items-center gap-2 text-foreground/90">
             {entry.color && (

@@ -147,7 +147,7 @@ router.post("/read-all", requireAuth, async (_req, res) => {
 router.post("/:id/read", requireAuth, async (req, res) => {
   try {
     const userId = res.locals.user.id as number;
-    const alertId = parseInt(req.params.id, 10);
+    const alertId = parseInt(String(req.params.id), 10);
     if (isNaN(alertId)) { res.status(400).json({ error: "Invalid alert id" }); return; }
 
     await db
@@ -171,7 +171,7 @@ router.post("/:id/read", requireAuth, async (req, res) => {
 router.post("/:id/resolve", requireAuth, requireRole("admin", "warehouse_manager"), async (req, res) => {
   try {
     const userId = res.locals.user.id as number;
-    const alertId = parseInt(req.params.id, 10);
+    const alertId = parseInt(String(req.params.id), 10);
     if (isNaN(alertId)) { res.status(400).json({ error: "Invalid alert id" }); return; }
 
     const [updated] = await db

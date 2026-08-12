@@ -3,7 +3,7 @@ import { db, itemsTable, categoriesTable, systemSettingsTable } from "@workspace
 import { requireAuth, requireRole } from "../middlewares/auth";
 import { auditLog } from "../middlewares/audit";
 import { runAlertWorker } from "../lib/alert-worker";
-import { eq, and, ilike, or, lte, sql, isNotNull, asc, desc } from "drizzle-orm";
+import { eq, and, ilike, or, lte, sql, isNotNull, asc, desc, type AnyColumn } from "drizzle-orm";
 
 const router = Router();
 
@@ -58,7 +58,7 @@ router.get("/", requireAuth, async (req, res) => {
     const col: SortCol = allowedSortCols.includes(sortBy as SortCol) ? (sortBy as SortCol) : "name";
     const direction = sortDir === "desc" ? "desc" : "asc";
 
-    const colMap: Record<SortCol, typeof itemsTable.name> = {
+    const colMap: Record<SortCol, AnyColumn> = {
       name: itemsTable.name,
       currentStock: itemsTable.currentStock,
       minStock: itemsTable.minStock,
