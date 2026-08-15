@@ -18,5 +18,17 @@ export interface InTransactionInput {
   /** @nullable */
   supplier?: string | null;
   /** @nullable */
+  deliveryNoteNumber?: string | null;
+  /** @nullable */
+  deliveryNoteDate?: string | null;
+  /** @nullable */
+  documentDate?: string | null;
+  /** @nullable */
+  supplySource?: string | null;
+  /** @nullable */
+  expiryDate?: string | null;
+  /** @nullable */
+  batchNumber?: string | null;
+  /** @nullable */
   notes?: string | null;
 }

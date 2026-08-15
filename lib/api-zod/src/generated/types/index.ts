@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './adjustmentInput';
+export * from './adjustmentInputItemType';
 export * from './alert';
 export * from './alertEntityType';
 export * from './alertSeverity';
@@ -14,9 +16,18 @@ export * from './authUser';
 export * from './authUserRole';
 export * from './category';
 export * from './categoryStock';
+export * from './centralReturnInput';
+export * from './centralReturnInputItemType';
+export * from './centralReturnInputReturnCondition';
 export * from './changePassword200';
 export * from './changePasswordInput';
+export * from './custodyOutInput';
+export * from './custodyOutInputItemType';
+export * from './custodyReturnInput';
+export * from './custodyReturnInputReturnCondition';
 export * from './dailyMovement';
+export * from './damageInput';
+export * from './damageInputItemType';
 export * from './dashboardCharts';
 export * from './dashboardStats';
 export * from './equipment';
@@ -38,6 +49,8 @@ export * from './listEquipmentParams';
 export * from './listEquipmentSortBy';
 export * from './listEquipmentSortDir';
 export * from './listItemsParams';
+export * from './listItemsSortBy';
+export * from './listItemsSortDir';
 export * from './listTransactionsParams';
 export * from './loginCredentials';
 export * from './okResponse';

@@ -424,6 +424,101 @@ paths:
               schema:
                 $ref: "#/components/schemas/Transaction"
 
+  /transactions/adjust:
+    post:
+      operationId: createInventoryAdjustment
+      tags: [transactions]
+      summary: Reconcile an item stock balance with an audited adjustment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdjustmentInput"
+      responses:
+        "201":
+          description: Created adjustment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+
+  /transactions/custody-out:
+    post:
+      operationId: createCustodyOutTransaction
+      tags: [transactions]
+      summary: Assign equipment to personal custody
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustodyOutInput"
+      responses:
+        "201":
+          description: Created custody movement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+
+  /transactions/custody-return:
+    post:
+      operationId: createCustodyReturnTransaction
+      tags: [transactions]
+      summary: Return equipment from personal custody
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustodyReturnInput"
+      responses:
+        "201":
+          description: Created custody return
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+
+  /transactions/damage:
+    post:
+      operationId: createDamageTransaction
+      tags: [transactions]
+      summary: Record damaged stock as an audited movement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DamageInput"
+      responses:
+        "201":
+          description: Created damage movement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+
+  /transactions/central-return:
+    post:
+      operationId: createCentralReturnTransaction
+      tags: [transactions]
+      summary: Return stock to the central warehouse
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CentralReturnInput"
+      responses:
+        "201":
+          description: Created central return
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+
   /transactions/{id}:
     get:
       operationId: getTransaction
@@ -1241,7 +1336,7 @@ components:
           type: integer
         type:
           type: string
-          enum: [in, out, init]
+          enum: [in, out, init, adjust, custody_out, custody_return, damage, central_return]
         itemType:
           type: string
           enum: [item, equipment]
@@ -1272,6 +1367,30 @@ components:
         batchNumber:
           type: ["string", "null"]
         expiryDate:
+          type: ["string", "null"]
+        documentDate:
+          type: ["string", "null"]
+        deliveryNoteNumber:
+          type: ["string", "null"]
+        deliveryNoteDate:
+          type: ["string", "null"]
+        internalDeliveryNoteNumber:
+          type: ["string", "null"]
+        internalDeliveryNoteDate:
+          type: ["string", "null"]
+        deliveryDestination:
+          type: ["string", "null"]
+        custodyHolderName:
+          type: ["string", "null"]
+        custodyNoteNumber:
+          type: ["string", "null"]
+        custodyDate:
+          type: ["string", "null"]
+        custodyLocation:
+          type: ["string", "null"]
+        returnCondition:
+          type: ["string", "null"]
+        reason:
           type: ["string", "null"]
         documentNumber:
           type: string
@@ -1323,6 +1442,18 @@ components:
           type: ["integer", "null"]
         supplier:
           type: ["string", "null"]
+        deliveryNoteNumber:
+          type: ["string", "null"]
+        deliveryNoteDate:
+          type: ["string", "null"]
+        documentDate:
+          type: ["string", "null"]
+        supplySource:
+          type: ["string", "null"]
+        expiryDate:
+          type: ["string", "null"]
+        batchNumber:
+          type: ["string", "null"]
         notes:
           type: ["string", "null"]
 
@@ -1345,6 +1476,122 @@ components:
           type: ["string", "null"]
         exitReasonId:
           type: ["integer", "null"]
+        internalDeliveryNoteNumber:
+          type: ["string", "null"]
+        internalDeliveryNoteDate:
+          type: ["string", "null"]
+        deliveryDestination:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+
+    AdjustmentInput:
+      type: object
+      required: [itemType, itemId, newStock, reason]
+      properties:
+        itemType:
+          type: string
+          enum: [item]
+        itemId:
+          type: integer
+        newStock:
+          type: integer
+          minimum: 0
+        reason:
+          type: string
+        notes:
+          type: ["string", "null"]
+
+    CustodyOutInput:
+      type: object
+      required: [itemType, equipmentId, quantity, holderName, custodyNoteNumber, custodyDate, custodyLocation]
+      properties:
+        itemType:
+          type: string
+          enum: [equipment]
+        equipmentId:
+          type: integer
+        quantity:
+          type: integer
+          minimum: 1
+        recipientId:
+          type: ["integer", "null"]
+        holderName:
+          type: string
+        custodyNoteNumber:
+          type: string
+        custodyDate:
+          type: string
+          format: date
+        custodyLocation:
+          type: string
+        notes:
+          type: ["string", "null"]
+
+    CustodyReturnInput:
+      type: object
+      required: [custodyId, quantity, returnCondition, returnedToLocation]
+      properties:
+        custodyId:
+          type: integer
+        quantity:
+          type: integer
+          minimum: 1
+        returnCondition:
+          type: string
+          enum: [good, damaged, needs_maintenance, missing]
+        returnedToLocation:
+          type: string
+        documentDate:
+          type: string
+          format: date
+        inspectionNotes:
+          type: ["string", "null"]
+
+    DamageInput:
+      type: object
+      required: [itemType, quantity, reason]
+      properties:
+        itemType:
+          type: string
+          enum: [item, equipment]
+        itemId:
+          type: ["integer", "null"]
+        equipmentId:
+          type: ["integer", "null"]
+        quantity:
+          type: integer
+          minimum: 1
+        reason:
+          type: string
+        damageDate:
+          type: string
+          format: date
+        notes:
+          type: ["string", "null"]
+
+    CentralReturnInput:
+      type: object
+      required: [itemType, quantity, returnCondition, reason]
+      properties:
+        itemType:
+          type: string
+          enum: [item, equipment]
+        itemId:
+          type: ["integer", "null"]
+        equipmentId:
+          type: ["integer", "null"]
+        quantity:
+          type: integer
+          minimum: 1
+        returnCondition:
+          type: string
+          enum: [good, damaged, needs_maintenance, missing]
+        reason:
+          type: string
+        documentDate:
+          type: string
+          format: date
         notes:
           type: ["string", "null"]
 

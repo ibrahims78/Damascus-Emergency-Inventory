@@ -20,11 +20,16 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AdjustmentInput,
   Alert,
   AuthUser,
   Category,
+  CentralReturnInput,
   ChangePassword200,
   ChangePasswordInput,
+  CustodyOutInput,
+  CustodyReturnInput,
+  DamageInput,
   DashboardCharts,
   DashboardStats,
   Equipment,
@@ -1582,6 +1587,361 @@ export const useCreateOutTransaction = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreateOutTransactionMutationOptions(options));
+    }
+
+export const getCreateInventoryAdjustmentUrl = () => {
+
+
+
+
+  return `/api/transactions/adjust`
+}
+
+/**
+ * @summary Reconcile an item stock balance with an audited adjustment
+ */
+export const createInventoryAdjustment = async (adjustmentInput: AdjustmentInput, options?: Parameters<typeof customFetch>[1]): Promise<Transaction> => {
+
+  return customFetch<Transaction>(getCreateInventoryAdjustmentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(adjustmentInput)
+  }
+);}
+
+
+
+
+
+export const getCreateInventoryAdjustmentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createInventoryAdjustment>>, TError,{data: BodyType<AdjustmentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createInventoryAdjustment>>, TError,{data: BodyType<AdjustmentInput>}, TContext> => {
+
+const mutationKey = ['createInventoryAdjustment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createInventoryAdjustment>>, {data: BodyType<AdjustmentInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createInventoryAdjustment(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateInventoryAdjustmentMutationResult = NonNullable<Awaited<ReturnType<typeof createInventoryAdjustment>>>
+    export type CreateInventoryAdjustmentMutationBody = BodyType<AdjustmentInput>
+    export type CreateInventoryAdjustmentMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Reconcile an item stock balance with an audited adjustment
+ */
+export const useCreateInventoryAdjustment = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createInventoryAdjustment>>, TError,{data: BodyType<AdjustmentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createInventoryAdjustment>>,
+        TError,
+        {data: BodyType<AdjustmentInput>},
+        TContext
+      > => {
+      return useMutation(getCreateInventoryAdjustmentMutationOptions(options));
+    }
+
+export const getCreateCustodyOutTransactionUrl = () => {
+
+
+
+
+  return `/api/transactions/custody-out`
+}
+
+/**
+ * @summary Assign equipment to personal custody
+ */
+export const createCustodyOutTransaction = async (custodyOutInput: CustodyOutInput, options?: Parameters<typeof customFetch>[1]): Promise<Transaction> => {
+
+  return customFetch<Transaction>(getCreateCustodyOutTransactionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(custodyOutInput)
+  }
+);}
+
+
+
+
+
+export const getCreateCustodyOutTransactionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCustodyOutTransaction>>, TError,{data: BodyType<CustodyOutInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCustodyOutTransaction>>, TError,{data: BodyType<CustodyOutInput>}, TContext> => {
+
+const mutationKey = ['createCustodyOutTransaction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCustodyOutTransaction>>, {data: BodyType<CustodyOutInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createCustodyOutTransaction(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCustodyOutTransactionMutationResult = NonNullable<Awaited<ReturnType<typeof createCustodyOutTransaction>>>
+    export type CreateCustodyOutTransactionMutationBody = BodyType<CustodyOutInput>
+    export type CreateCustodyOutTransactionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Assign equipment to personal custody
+ */
+export const useCreateCustodyOutTransaction = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCustodyOutTransaction>>, TError,{data: BodyType<CustodyOutInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCustodyOutTransaction>>,
+        TError,
+        {data: BodyType<CustodyOutInput>},
+        TContext
+      > => {
+      return useMutation(getCreateCustodyOutTransactionMutationOptions(options));
+    }
+
+export const getCreateCustodyReturnTransactionUrl = () => {
+
+
+
+
+  return `/api/transactions/custody-return`
+}
+
+/**
+ * @summary Return equipment from personal custody
+ */
+export const createCustodyReturnTransaction = async (custodyReturnInput: CustodyReturnInput, options?: Parameters<typeof customFetch>[1]): Promise<Transaction> => {
+
+  return customFetch<Transaction>(getCreateCustodyReturnTransactionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(custodyReturnInput)
+  }
+);}
+
+
+
+
+
+export const getCreateCustodyReturnTransactionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCustodyReturnTransaction>>, TError,{data: BodyType<CustodyReturnInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCustodyReturnTransaction>>, TError,{data: BodyType<CustodyReturnInput>}, TContext> => {
+
+const mutationKey = ['createCustodyReturnTransaction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCustodyReturnTransaction>>, {data: BodyType<CustodyReturnInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createCustodyReturnTransaction(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCustodyReturnTransactionMutationResult = NonNullable<Awaited<ReturnType<typeof createCustodyReturnTransaction>>>
+    export type CreateCustodyReturnTransactionMutationBody = BodyType<CustodyReturnInput>
+    export type CreateCustodyReturnTransactionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Return equipment from personal custody
+ */
+export const useCreateCustodyReturnTransaction = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCustodyReturnTransaction>>, TError,{data: BodyType<CustodyReturnInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCustodyReturnTransaction>>,
+        TError,
+        {data: BodyType<CustodyReturnInput>},
+        TContext
+      > => {
+      return useMutation(getCreateCustodyReturnTransactionMutationOptions(options));
+    }
+
+export const getCreateDamageTransactionUrl = () => {
+
+
+
+
+  return `/api/transactions/damage`
+}
+
+/**
+ * @summary Record damaged stock as an audited movement
+ */
+export const createDamageTransaction = async (damageInput: DamageInput, options?: Parameters<typeof customFetch>[1]): Promise<Transaction> => {
+
+  return customFetch<Transaction>(getCreateDamageTransactionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(damageInput)
+  }
+);}
+
+
+
+
+
+export const getCreateDamageTransactionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDamageTransaction>>, TError,{data: BodyType<DamageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createDamageTransaction>>, TError,{data: BodyType<DamageInput>}, TContext> => {
+
+const mutationKey = ['createDamageTransaction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createDamageTransaction>>, {data: BodyType<DamageInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createDamageTransaction(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateDamageTransactionMutationResult = NonNullable<Awaited<ReturnType<typeof createDamageTransaction>>>
+    export type CreateDamageTransactionMutationBody = BodyType<DamageInput>
+    export type CreateDamageTransactionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Record damaged stock as an audited movement
+ */
+export const useCreateDamageTransaction = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDamageTransaction>>, TError,{data: BodyType<DamageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createDamageTransaction>>,
+        TError,
+        {data: BodyType<DamageInput>},
+        TContext
+      > => {
+      return useMutation(getCreateDamageTransactionMutationOptions(options));
+    }
+
+export const getCreateCentralReturnTransactionUrl = () => {
+
+
+
+
+  return `/api/transactions/central-return`
+}
+
+/**
+ * @summary Return stock to the central warehouse
+ */
+export const createCentralReturnTransaction = async (centralReturnInput: CentralReturnInput, options?: Parameters<typeof customFetch>[1]): Promise<Transaction> => {
+
+  return customFetch<Transaction>(getCreateCentralReturnTransactionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(centralReturnInput)
+  }
+);}
+
+
+
+
+
+export const getCreateCentralReturnTransactionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCentralReturnTransaction>>, TError,{data: BodyType<CentralReturnInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCentralReturnTransaction>>, TError,{data: BodyType<CentralReturnInput>}, TContext> => {
+
+const mutationKey = ['createCentralReturnTransaction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCentralReturnTransaction>>, {data: BodyType<CentralReturnInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createCentralReturnTransaction(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCentralReturnTransactionMutationResult = NonNullable<Awaited<ReturnType<typeof createCentralReturnTransaction>>>
+    export type CreateCentralReturnTransactionMutationBody = BodyType<CentralReturnInput>
+    export type CreateCentralReturnTransactionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Return stock to the central warehouse
+ */
+export const useCreateCentralReturnTransaction = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCentralReturnTransaction>>, TError,{data: BodyType<CentralReturnInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCentralReturnTransaction>>,
+        TError,
+        {data: BodyType<CentralReturnInput>},
+        TContext
+      > => {
+      return useMutation(getCreateCentralReturnTransactionMutationOptions(options));
     }
 
 export const getGetTransactionUrl = (id: number,) => {

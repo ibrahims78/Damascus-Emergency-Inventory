@@ -94,7 +94,9 @@ export const ListItemsQueryParams = zod.object({
   "belowMin": zod.coerce.boolean().optional(),
   "nearExpiry": zod.coerce.boolean().optional(),
   "page": zod.coerce.number().int().optional(),
-  "limit": zod.coerce.number().int().optional()
+  "limit": zod.coerce.number().int().optional(),
+  "sortBy": zod.enum(['name', 'currentStock', 'minStock', 'expiryDate', 'createdAt']).optional(),
+  "sortDir": zod.enum(['asc', 'desc']).optional()
 })
 
 export const ListItemsResponse = zod.object({
@@ -433,7 +435,7 @@ export const ListTransactionsQueryParams = zod.object({
 export const ListTransactionsResponse = zod.object({
   "transactions": zod.array(zod.object({
   "id": zod.number().int(),
-  "type": zod.enum(['in', 'out', 'init']),
+  "type": zod.enum(['in', 'out', 'init', 'adjust', 'custody_out', 'custody_return', 'damage', 'central_return']),
   "itemType": zod.enum(['item', 'equipment']),
   "itemId": zod.number().int().nullish(),
   "itemName": zod.string().nullish(),
@@ -449,6 +451,18 @@ export const ListTransactionsResponse = zod.object({
   "supplier": zod.string().nullish(),
   "batchNumber": zod.string().nullish(),
   "expiryDate": zod.string().nullish(),
+  "documentDate": zod.string().nullish(),
+  "deliveryNoteNumber": zod.string().nullish(),
+  "deliveryNoteDate": zod.string().nullish(),
+  "internalDeliveryNoteNumber": zod.string().nullish(),
+  "internalDeliveryNoteDate": zod.string().nullish(),
+  "deliveryDestination": zod.string().nullish(),
+  "custodyHolderName": zod.string().nullish(),
+  "custodyNoteNumber": zod.string().nullish(),
+  "custodyDate": zod.string().nullish(),
+  "custodyLocation": zod.string().nullish(),
+  "returnCondition": zod.string().nullish(),
+  "reason": zod.string().nullish(),
   "documentNumber": zod.string(),
   "notes": zod.string().nullish(),
   "createdByName": zod.string().nullish(),
@@ -469,12 +483,18 @@ export const CreateInTransactionBody = zod.object({
   "equipmentId": zod.number().int().nullish(),
   "quantity": zod.number().int().nullish(),
   "supplier": zod.string().nullish(),
+  "deliveryNoteNumber": zod.string().nullish(),
+  "deliveryNoteDate": zod.string().nullish(),
+  "documentDate": zod.string().nullish(),
+  "supplySource": zod.string().nullish(),
+  "expiryDate": zod.string().nullish(),
+  "batchNumber": zod.string().nullish(),
   "notes": zod.string().nullish()
 })
 
 export const CreateInTransactionResponse = zod.object({
   "id": zod.number().int(),
-  "type": zod.enum(['in', 'out', 'init']),
+  "type": zod.enum(['in', 'out', 'init', 'adjust', 'custody_out', 'custody_return', 'damage', 'central_return']),
   "itemType": zod.enum(['item', 'equipment']),
   "itemId": zod.number().int().nullish(),
   "itemName": zod.string().nullish(),
@@ -490,6 +510,18 @@ export const CreateInTransactionResponse = zod.object({
   "supplier": zod.string().nullish(),
   "batchNumber": zod.string().nullish(),
   "expiryDate": zod.string().nullish(),
+  "documentDate": zod.string().nullish(),
+  "deliveryNoteNumber": zod.string().nullish(),
+  "deliveryNoteDate": zod.string().nullish(),
+  "internalDeliveryNoteNumber": zod.string().nullish(),
+  "internalDeliveryNoteDate": zod.string().nullish(),
+  "deliveryDestination": zod.string().nullish(),
+  "custodyHolderName": zod.string().nullish(),
+  "custodyNoteNumber": zod.string().nullish(),
+  "custodyDate": zod.string().nullish(),
+  "custodyLocation": zod.string().nullish(),
+  "returnCondition": zod.string().nullish(),
+  "reason": zod.string().nullish(),
   "documentNumber": zod.string(),
   "notes": zod.string().nullish(),
   "createdByName": zod.string().nullish(),
@@ -508,12 +540,15 @@ export const CreateOutTransactionBody = zod.object({
   "recipientId": zod.number().int().nullish(),
   "recipientPerson": zod.string().nullish(),
   "exitReasonId": zod.number().int().nullish(),
+  "internalDeliveryNoteNumber": zod.string().nullish(),
+  "internalDeliveryNoteDate": zod.string().nullish(),
+  "deliveryDestination": zod.string().nullish(),
   "notes": zod.string().nullish()
 })
 
 export const CreateOutTransactionResponse = zod.object({
   "id": zod.number().int(),
-  "type": zod.enum(['in', 'out', 'init']),
+  "type": zod.enum(['in', 'out', 'init', 'adjust', 'custody_out', 'custody_return', 'damage', 'central_return']),
   "itemType": zod.enum(['item', 'equipment']),
   "itemId": zod.number().int().nullish(),
   "itemName": zod.string().nullish(),
@@ -529,6 +564,284 @@ export const CreateOutTransactionResponse = zod.object({
   "supplier": zod.string().nullish(),
   "batchNumber": zod.string().nullish(),
   "expiryDate": zod.string().nullish(),
+  "documentDate": zod.string().nullish(),
+  "deliveryNoteNumber": zod.string().nullish(),
+  "deliveryNoteDate": zod.string().nullish(),
+  "internalDeliveryNoteNumber": zod.string().nullish(),
+  "internalDeliveryNoteDate": zod.string().nullish(),
+  "deliveryDestination": zod.string().nullish(),
+  "custodyHolderName": zod.string().nullish(),
+  "custodyNoteNumber": zod.string().nullish(),
+  "custodyDate": zod.string().nullish(),
+  "custodyLocation": zod.string().nullish(),
+  "returnCondition": zod.string().nullish(),
+  "reason": zod.string().nullish(),
+  "documentNumber": zod.string(),
+  "notes": zod.string().nullish(),
+  "createdByName": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Reconcile an item stock balance with an audited adjustment
+ */
+export const createInventoryAdjustmentBodyNewStockMin = 0;
+
+
+
+export const CreateInventoryAdjustmentBody = zod.object({
+  "itemType": zod.enum(['item']),
+  "itemId": zod.number().int(),
+  "newStock": zod.number().int().min(createInventoryAdjustmentBodyNewStockMin),
+  "reason": zod.string(),
+  "notes": zod.string().nullish()
+})
+
+export const CreateInventoryAdjustmentResponse = zod.object({
+  "id": zod.number().int(),
+  "type": zod.enum(['in', 'out', 'init', 'adjust', 'custody_out', 'custody_return', 'damage', 'central_return']),
+  "itemType": zod.enum(['item', 'equipment']),
+  "itemId": zod.number().int().nullish(),
+  "itemName": zod.string().nullish(),
+  "itemUnit": zod.string().nullish(),
+  "equipmentId": zod.number().int().nullish(),
+  "equipmentName": zod.string().nullish(),
+  "quantity": zod.number().int().nullish(),
+  "recipientId": zod.number().int().nullish(),
+  "recipientName": zod.string().nullish(),
+  "recipientPerson": zod.string().nullish(),
+  "exitReasonId": zod.number().int().nullish(),
+  "exitReason": zod.string().nullish(),
+  "supplier": zod.string().nullish(),
+  "batchNumber": zod.string().nullish(),
+  "expiryDate": zod.string().nullish(),
+  "documentDate": zod.string().nullish(),
+  "deliveryNoteNumber": zod.string().nullish(),
+  "deliveryNoteDate": zod.string().nullish(),
+  "internalDeliveryNoteNumber": zod.string().nullish(),
+  "internalDeliveryNoteDate": zod.string().nullish(),
+  "deliveryDestination": zod.string().nullish(),
+  "custodyHolderName": zod.string().nullish(),
+  "custodyNoteNumber": zod.string().nullish(),
+  "custodyDate": zod.string().nullish(),
+  "custodyLocation": zod.string().nullish(),
+  "returnCondition": zod.string().nullish(),
+  "reason": zod.string().nullish(),
+  "documentNumber": zod.string(),
+  "notes": zod.string().nullish(),
+  "createdByName": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Assign equipment to personal custody
+ */
+
+
+
+export const CreateCustodyOutTransactionBody = zod.object({
+  "itemType": zod.enum(['equipment']),
+  "equipmentId": zod.number().int(),
+  "quantity": zod.number().int().min(1),
+  "recipientId": zod.number().int().nullish(),
+  "holderName": zod.string(),
+  "custodyNoteNumber": zod.string(),
+  "custodyDate": zod.coerce.date(),
+  "custodyLocation": zod.string(),
+  "notes": zod.string().nullish()
+})
+
+export const CreateCustodyOutTransactionResponse = zod.object({
+  "id": zod.number().int(),
+  "type": zod.enum(['in', 'out', 'init', 'adjust', 'custody_out', 'custody_return', 'damage', 'central_return']),
+  "itemType": zod.enum(['item', 'equipment']),
+  "itemId": zod.number().int().nullish(),
+  "itemName": zod.string().nullish(),
+  "itemUnit": zod.string().nullish(),
+  "equipmentId": zod.number().int().nullish(),
+  "equipmentName": zod.string().nullish(),
+  "quantity": zod.number().int().nullish(),
+  "recipientId": zod.number().int().nullish(),
+  "recipientName": zod.string().nullish(),
+  "recipientPerson": zod.string().nullish(),
+  "exitReasonId": zod.number().int().nullish(),
+  "exitReason": zod.string().nullish(),
+  "supplier": zod.string().nullish(),
+  "batchNumber": zod.string().nullish(),
+  "expiryDate": zod.string().nullish(),
+  "documentDate": zod.string().nullish(),
+  "deliveryNoteNumber": zod.string().nullish(),
+  "deliveryNoteDate": zod.string().nullish(),
+  "internalDeliveryNoteNumber": zod.string().nullish(),
+  "internalDeliveryNoteDate": zod.string().nullish(),
+  "deliveryDestination": zod.string().nullish(),
+  "custodyHolderName": zod.string().nullish(),
+  "custodyNoteNumber": zod.string().nullish(),
+  "custodyDate": zod.string().nullish(),
+  "custodyLocation": zod.string().nullish(),
+  "returnCondition": zod.string().nullish(),
+  "reason": zod.string().nullish(),
+  "documentNumber": zod.string(),
+  "notes": zod.string().nullish(),
+  "createdByName": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Return equipment from personal custody
+ */
+
+
+
+export const CreateCustodyReturnTransactionBody = zod.object({
+  "custodyId": zod.number().int(),
+  "quantity": zod.number().int().min(1),
+  "returnCondition": zod.enum(['good', 'damaged', 'needs_maintenance', 'missing']),
+  "returnedToLocation": zod.string(),
+  "documentDate": zod.coerce.date().optional(),
+  "inspectionNotes": zod.string().nullish()
+})
+
+export const CreateCustodyReturnTransactionResponse = zod.object({
+  "id": zod.number().int(),
+  "type": zod.enum(['in', 'out', 'init', 'adjust', 'custody_out', 'custody_return', 'damage', 'central_return']),
+  "itemType": zod.enum(['item', 'equipment']),
+  "itemId": zod.number().int().nullish(),
+  "itemName": zod.string().nullish(),
+  "itemUnit": zod.string().nullish(),
+  "equipmentId": zod.number().int().nullish(),
+  "equipmentName": zod.string().nullish(),
+  "quantity": zod.number().int().nullish(),
+  "recipientId": zod.number().int().nullish(),
+  "recipientName": zod.string().nullish(),
+  "recipientPerson": zod.string().nullish(),
+  "exitReasonId": zod.number().int().nullish(),
+  "exitReason": zod.string().nullish(),
+  "supplier": zod.string().nullish(),
+  "batchNumber": zod.string().nullish(),
+  "expiryDate": zod.string().nullish(),
+  "documentDate": zod.string().nullish(),
+  "deliveryNoteNumber": zod.string().nullish(),
+  "deliveryNoteDate": zod.string().nullish(),
+  "internalDeliveryNoteNumber": zod.string().nullish(),
+  "internalDeliveryNoteDate": zod.string().nullish(),
+  "deliveryDestination": zod.string().nullish(),
+  "custodyHolderName": zod.string().nullish(),
+  "custodyNoteNumber": zod.string().nullish(),
+  "custodyDate": zod.string().nullish(),
+  "custodyLocation": zod.string().nullish(),
+  "returnCondition": zod.string().nullish(),
+  "reason": zod.string().nullish(),
+  "documentNumber": zod.string(),
+  "notes": zod.string().nullish(),
+  "createdByName": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Record damaged stock as an audited movement
+ */
+
+
+
+export const CreateDamageTransactionBody = zod.object({
+  "itemType": zod.enum(['item', 'equipment']),
+  "itemId": zod.number().int().nullish(),
+  "equipmentId": zod.number().int().nullish(),
+  "quantity": zod.number().int().min(1),
+  "reason": zod.string(),
+  "damageDate": zod.coerce.date().optional(),
+  "notes": zod.string().nullish()
+})
+
+export const CreateDamageTransactionResponse = zod.object({
+  "id": zod.number().int(),
+  "type": zod.enum(['in', 'out', 'init', 'adjust', 'custody_out', 'custody_return', 'damage', 'central_return']),
+  "itemType": zod.enum(['item', 'equipment']),
+  "itemId": zod.number().int().nullish(),
+  "itemName": zod.string().nullish(),
+  "itemUnit": zod.string().nullish(),
+  "equipmentId": zod.number().int().nullish(),
+  "equipmentName": zod.string().nullish(),
+  "quantity": zod.number().int().nullish(),
+  "recipientId": zod.number().int().nullish(),
+  "recipientName": zod.string().nullish(),
+  "recipientPerson": zod.string().nullish(),
+  "exitReasonId": zod.number().int().nullish(),
+  "exitReason": zod.string().nullish(),
+  "supplier": zod.string().nullish(),
+  "batchNumber": zod.string().nullish(),
+  "expiryDate": zod.string().nullish(),
+  "documentDate": zod.string().nullish(),
+  "deliveryNoteNumber": zod.string().nullish(),
+  "deliveryNoteDate": zod.string().nullish(),
+  "internalDeliveryNoteNumber": zod.string().nullish(),
+  "internalDeliveryNoteDate": zod.string().nullish(),
+  "deliveryDestination": zod.string().nullish(),
+  "custodyHolderName": zod.string().nullish(),
+  "custodyNoteNumber": zod.string().nullish(),
+  "custodyDate": zod.string().nullish(),
+  "custodyLocation": zod.string().nullish(),
+  "returnCondition": zod.string().nullish(),
+  "reason": zod.string().nullish(),
+  "documentNumber": zod.string(),
+  "notes": zod.string().nullish(),
+  "createdByName": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Return stock to the central warehouse
+ */
+
+
+
+export const CreateCentralReturnTransactionBody = zod.object({
+  "itemType": zod.enum(['item', 'equipment']),
+  "itemId": zod.number().int().nullish(),
+  "equipmentId": zod.number().int().nullish(),
+  "quantity": zod.number().int().min(1),
+  "returnCondition": zod.enum(['good', 'damaged', 'needs_maintenance', 'missing']),
+  "reason": zod.string(),
+  "documentDate": zod.coerce.date().optional(),
+  "notes": zod.string().nullish()
+})
+
+export const CreateCentralReturnTransactionResponse = zod.object({
+  "id": zod.number().int(),
+  "type": zod.enum(['in', 'out', 'init', 'adjust', 'custody_out', 'custody_return', 'damage', 'central_return']),
+  "itemType": zod.enum(['item', 'equipment']),
+  "itemId": zod.number().int().nullish(),
+  "itemName": zod.string().nullish(),
+  "itemUnit": zod.string().nullish(),
+  "equipmentId": zod.number().int().nullish(),
+  "equipmentName": zod.string().nullish(),
+  "quantity": zod.number().int().nullish(),
+  "recipientId": zod.number().int().nullish(),
+  "recipientName": zod.string().nullish(),
+  "recipientPerson": zod.string().nullish(),
+  "exitReasonId": zod.number().int().nullish(),
+  "exitReason": zod.string().nullish(),
+  "supplier": zod.string().nullish(),
+  "batchNumber": zod.string().nullish(),
+  "expiryDate": zod.string().nullish(),
+  "documentDate": zod.string().nullish(),
+  "deliveryNoteNumber": zod.string().nullish(),
+  "deliveryNoteDate": zod.string().nullish(),
+  "internalDeliveryNoteNumber": zod.string().nullish(),
+  "internalDeliveryNoteDate": zod.string().nullish(),
+  "deliveryDestination": zod.string().nullish(),
+  "custodyHolderName": zod.string().nullish(),
+  "custodyNoteNumber": zod.string().nullish(),
+  "custodyDate": zod.string().nullish(),
+  "custodyLocation": zod.string().nullish(),
+  "returnCondition": zod.string().nullish(),
+  "reason": zod.string().nullish(),
   "documentNumber": zod.string(),
   "notes": zod.string().nullish(),
   "createdByName": zod.string().nullish(),
@@ -545,7 +858,7 @@ export const GetTransactionParams = zod.object({
 
 export const GetTransactionResponse = zod.object({
   "id": zod.number().int(),
-  "type": zod.enum(['in', 'out', 'init']),
+  "type": zod.enum(['in', 'out', 'init', 'adjust', 'custody_out', 'custody_return', 'damage', 'central_return']),
   "itemType": zod.enum(['item', 'equipment']),
   "itemId": zod.number().int().nullish(),
   "itemName": zod.string().nullish(),
@@ -561,6 +874,18 @@ export const GetTransactionResponse = zod.object({
   "supplier": zod.string().nullish(),
   "batchNumber": zod.string().nullish(),
   "expiryDate": zod.string().nullish(),
+  "documentDate": zod.string().nullish(),
+  "deliveryNoteNumber": zod.string().nullish(),
+  "deliveryNoteDate": zod.string().nullish(),
+  "internalDeliveryNoteNumber": zod.string().nullish(),
+  "internalDeliveryNoteDate": zod.string().nullish(),
+  "deliveryDestination": zod.string().nullish(),
+  "custodyHolderName": zod.string().nullish(),
+  "custodyNoteNumber": zod.string().nullish(),
+  "custodyDate": zod.string().nullish(),
+  "custodyLocation": zod.string().nullish(),
+  "returnCondition": zod.string().nullish(),
+  "reason": zod.string().nullish(),
   "documentNumber": zod.string(),
   "notes": zod.string().nullish(),
   "createdByName": zod.string().nullish(),
@@ -578,7 +903,7 @@ export const GetTransactionPrintParams = zod.object({
 export const GetTransactionPrintResponse = zod.object({
   "transaction": zod.object({
   "id": zod.number().int(),
-  "type": zod.enum(['in', 'out', 'init']),
+  "type": zod.enum(['in', 'out', 'init', 'adjust', 'custody_out', 'custody_return', 'damage', 'central_return']),
   "itemType": zod.enum(['item', 'equipment']),
   "itemId": zod.number().int().nullish(),
   "itemName": zod.string().nullish(),
@@ -594,6 +919,18 @@ export const GetTransactionPrintResponse = zod.object({
   "supplier": zod.string().nullish(),
   "batchNumber": zod.string().nullish(),
   "expiryDate": zod.string().nullish(),
+  "documentDate": zod.string().nullish(),
+  "deliveryNoteNumber": zod.string().nullish(),
+  "deliveryNoteDate": zod.string().nullish(),
+  "internalDeliveryNoteNumber": zod.string().nullish(),
+  "internalDeliveryNoteDate": zod.string().nullish(),
+  "deliveryDestination": zod.string().nullish(),
+  "custodyHolderName": zod.string().nullish(),
+  "custodyNoteNumber": zod.string().nullish(),
+  "custodyDate": zod.string().nullish(),
+  "custodyLocation": zod.string().nullish(),
+  "returnCondition": zod.string().nullish(),
+  "reason": zod.string().nullish(),
   "documentNumber": zod.string(),
   "notes": zod.string().nullish(),
   "createdByName": zod.string().nullish(),
@@ -802,7 +1139,7 @@ export const GetMovementsReportQueryParams = zod.object({
 
 export const GetMovementsReportResponseItem = zod.object({
   "id": zod.number().int(),
-  "type": zod.enum(['in', 'out', 'init']),
+  "type": zod.enum(['in', 'out', 'init', 'adjust', 'custody_out', 'custody_return', 'damage', 'central_return']),
   "itemType": zod.enum(['item', 'equipment']),
   "itemId": zod.number().int().nullish(),
   "itemName": zod.string().nullish(),
@@ -818,6 +1155,18 @@ export const GetMovementsReportResponseItem = zod.object({
   "supplier": zod.string().nullish(),
   "batchNumber": zod.string().nullish(),
   "expiryDate": zod.string().nullish(),
+  "documentDate": zod.string().nullish(),
+  "deliveryNoteNumber": zod.string().nullish(),
+  "deliveryNoteDate": zod.string().nullish(),
+  "internalDeliveryNoteNumber": zod.string().nullish(),
+  "internalDeliveryNoteDate": zod.string().nullish(),
+  "deliveryDestination": zod.string().nullish(),
+  "custodyHolderName": zod.string().nullish(),
+  "custodyNoteNumber": zod.string().nullish(),
+  "custodyDate": zod.string().nullish(),
+  "custodyLocation": zod.string().nullish(),
+  "returnCondition": zod.string().nullish(),
+  "reason": zod.string().nullish(),
   "documentNumber": zod.string(),
   "notes": zod.string().nullish(),
   "createdByName": zod.string().nullish(),

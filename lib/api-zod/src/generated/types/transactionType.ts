@@ -13,4 +13,9 @@ export const TransactionType = {
   in: 'in',
   out: 'out',
   init: 'init',
+  adjust: 'adjust',
+  custody_out: 'custody_out',
+  custody_return: 'custody_return',
+  damage: 'damage',
+  central_return: 'central_return',
 } as const;

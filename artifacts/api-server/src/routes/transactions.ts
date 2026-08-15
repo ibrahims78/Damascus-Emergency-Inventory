@@ -1,41 +1,69 @@
-import { Router } from "express";
-import { db, transactionsTable, itemsTable, equipmentTable, recipientsTable, exitReasonsTable, usersTable } from "@workspace/db";
+import { Router, type Request, type Response } from "express";
+import {
+  db,
+  equipmentTable,
+  itemsTable,
+  systemSettingsTable,
+  transactionsTable,
+  usersTable,
+} from "@workspace/db";
+import { and, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/auth";
-import { auditLog } from "../middlewares/audit";
 import { runAlertWorker } from "../lib/alert-worker";
-import { eq, and, or, ilike, gte, lte, sql } from "drizzle-orm";
-import { systemSettingsTable } from "@workspace/db";
+import {
+  createInventoryMovement,
+  movementContextFromRequest,
+} from "../lib/inventory-movement-service";
+import { InventoryMovementError } from "../lib/inventory-movement-core";
 
 const router = Router();
 
-async function generateDocumentNumber(type: "in" | "out" | "init" | "adjust"): Promise<string> {
-  const year = new Date().getFullYear();
-  const prefix = type === "in" ? "IN" : type === "out" ? "OUT" : type === "adjust" ? "ADJ" : "INIT";
-  const result = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(transactionsTable)
-    .where(sql`extract(year from ${transactionsTable.createdAt}) = ${year} AND ${transactionsTable.type} = ${type}`);
-  const seq = Number(result[0]?.count ?? 0) + 1;
-  return `${prefix}-${year}-${String(seq).padStart(4, "0")}`;
+function movementFailureResponse(
+  res: Response,
+  error: unknown,
+) {
+  const movementError =
+    error instanceof InventoryMovementError
+      ? error
+      : new InventoryMovementError(
+          "INTERNAL_MOVEMENT_ERROR",
+          "تعذر تنفيذ الحركة بسبب خطأ داخلي",
+          500,
+        );
+
+  res.status(movementError.status).json({
+    error: movementError.message,
+    code: movementError.code,
+    ...(movementError.details ? { details: movementError.details } : {}),
+  });
+}
+
+async function executeMovement(
+  req: Request,
+  res: Response,
+  input: Record<string, unknown>,
+) {
+  try {
+    const transaction = await createInventoryMovement(
+      input as never,
+      movementContextFromRequest(req),
+    );
+    res.status(201).json(transaction);
+    runAlertWorker().catch((error) => console.error("Alert worker:", error));
+  } catch (error) {
+    console.error("[movement]", error);
+    movementFailureResponse(res, error);
+  }
 }
 
 // GET /api/transactions
 router.get("/", requireAuth, async (req, res) => {
   try {
-    const {
-      type,
-      itemType,
-      from,
-      to,
-      search,
-      page = "1",
-      limit = "50",
-    } = req.query as Record<string, string>;
-
-    const pageNum = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10)));
+    const { type, itemType, from, to, search, page = "1", limit = "50" } =
+      req.query as Record<string, string>;
+    const pageNum = Math.max(1, Number.parseInt(page, 10) || 1);
+    const limitNum = Math.min(200, Math.max(1, Number.parseInt(limit, 10) || 50));
     const offset = (pageNum - 1) * limitNum;
-
     const conditions = [];
     if (type) conditions.push(eq(transactionsTable.type, type as never));
     if (itemType) conditions.push(eq(transactionsTable.itemType, itemType as never));
@@ -52,9 +80,7 @@ router.get("/", requireAuth, async (req, res) => {
         )!,
       );
     }
-
-    const where = conditions.length > 0 ? and(...conditions) : undefined;
-
+    const where = conditions.length ? and(...conditions) : undefined;
     const [transactions, totalResult] = await Promise.all([
       db
         .select({
@@ -73,6 +99,7 @@ router.get("/", requireAuth, async (req, res) => {
           exitReasonId: transactionsTable.exitReasonId,
           exitReason: transactionsTable.exitReasonSnap,
           documentNumber: transactionsTable.documentNumber,
+          documentDate: transactionsTable.documentDate,
           notes: transactionsTable.notes,
           createdByName: usersTable.fullName,
           createdAt: transactionsTable.createdAt,
@@ -92,364 +119,146 @@ router.get("/", requireAuth, async (req, res) => {
         .leftJoin(equipmentTable, eq(transactionsTable.equipmentId, equipmentTable.id))
         .where(where),
     ]);
-
     res.json({
       transactions,
       total: Number(totalResult[0]?.count ?? 0),
       page: pageNum,
       limit: limitNum,
     });
-  } catch (err) {
-    console.error(err);
+  } catch (error) {
+    console.error(error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// POST /api/transactions/in
 router.post(
   "/in",
   requireAuth,
   requireRole("admin", "warehouse_manager"),
-  async (req, res) => {
-    try {
-      const { itemType, itemId, equipmentId, quantity, supplier, notes } = req.body;
-      const user = res.locals.user;
-
-      if (!itemType || (itemType === "item" && !itemId) || (itemType === "equipment" && !equipmentId)) {
-        res.status(400).json({ error: "itemType and itemId/equipmentId are required" });
-        return;
-      }
-      if (itemType === "item" && (!quantity || quantity <= 0)) {
-        res.status(400).json({ error: "quantity must be positive for item transactions" });
-        return;
-      }
-
-      const documentNumber = await generateDocumentNumber("in");
-
-      await db.transaction(async (tx) => {
-        const [transaction] = await tx
-          .insert(transactionsTable)
-          .values({
-            type: "in",
-            itemType,
-            itemId: itemId ? parseInt(itemId, 10) : null,
-            equipmentId: equipmentId ? parseInt(equipmentId, 10) : null,
-            quantity: quantity ? parseInt(quantity, 10) : null,
-            documentNumber,
-            notes: notes || null,
-            createdBy: user.id,
-          })
-          .returning();
-
-        if (itemType === "item" && itemId && quantity) {
-          await tx
-            .update(itemsTable)
-            .set({
-              currentStock: sql`${itemsTable.currentStock} + ${parseInt(quantity, 10)}`,
-              updatedAt: new Date(),
-            })
-            .where(eq(itemsTable.id, parseInt(itemId, 10)));
-        }
-
-        await auditLog({ req, action: "in", entityType: "transaction", entityId: transaction.id, details: { documentNumber: transaction.documentNumber, itemType, quantity } });
-        res.status(201).json(transaction);
-        runAlertWorker(); // re-evaluate alerts after stock change
-      });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: "Internal server error" });
-    }
-  }
+  async (req, res) => executeMovement(req, res, { ...req.body, kind: "in" }),
 );
 
-// POST /api/transactions/out
 router.post(
   "/out",
   requireAuth,
   requireRole("admin", "warehouse_manager"),
-  async (req, res) => {
-    try {
-      const {
-        itemType,
-        itemId,
-        equipmentId,
-        quantity,
-        recipientId,
-        recipientPerson,
-        exitReasonId,
-        notes,
-      } = req.body;
-      const user = res.locals.user;
-
-      if (!itemType || (itemType === "item" && !itemId) || (itemType === "equipment" && !equipmentId)) {
-        res.status(400).json({ error: "itemType and itemId/equipmentId are required" });
-        return;
-      }
-      if (itemType === "item" && (!quantity || quantity <= 0)) {
-        res.status(400).json({ error: "quantity must be positive" });
-        return;
-      }
-      if (!recipientId) {
-        res.status(400).json({ error: "الجهة المستلمة مطلوبة لعمليات الإخراج" });
-        return;
-      }
-      if (!exitReasonId) {
-        res.status(400).json({ error: "سبب الإخراج مطلوب لعمليات الإخراج" });
-        return;
-      }
-
-      // Validate stock
-      if (itemType === "item" && itemId && quantity) {
-        const [item] = await db.select({ currentStock: itemsTable.currentStock }).from(itemsTable).where(eq(itemsTable.id, parseInt(itemId, 10)));
-        if (!item || item.currentStock < parseInt(quantity, 10)) {
-          res.status(400).json({ error: "Insufficient stock" });
-          return;
-        }
-      }
-
-      // Fetch snapshot names
-      let recipientNameSnap: string | null = null;
-      let exitReasonSnap: string | null = null;
-      if (recipientId) {
-        const r = await db.query.recipientsTable.findFirst({ where: (r, { eq: eqFn }) => eqFn(r.id, parseInt(recipientId, 10)) });
-        recipientNameSnap = r?.name ?? null;
-      }
-      if (exitReasonId) {
-        const er = await db.query.exitReasonsTable.findFirst({ where: (er, { eq: eqFn }) => eqFn(er.id, parseInt(exitReasonId, 10)) });
-        exitReasonSnap = er?.name ?? null;
-      }
-
-      const documentNumber = await generateDocumentNumber("out");
-
-      await db.transaction(async (tx) => {
-        const [transaction] = await tx
-          .insert(transactionsTable)
-          .values({
-            type: "out",
-            itemType,
-            itemId: itemId ? parseInt(itemId, 10) : null,
-            equipmentId: equipmentId ? parseInt(equipmentId, 10) : null,
-            quantity: quantity ? parseInt(quantity, 10) : null,
-            recipientId: recipientId ? parseInt(recipientId, 10) : null,
-            recipientNameSnap,
-            recipientPerson: recipientPerson || null,
-            exitReasonId: exitReasonId ? parseInt(exitReasonId, 10) : null,
-            exitReasonSnap,
-            documentNumber,
-            notes: notes || null,
-            createdBy: user.id,
-          })
-          .returning();
-
-        if (itemType === "item" && itemId && quantity) {
-          await tx
-            .update(itemsTable)
-            .set({
-              currentStock: sql`${itemsTable.currentStock} - ${parseInt(quantity, 10)}`,
-              updatedAt: new Date(),
-            })
-            .where(eq(itemsTable.id, parseInt(itemId, 10)));
-        }
-
-        if (itemType === "equipment" && equipmentId) {
-          await tx
-            .update(equipmentTable)
-            .set({ condition: "consumed", updatedAt: new Date() })
-            .where(eq(equipmentTable.id, parseInt(equipmentId, 10)));
-        }
-
-        await auditLog({ req, action: "out", entityType: "transaction", entityId: transaction.id, details: { documentNumber: transaction.documentNumber, itemType, quantity } });
-        res.status(201).json(transaction);
-        runAlertWorker(); // re-evaluate alerts after stock change
-      });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: "Internal server error" });
-    }
-  }
+  async (req, res) => executeMovement(req, res, { ...req.body, kind: "out" }),
 );
 
-// GET /api/transactions/:id
+router.post(
+  "/adjust",
+  requireAuth,
+  requireRole("admin", "warehouse_manager"),
+  async (req, res) => executeMovement(req, res, { ...req.body, kind: "adjust" }),
+);
+
+router.post(
+  "/custody-out",
+  requireAuth,
+  requireRole("admin", "warehouse_manager"),
+  async (req, res) =>
+    executeMovement(req, res, { ...req.body, kind: "custody_out" }),
+);
+
+router.post(
+  "/custody-return",
+  requireAuth,
+  requireRole("admin", "warehouse_manager"),
+  async (req, res) =>
+    executeMovement(req, res, { ...req.body, kind: "custody_return" }),
+);
+
+router.post(
+  "/damage",
+  requireAuth,
+  requireRole("admin", "warehouse_manager"),
+  async (req, res) => executeMovement(req, res, { ...req.body, kind: "damage" }),
+);
+
+router.post(
+  "/central-return",
+  requireAuth,
+  requireRole("admin", "warehouse_manager"),
+  async (req, res) =>
+    executeMovement(req, res, { ...req.body, kind: "central_return" }),
+);
+
+async function getTransaction(id: number) {
+  return db
+    .select({
+      id: transactionsTable.id,
+      type: transactionsTable.type,
+      itemType: transactionsTable.itemType,
+      itemId: transactionsTable.itemId,
+      itemName: itemsTable.name,
+      itemUnit: itemsTable.unit,
+      equipmentId: transactionsTable.equipmentId,
+      equipmentName: equipmentTable.name,
+      quantity: transactionsTable.quantity,
+      recipientId: transactionsTable.recipientId,
+      recipientName: transactionsTable.recipientNameSnap,
+      recipientPerson: transactionsTable.recipientPerson,
+      exitReasonId: transactionsTable.exitReasonId,
+      exitReason: transactionsTable.exitReasonSnap,
+      supplier: itemsTable.supplier,
+      batchNumber: transactionsTable.batchNumber,
+      expiryDate: transactionsTable.expiryDate,
+      documentNumber: transactionsTable.documentNumber,
+      documentDate: transactionsTable.documentDate,
+      deliveryNoteNumber: transactionsTable.deliveryNoteNumber,
+      deliveryNoteDate: transactionsTable.deliveryNoteDate,
+      internalDeliveryNoteNumber: transactionsTable.internalDeliveryNoteNumber,
+      internalDeliveryNoteDate: transactionsTable.internalDeliveryNoteDate,
+      deliveryDestination: transactionsTable.deliveryDestination,
+      custodyHolderName: transactionsTable.custodyHolderNameSnap,
+      custodyNoteNumber: transactionsTable.custodyNoteNumber,
+      custodyDate: transactionsTable.custodyDate,
+      custodyLocation: transactionsTable.custodyLocation,
+      returnCondition: transactionsTable.returnCondition,
+      reason: transactionsTable.reason,
+      notes: transactionsTable.notes,
+      createdByName: usersTable.fullName,
+      createdAt: transactionsTable.createdAt,
+    })
+    .from(transactionsTable)
+    .leftJoin(itemsTable, eq(transactionsTable.itemId, itemsTable.id))
+    .leftJoin(equipmentTable, eq(transactionsTable.equipmentId, equipmentTable.id))
+    .leftJoin(usersTable, eq(transactionsTable.createdBy, usersTable.id))
+    .where(eq(transactionsTable.id, id))
+    .then((rows) => rows[0]);
+}
+
 router.get("/:id", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(String(req.params.id), 10);
-    const [transaction] = await db
-      .select({
-        id: transactionsTable.id,
-        type: transactionsTable.type,
-        itemType: transactionsTable.itemType,
-        itemId: transactionsTable.itemId,
-        itemName: itemsTable.name,
-        itemUnit: itemsTable.unit,
-        equipmentId: transactionsTable.equipmentId,
-        equipmentName: equipmentTable.name,
-        quantity: transactionsTable.quantity,
-        recipientId: transactionsTable.recipientId,
-        recipientName: transactionsTable.recipientNameSnap,
-        recipientPerson: transactionsTable.recipientPerson,
-        exitReasonId: transactionsTable.exitReasonId,
-        exitReason: transactionsTable.exitReasonSnap,
-        supplier: itemsTable.supplier,
-        batchNumber: itemsTable.batchNumber,
-        expiryDate: itemsTable.expiryDate,
-        documentNumber: transactionsTable.documentNumber,
-        notes: transactionsTable.notes,
-        createdByName: usersTable.fullName,
-        createdAt: transactionsTable.createdAt,
-      })
-      .from(transactionsTable)
-      .leftJoin(itemsTable, eq(transactionsTable.itemId, itemsTable.id))
-      .leftJoin(equipmentTable, eq(transactionsTable.equipmentId, equipmentTable.id))
-      .leftJoin(usersTable, eq(transactionsTable.createdBy, usersTable.id))
-      .where(eq(transactionsTable.id, id));
-
+    const transaction = await getTransaction(Number.parseInt(String(req.params.id), 10));
     if (!transaction) {
       res.status(404).json({ error: "Transaction not found" });
       return;
     }
     res.json(transaction);
-  } catch (err) {
-    console.error(err);
+  } catch (error) {
+    console.error(error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// POST /api/transactions/adjust
-router.post(
-  "/adjust",
-  requireAuth,
-  requireRole("admin", "warehouse_manager"),
-  async (req, res) => {
-    try {
-      const { itemId, newStock, reason, notes } = req.body;
-      const user = res.locals.user;
-
-      if (!itemId) {
-        res.status(400).json({ error: "itemId is required" });
-        return;
-      }
-      if (newStock === undefined || newStock === null || newStock === "") {
-        res.status(400).json({ error: "newStock is required" });
-        return;
-      }
-      const newStockNum = parseInt(newStock, 10);
-      if (isNaN(newStockNum) || newStockNum < 0) {
-        res.status(400).json({ error: "newStock must be a non-negative number" });
-        return;
-      }
-      if (!reason || !String(reason).trim()) {
-        res.status(400).json({ error: "reason is required" });
-        return;
-      }
-
-      const itemIdNum = parseInt(itemId, 10);
-      const [item] = await db
-        .select({ currentStock: itemsTable.currentStock, name: itemsTable.name })
-        .from(itemsTable)
-        .where(eq(itemsTable.id, itemIdNum));
-
-      if (!item) {
-        res.status(404).json({ error: "Item not found" });
-        return;
-      }
-
-      const previousStock = item.currentStock;
-      const delta = newStockNum - previousStock;
-      const documentNumber = await generateDocumentNumber("adjust");
-
-      const fullNotes = [
-        `تسوية جرد — السبب: ${String(reason).trim()}`,
-        `الكمية قبل: ${previousStock}، الكمية بعد: ${newStockNum}، الفرق: ${delta >= 0 ? "+" : ""}${delta}`,
-        notes ? `ملاحظات: ${notes}` : null,
-      ]
-        .filter(Boolean)
-        .join(". ");
-
-      await db.transaction(async (tx) => {
-        const [transaction] = await tx
-          .insert(transactionsTable)
-          .values({
-            type: "adjust" as never,
-            itemType: "item",
-            itemId: itemIdNum,
-            quantity: delta,
-            documentNumber,
-            notes: fullNotes,
-            createdBy: user.id,
-          })
-          .returning();
-
-        await tx
-          .update(itemsTable)
-          .set({ currentStock: newStockNum, updatedAt: new Date() })
-          .where(eq(itemsTable.id, itemIdNum));
-
-        await auditLog({
-          req,
-          action: "adjust",
-          entityType: "transaction",
-          entityId: transaction.id,
-          details: { documentNumber, itemId: itemIdNum, itemName: item.name, previousStock, newStock: newStockNum, delta },
-        });
-
-        res.status(201).json(transaction);
-        runAlertWorker(); // re-evaluate alerts after stock adjustment
-      });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: "Internal server error" });
-    }
-  }
-);
-
-// GET /api/transactions/:id/print
 router.get("/:id/print", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(String(req.params.id), 10);
-    const [transaction] = await db
-      .select({
-        id: transactionsTable.id,
-        type: transactionsTable.type,
-        itemType: transactionsTable.itemType,
-        itemId: transactionsTable.itemId,
-        itemName: itemsTable.name,
-        itemUnit: itemsTable.unit,
-        equipmentId: transactionsTable.equipmentId,
-        equipmentName: equipmentTable.name,
-        quantity: transactionsTable.quantity,
-        recipientId: transactionsTable.recipientId,
-        recipientName: transactionsTable.recipientNameSnap,
-        recipientPerson: transactionsTable.recipientPerson,
-        exitReasonId: transactionsTable.exitReasonId,
-        exitReason: transactionsTable.exitReasonSnap,
-        supplier: itemsTable.supplier,
-        batchNumber: itemsTable.batchNumber,
-        expiryDate: itemsTable.expiryDate,
-        documentNumber: transactionsTable.documentNumber,
-        notes: transactionsTable.notes,
-        createdByName: usersTable.fullName,
-        createdAt: transactionsTable.createdAt,
-      })
-      .from(transactionsTable)
-      .leftJoin(itemsTable, eq(transactionsTable.itemId, itemsTable.id))
-      .leftJoin(equipmentTable, eq(transactionsTable.equipmentId, equipmentTable.id))
-      .leftJoin(usersTable, eq(transactionsTable.createdBy, usersTable.id))
-      .where(eq(transactionsTable.id, id));
-
+    const transaction = await getTransaction(Number.parseInt(String(req.params.id), 10));
     if (!transaction) {
       res.status(404).json({ error: "Transaction not found" });
       return;
     }
     const settings = await db.query.systemSettingsTable.findFirst();
-    const organizationName = settings?.orgName ?? "مديرية الاحالة والاسعاف والطوارئ - دمشق";
     res.json({
       transaction,
-      organizationName,
+      organizationName:
+        settings?.orgName ?? "مديرية الاحالة والاسعاف والطوارئ - دمشق",
       orgSubtitle: settings?.orgSubtitle ?? null,
       printedAt: new Date().toISOString(),
     });
-  } catch (err) {
-    console.error(err);
+  } catch (error) {
+    console.error(error);
     res.status(500).json({ error: "Internal server error" });
   }
 });

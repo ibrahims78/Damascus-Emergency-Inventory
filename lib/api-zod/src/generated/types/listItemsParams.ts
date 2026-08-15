@@ -5,6 +5,8 @@
  * Ambulance & Emergency Warehouse Management System API — Damascus
  * OpenAPI spec version: 0.1.0
  */
+import type { ListItemsSortBy } from './listItemsSortBy';
+import type { ListItemsSortDir } from './listItemsSortDir';
 
 export type ListItemsParams = {
 categoryId?: number;
@@ -13,4 +15,6 @@ belowMin?: boolean;
 nearExpiry?: boolean;
 page?: number;
 limit?: number;
+sortBy?: ListItemsSortBy;
+sortDir?: ListItemsSortDir;
 };

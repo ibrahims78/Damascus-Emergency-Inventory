@@ -40,6 +40,30 @@ export interface Transaction {
   batchNumber?: string | null;
   /** @nullable */
   expiryDate?: string | null;
+  /** @nullable */
+  documentDate?: string | null;
+  /** @nullable */
+  deliveryNoteNumber?: string | null;
+  /** @nullable */
+  deliveryNoteDate?: string | null;
+  /** @nullable */
+  internalDeliveryNoteNumber?: string | null;
+  /** @nullable */
+  internalDeliveryNoteDate?: string | null;
+  /** @nullable */
+  deliveryDestination?: string | null;
+  /** @nullable */
+  custodyHolderName?: string | null;
+  /** @nullable */
+  custodyNoteNumber?: string | null;
+  /** @nullable */
+  custodyDate?: string | null;
+  /** @nullable */
+  custodyLocation?: string | null;
+  /** @nullable */
+  returnCondition?: string | null;
+  /** @nullable */
+  reason?: string | null;
   documentNumber: string;
   /** @nullable */
   notes?: string | null;

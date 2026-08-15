@@ -22,5 +22,11 @@ export interface OutTransactionInput {
   /** @nullable */
   exitReasonId?: number | null;
   /** @nullable */
+  internalDeliveryNoteNumber?: string | null;
+  /** @nullable */
+  internalDeliveryNoteDate?: string | null;
+  /** @nullable */
+  deliveryDestination?: string | null;
+  /** @nullable */
   notes?: string | null;
 }

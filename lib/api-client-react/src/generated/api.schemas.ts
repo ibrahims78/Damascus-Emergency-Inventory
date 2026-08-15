@@ -279,6 +279,11 @@ export const TransactionType = {
   in: 'in',
   out: 'out',
   init: 'init',
+  adjust: 'adjust',
+  custody_out: 'custody_out',
+  custody_return: 'custody_return',
+  damage: 'damage',
+  central_return: 'central_return',
 } as const;
 
 export type TransactionItemType = typeof TransactionItemType[keyof typeof TransactionItemType];
@@ -321,6 +326,30 @@ export interface Transaction {
   batchNumber?: string | null;
   /** @nullable */
   expiryDate?: string | null;
+  /** @nullable */
+  documentDate?: string | null;
+  /** @nullable */
+  deliveryNoteNumber?: string | null;
+  /** @nullable */
+  deliveryNoteDate?: string | null;
+  /** @nullable */
+  internalDeliveryNoteNumber?: string | null;
+  /** @nullable */
+  internalDeliveryNoteDate?: string | null;
+  /** @nullable */
+  deliveryDestination?: string | null;
+  /** @nullable */
+  custodyHolderName?: string | null;
+  /** @nullable */
+  custodyNoteNumber?: string | null;
+  /** @nullable */
+  custodyDate?: string | null;
+  /** @nullable */
+  custodyLocation?: string | null;
+  /** @nullable */
+  returnCondition?: string | null;
+  /** @nullable */
+  reason?: string | null;
   documentNumber: string;
   /** @nullable */
   notes?: string | null;
@@ -361,6 +390,18 @@ export interface InTransactionInput {
   /** @nullable */
   supplier?: string | null;
   /** @nullable */
+  deliveryNoteNumber?: string | null;
+  /** @nullable */
+  deliveryNoteDate?: string | null;
+  /** @nullable */
+  documentDate?: string | null;
+  /** @nullable */
+  supplySource?: string | null;
+  /** @nullable */
+  expiryDate?: string | null;
+  /** @nullable */
+  batchNumber?: string | null;
+  /** @nullable */
   notes?: string | null;
 }
 
@@ -386,6 +427,127 @@ export interface OutTransactionInput {
   recipientPerson?: string | null;
   /** @nullable */
   exitReasonId?: number | null;
+  /** @nullable */
+  internalDeliveryNoteNumber?: string | null;
+  /** @nullable */
+  internalDeliveryNoteDate?: string | null;
+  /** @nullable */
+  deliveryDestination?: string | null;
+  /** @nullable */
+  notes?: string | null;
+}
+
+export type AdjustmentInputItemType = typeof AdjustmentInputItemType[keyof typeof AdjustmentInputItemType];
+
+
+export const AdjustmentInputItemType = {
+  item: 'item',
+} as const;
+
+export interface AdjustmentInput {
+  itemType: AdjustmentInputItemType;
+  itemId: number;
+  /** @minimum 0 */
+  newStock: number;
+  reason: string;
+  /** @nullable */
+  notes?: string | null;
+}
+
+export type CustodyOutInputItemType = typeof CustodyOutInputItemType[keyof typeof CustodyOutInputItemType];
+
+
+export const CustodyOutInputItemType = {
+  equipment: 'equipment',
+} as const;
+
+export interface CustodyOutInput {
+  itemType: CustodyOutInputItemType;
+  equipmentId: number;
+  /** @minimum 1 */
+  quantity: number;
+  /** @nullable */
+  recipientId?: number | null;
+  holderName: string;
+  custodyNoteNumber: string;
+  custodyDate: string;
+  custodyLocation: string;
+  /** @nullable */
+  notes?: string | null;
+}
+
+export type CustodyReturnInputReturnCondition = typeof CustodyReturnInputReturnCondition[keyof typeof CustodyReturnInputReturnCondition];
+
+
+export const CustodyReturnInputReturnCondition = {
+  good: 'good',
+  damaged: 'damaged',
+  needs_maintenance: 'needs_maintenance',
+  missing: 'missing',
+} as const;
+
+export interface CustodyReturnInput {
+  custodyId: number;
+  /** @minimum 1 */
+  quantity: number;
+  returnCondition: CustodyReturnInputReturnCondition;
+  returnedToLocation: string;
+  documentDate?: string;
+  /** @nullable */
+  inspectionNotes?: string | null;
+}
+
+export type DamageInputItemType = typeof DamageInputItemType[keyof typeof DamageInputItemType];
+
+
+export const DamageInputItemType = {
+  item: 'item',
+  equipment: 'equipment',
+} as const;
+
+export interface DamageInput {
+  itemType: DamageInputItemType;
+  /** @nullable */
+  itemId?: number | null;
+  /** @nullable */
+  equipmentId?: number | null;
+  /** @minimum 1 */
+  quantity: number;
+  reason: string;
+  damageDate?: string;
+  /** @nullable */
+  notes?: string | null;
+}
+
+export type CentralReturnInputItemType = typeof CentralReturnInputItemType[keyof typeof CentralReturnInputItemType];
+
+
+export const CentralReturnInputItemType = {
+  item: 'item',
+  equipment: 'equipment',
+} as const;
+
+export type CentralReturnInputReturnCondition = typeof CentralReturnInputReturnCondition[keyof typeof CentralReturnInputReturnCondition];
+
+
+export const CentralReturnInputReturnCondition = {
+  good: 'good',
+  damaged: 'damaged',
+  needs_maintenance: 'needs_maintenance',
+  missing: 'missing',
+} as const;
+
+export interface CentralReturnInput {
+  itemType: CentralReturnInputItemType;
+  /** @nullable */
+  itemId?: number | null;
+  /** @nullable */
+  equipmentId?: number | null;
+  /** @minimum 1 */
+  quantity: number;
+  returnCondition: CentralReturnInputReturnCondition;
+  reason: string;
+  documentDate?: string;
   /** @nullable */
   notes?: string | null;
 }
@@ -593,7 +755,28 @@ belowMin?: boolean;
 nearExpiry?: boolean;
 page?: number;
 limit?: number;
+sortBy?: ListItemsSortBy;
+sortDir?: ListItemsSortDir;
 };
+
+export type ListItemsSortBy = typeof ListItemsSortBy[keyof typeof ListItemsSortBy];
+
+
+export const ListItemsSortBy = {
+  name: 'name',
+  currentStock: 'currentStock',
+  minStock: 'minStock',
+  expiryDate: 'expiryDate',
+  createdAt: 'createdAt',
+} as const;
+
+export type ListItemsSortDir = typeof ListItemsSortDir[keyof typeof ListItemsSortDir];
+
+
+export const ListItemsSortDir = {
+  asc: 'asc',
+  desc: 'desc',
+} as const;
 
 export type ListEquipmentParams = {
 condition?: string;
