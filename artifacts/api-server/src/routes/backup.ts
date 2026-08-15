@@ -9,13 +9,22 @@ import {
   exitReasonsTable,
   usersTable,
   systemSettingsTable,
+  inventoryBatchesTable,
+  transactionBatchAllocationsTable,
+  personalCustodiesTable,
+  custodyReturnsTable,
+  damageRecordsTable,
+  centralReturnsTable,
+  auditLogTable,
 } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
+import { auditLog } from "../middlewares/audit";
+import { sql } from "drizzle-orm";
 
 const router = Router();
 
 // GET /api/backup/export — download full data backup as JSON (admin only)
-router.get("/export", requireAuth, requireRole("admin"), async (_req, res) => {
+router.get("/export", requireAuth, requireRole("admin"), async (req, res) => {
   try {
     const [
       categories,
@@ -26,6 +35,13 @@ router.get("/export", requireAuth, requireRole("admin"), async (_req, res) => {
       exitReasons,
       users,
       settings,
+      batches,
+      batchAllocations,
+      custodies,
+      custodyReturns,
+      damageRecords,
+      centralReturns,
+      auditLogs,
     ] = await Promise.all([
       db.select().from(categoriesTable),
       db.select().from(itemsTable),
@@ -45,10 +61,17 @@ router.get("/export", requireAuth, requireRole("admin"), async (_req, res) => {
         })
         .from(usersTable),
       db.select().from(systemSettingsTable),
+      db.select().from(inventoryBatchesTable),
+      db.select().from(transactionBatchAllocationsTable),
+      db.select().from(personalCustodiesTable),
+      db.select().from(custodyReturnsTable),
+      db.select().from(damageRecordsTable),
+      db.select().from(centralReturnsTable),
+      db.select().from(auditLogTable),
     ]);
 
     const backup = {
-      version: "1.0",
+      version: "2.0",
       system: "Damascus EMS Warehouse",
       exportedAt: new Date().toISOString(),
       counts: {
@@ -59,6 +82,13 @@ router.get("/export", requireAuth, requireRole("admin"), async (_req, res) => {
         recipients: recipients.length,
         exitReasons: exitReasons.length,
         users: users.length,
+        batches: batches.length,
+        batchAllocations: batchAllocations.length,
+        custodies: custodies.length,
+        custodyReturns: custodyReturns.length,
+        damageRecords: damageRecords.length,
+        centralReturns: centralReturns.length,
+        auditLogs: auditLogs.length,
       },
       data: {
         categories,
@@ -69,6 +99,13 @@ router.get("/export", requireAuth, requireRole("admin"), async (_req, res) => {
         exitReasons,
         users,
         settings,
+        batches,
+        batchAllocations,
+        custodies,
+        custodyReturns,
+        damageRecords,
+        centralReturns,
+        auditLogs,
       },
     };
 
@@ -80,9 +117,102 @@ router.get("/export", requireAuth, requireRole("admin"), async (_req, res) => {
       `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`
     );
     res.json(backup);
+    await auditLog({
+      req,
+      action: "backup_export",
+      entityType: "backup",
+      details: { version: backup.version, counts: backup.counts },
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// POST /api/backup/restore — transactional merge restore. Existing IDs win;
+// users are intentionally not restored because exports omit password hashes.
+router.post("/restore", requireAuth, requireRole("admin"), async (req, res) => {
+  try {
+    const payload = req.body as {
+      version?: string;
+      data?: Record<string, unknown>;
+      confirm?: boolean;
+    };
+    if (!payload?.confirm) {
+      res.status(400).json({ error: "يجب إرسال confirm=true لتأكيد الاستعادة" });
+      return;
+    }
+    if (!payload.data || !["1.0", "2.0"].includes(String(payload.version))) {
+      res.status(400).json({ error: "ملف النسخة الاحتياطية غير صالح أو غير مدعوم" });
+      return;
+    }
+
+    const data = payload.data;
+    const arrays = (name: string) => (Array.isArray(data[name]) ? data[name] : []);
+    const restored = await db.transaction(async (tx) => {
+      const counts: Record<string, number> = {};
+      const restoreTable = async (name: string, table: unknown) => {
+        const rows = arrays(name);
+        if (rows.length === 0) return;
+        await tx.insert(table as never).values(rows as never).onConflictDoNothing();
+        counts[name] = rows.length;
+      };
+
+      // Parent tables first, then immutable movement/detail tables.
+      await restoreTable("categories", categoriesTable);
+      await restoreTable("items", itemsTable);
+      await restoreTable("equipment", equipmentTable);
+      await restoreTable("recipients", recipientsTable);
+      await restoreTable("exitReasons", exitReasonsTable);
+      await restoreTable("settings", systemSettingsTable);
+      await restoreTable("transactions", transactionsTable);
+      await restoreTable("batches", inventoryBatchesTable);
+      await restoreTable("batchAllocations", transactionBatchAllocationsTable);
+      await restoreTable("custodies", personalCustodiesTable);
+      await restoreTable("custodyReturns", custodyReturnsTable);
+      await restoreTable("damageRecords", damageRecordsTable);
+      await restoreTable("centralReturns", centralReturnsTable);
+      // Audit rows are optional and can be restored after all entities exist.
+      await restoreTable("auditLogs", auditLogTable);
+
+      const sequenceTables = [
+        ["categories", "categories"],
+        ["items", "items"],
+        ["equipment", "equipment"],
+        ["recipients", "recipients"],
+        ["exit_reasons", "exit_reasons"],
+        ["transactions", "transactions"],
+        ["inventory_batches", "inventory_batches"],
+        ["transaction_batch_allocations", "transaction_batch_allocations"],
+        ["personal_custodies", "personal_custodies"],
+        ["custody_returns", "custody_returns"],
+        ["damage_records", "damage_records"],
+        ["central_returns", "central_returns"],
+        ["audit_log", "audit_log"],
+      ] as const;
+      for (const [tableName, sequenceTable] of sequenceTables) {
+        await tx.execute(sql.raw(
+          `SELECT setval(pg_get_serial_sequence('${sequenceTable}', 'id'), COALESCE((SELECT MAX(id) FROM "${tableName}"), 1), true)`,
+        ));
+      }
+      return counts;
+    });
+
+    const result = {
+      restored,
+      skippedUsers: arrays("users").length,
+      warning: "لم تتم استعادة المستخدمين لأن النسخة الاحتياطية لا تحتوي كلمات المرور؛ بقيت حسابات البيئة الحالية كما هي.",
+    };
+    await auditLog({
+      req,
+      action: "backup_restore",
+      entityType: "backup",
+      details: result,
+    });
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(400).json({ error: "تعذر استعادة النسخة؛ تم التراجع عن العملية بالكامل" });
   }
 });
 
@@ -97,6 +227,9 @@ router.get("/info", requireAuth, requireRole("admin"), async (_req, res) => {
       txCount,
       recCount,
       userCount,
+      batchCount,
+      custodyCount,
+      auditCount,
     ] = await Promise.all([
       db.select({ c: sql<number>`count(*)` }).from(categoriesTable),
       db.select({ c: sql<number>`count(*)` }).from(itemsTable),
@@ -104,6 +237,9 @@ router.get("/info", requireAuth, requireRole("admin"), async (_req, res) => {
       db.select({ c: sql<number>`count(*)` }).from(transactionsTable),
       db.select({ c: sql<number>`count(*)` }).from(recipientsTable),
       db.select({ c: sql<number>`count(*)` }).from(usersTable),
+      db.select({ c: sql<number>`count(*)` }).from(inventoryBatchesTable),
+      db.select({ c: sql<number>`count(*)` }).from(personalCustodiesTable),
+      db.select({ c: sql<number>`count(*)` }).from(auditLogTable),
     ]);
 
     res.json({
@@ -113,6 +249,9 @@ router.get("/info", requireAuth, requireRole("admin"), async (_req, res) => {
       transactions: Number(txCount[0]?.c ?? 0),
       recipients: Number(recCount[0]?.c ?? 0),
       users: Number(userCount[0]?.c ?? 0),
+      batches: Number(batchCount[0]?.c ?? 0),
+      custodies: Number(custodyCount[0]?.c ?? 0),
+      auditLogs: Number(auditCount[0]?.c ?? 0),
     });
   } catch (err) {
     console.error(err);
