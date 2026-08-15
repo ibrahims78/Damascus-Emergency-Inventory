@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.3.16
+        version: 0.3.16
     devDependencies:
       electron:
         specifier: ^39.2.6
@@ -16,6 +20,9 @@ importers:
         version: 26.15.3(electron-builder-squirrel-windows@26.15.3)
 
 packages:
+
+  '@electric-sql/pglite@0.3.16':
+    resolution: {integrity: sha512-mZkZfOd9OqTMHsK+1cje8OSzfAQcpD7JmILXTl5ahdempjUDdmg4euf1biDex5/LfQIDJ3gvCu6qDgdnDxfJmA==}
 
   '@electron/asar@3.4.1':
     resolution: {integrity: sha512-i4/rNPRS84t0vSRa2HorerGRXWyF4vThfHesw0dmcWHp+cspK743UanA0suA5Q5y8kzY2y6YKrvbIUn69BCAiA==}
@@ -1050,6 +1057,8 @@ packages:
     engines: {node: '>=10'}
 
 snapshots:
+
+  '@electric-sql/pglite@0.3.16': {}
 
   '@electron/asar@3.4.1':
     dependencies:

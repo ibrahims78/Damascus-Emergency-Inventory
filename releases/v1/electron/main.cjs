@@ -1,15 +1,19 @@
 const { app, BrowserWindow, dialog } = require("electron");
 const http = require("node:http");
+const net = require("node:net");
 const fs = require("node:fs");
 const path = require("node:path");
-const { URL } = require("node:url");
+const { URL, pathToFileURL } = require("node:url");
 
-const RELEASE_VERSION = "1.0.0";
-const API_BASE_URL = process.env.DAMASCUS_API_URL || "http://127.0.0.1:8080";
+const RELEASE_VERSION = "1.0.1";
+const EXTERNAL_API_BASE_URL = process.env.DAMASCUS_API_URL;
 const WEB_ROOT = path.resolve(__dirname, "../app/web");
+const API_ENTRY = path.resolve(__dirname, "../app/api/index.mjs");
+const DESKTOP_SCHEMA_PATH = path.resolve(__dirname, "../app/schema/desktop-schema.sql");
 
 let desktopWindow;
 let localServer;
+let apiBaseUrl;
 
 const contentTypes = {
   ".css": "text/css; charset=utf-8",
@@ -52,8 +56,12 @@ function copyHeaders(headers) {
 
 async function proxyApi(request, response) {
   try {
+    if (!apiBaseUrl) {
+      throw new Error("The desktop API server is not ready.");
+    }
+
     const requestUrl = new URL(request.url, "http://127.0.0.1");
-    const targetUrl = new URL(requestUrl.pathname + requestUrl.search, API_BASE_URL);
+    const targetUrl = new URL(requestUrl.pathname + requestUrl.search, apiBaseUrl);
     const headers = { ...request.headers };
     delete headers.host;
     delete headers.connection;
@@ -86,6 +94,71 @@ async function proxyApi(request, response) {
     });
     response.end(payload);
   }
+}
+
+function findAvailablePort() {
+  return new Promise((resolve, reject) => {
+    const probe = net.createServer();
+    probe.once("error", reject);
+    probe.listen(0, "127.0.0.1", () => {
+      const address = probe.address();
+      if (!address || typeof address === "string") {
+        probe.close();
+        reject(new Error("Could not determine an available local port."));
+        return;
+      }
+
+      const port = address.port;
+      probe.close((error) => (error ? reject(error) : resolve(port)));
+    });
+  });
+}
+
+async function waitForApi(baseUrl) {
+  const healthUrl = new URL("/api/healthz", baseUrl);
+  const deadline = Date.now() + 30_000;
+  let lastError;
+
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(healthUrl);
+      if (response.ok) return;
+      lastError = new Error(`API health check returned HTTP ${response.status}.`);
+    } catch (error) {
+      lastError = error;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+
+  throw new Error(
+    `The local API server did not become ready.${lastError ? ` ${lastError.message}` : ""}`,
+  );
+}
+
+async function startEmbeddedApi() {
+  if (EXTERNAL_API_BASE_URL) {
+    apiBaseUrl = EXTERNAL_API_BASE_URL;
+    return;
+  }
+
+  if (!fs.existsSync(API_ENTRY)) {
+    throw new Error("The bundled API server is missing. Rebuild the desktop application.");
+  }
+
+  if (!fs.existsSync(DESKTOP_SCHEMA_PATH)) {
+    throw new Error("The bundled desktop database schema is missing. Rebuild the desktop application.");
+  }
+
+  const port = await findAvailablePort();
+  process.env.DAMASCUS_DESKTOP = "1";
+  process.env.DAMASCUS_SCHEMA_PATH = DESKTOP_SCHEMA_PATH;
+  process.env.DAMASCUS_DATA_DIR = path.join(app.getPath("userData"), "data");
+  process.env.PORT = String(port);
+
+  await import(pathToFileURL(API_ENTRY).href);
+  apiBaseUrl = `http://127.0.0.1:${port}`;
+  await waitForApi(apiBaseUrl);
 }
 
 function resolveStaticFile(pathname) {
@@ -167,6 +240,7 @@ async function createWindow() {
     throw new Error("The bundled web application is missing. Run `pnpm run prepare-web` first.");
   }
 
+  await startEmbeddedApi();
   const port = await startLocalServer();
   desktopWindow = new BrowserWindow({
     width: 1440,

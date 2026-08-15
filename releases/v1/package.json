@@ -1,16 +1,19 @@
 {
   "name": "damascus-emergency-inventory-desktop",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Desktop edition of the Damascus Emergency Inventory application.",
   "author": "Damascus Emergency Inventory",
   "private": true,
   "main": "electron/main.cjs",
   "scripts": {
-    "prepare-web": "pnpm --dir ../../artifacts/web run build && node scripts/copy-web.cjs",
+    "prepare-app": "pnpm --dir ../../artifacts/web run build && pnpm --dir ../../artifacts/api-server run build && node scripts/copy-app.cjs",
     "start": "electron .",
-    "dev": "pnpm run prepare-web && electron .",
-    "package:dir": "pnpm run prepare-web && electron-builder --dir",
-    "package": "pnpm run prepare-web && electron-builder"
+    "dev": "pnpm run prepare-app && electron .",
+    "package:dir": "pnpm run prepare-app && electron-builder --dir",
+    "package": "pnpm run prepare-app && electron-builder"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.3.16"
   },
   "devDependencies": {
     "electron": "^39.2.6",
@@ -23,6 +26,8 @@
     "files": [
       "electron/**/*",
       "app/web/**/*",
+      "app/api/**/*",
+      "app/schema/**/*",
       "package.json"
     ],
     "directories": {

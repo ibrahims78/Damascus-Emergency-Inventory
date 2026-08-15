@@ -1,5 +1,6 @@
 {pkgs}: {
   deps = [
+    pkgs.wineWowPackages.stable
     pkgs.xorg.xorgserver
     pkgs.libgbm
     pkgs.systemd
