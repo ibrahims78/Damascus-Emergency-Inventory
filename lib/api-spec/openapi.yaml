@@ -242,6 +242,48 @@ paths:
         "204":
           description: Deactivated
 
+  /items/history:
+    get:
+      operationId: getItemHistory
+      tags: [items]
+      summary: Get an item card with its paginated chronological movement history
+      parameters:
+        - name: itemId
+          in: query
+          required: true
+          schema: { type: integer }
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [in, out, adjust, custody_out, custody_return, damage, central_return]
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+        - name: document
+          in: query
+          schema: { type: string }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+      responses:
+        "200":
+          description: Item details, batches, and chronological movement history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemHistoryResponse"
+        "400":
+          description: Invalid filter
+        "404":
+          description: Item not found
+
   /equipment:
     get:
       operationId: listEquipment
@@ -1257,6 +1299,70 @@ components:
           type: integer
         limit:
           type: integer
+
+    ItemHistoryBatch:
+      type: object
+      required: [id, receivedQuantity, remainingQuantity]
+      properties:
+        id: { type: integer }
+        batchNumber: { type: ["string", "null"] }
+        receivedQuantity: { type: integer }
+        remainingQuantity: { type: integer }
+        expiryDate: { type: ["string", "null"] }
+        deliveryNoteNumber: { type: ["string", "null"] }
+        deliveryNoteDate: { type: ["string", "null"] }
+        createdAt: { type: string }
+
+    ItemHistoryAllocation:
+      type: object
+      required: [batchId, quantity]
+      properties:
+        batchId: { type: integer }
+        quantity: { type: integer }
+        batchNumber: { type: ["string", "null"] }
+        expiryDate: { type: ["string", "null"] }
+
+    ItemHistoryMovement:
+      type: object
+      required: [id, type, documentNumber, quantity, allocations, isHistoricalIncomplete]
+      properties:
+        id: { type: integer }
+        type:
+          type: string
+          enum: [in, out, adjust, custody_out, custody_return, damage, central_return]
+        quantity: { type: ["integer", "null"] }
+        partyName: { type: ["string", "null"] }
+        documentNumber: { type: string }
+        documentDate: { type: ["string", "null"] }
+        createdAt: { type: string }
+        operatorName: { type: ["string", "null"] }
+        expiryDate: { type: ["string", "null"] }
+        batchNumber: { type: ["string", "null"] }
+        reason: { type: ["string", "null"] }
+        notes: { type: ["string", "null"] }
+        isHistoricalIncomplete: { type: boolean }
+        allocations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItemHistoryAllocation"
+
+    ItemHistoryResponse:
+      type: object
+      required: [item, batches, movements, total, page, limit]
+      properties:
+        item:
+          $ref: "#/components/schemas/Item"
+        batches:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItemHistoryBatch"
+        movements:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItemHistoryMovement"
+        total: { type: integer }
+        page: { type: integer }
+        limit: { type: integer }
 
     Equipment:
       type: object

@@ -246,6 +246,81 @@ export const DeleteItemResponse = zod.void()
 
 
 /**
+ * @summary Get an item card with its paginated chronological movement history
+ */
+
+export const getItemHistoryQueryLimitMax = 200;
+
+
+
+export const GetItemHistoryQueryParams = zod.object({
+  "itemId": zod.coerce.number().int(),
+  "type": zod.enum(['in', 'out', 'adjust', 'custody_out', 'custody_return', 'damage', 'central_return']).optional(),
+  "from": zod.date().optional(),
+  "to": zod.date().optional(),
+  "document": zod.coerce.string().optional(),
+  "page": zod.coerce.number().int().min(1).optional(),
+  "limit": zod.coerce.number().int().min(1).max(getItemHistoryQueryLimitMax).optional()
+})
+
+export const GetItemHistoryResponse = zod.object({
+  "item": zod.object({
+  "id": zod.number().int(),
+  "code": zod.string().nullish(),
+  "name": zod.string(),
+  "categoryId": zod.number().int().nullish(),
+  "categoryName": zod.string().nullish(),
+  "itemType": zod.string(),
+  "unit": zod.string(),
+  "currentStock": zod.number().int(),
+  "minStock": zod.number().int(),
+  "expiryDate": zod.string().nullish(),
+  "batchNumber": zod.string().nullish(),
+  "location": zod.string().nullish(),
+  "supplier": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string().optional()
+}),
+  "batches": zod.array(zod.object({
+  "id": zod.number().int(),
+  "batchNumber": zod.string().nullish(),
+  "receivedQuantity": zod.number().int(),
+  "remainingQuantity": zod.number().int(),
+  "expiryDate": zod.string().nullish(),
+  "deliveryNoteNumber": zod.string().nullish(),
+  "deliveryNoteDate": zod.string().nullish(),
+  "createdAt": zod.string().optional()
+})),
+  "movements": zod.array(zod.object({
+  "id": zod.number().int(),
+  "type": zod.enum(['in', 'out', 'adjust', 'custody_out', 'custody_return', 'damage', 'central_return']),
+  "quantity": zod.number().int().nullable(),
+  "partyName": zod.string().nullish(),
+  "documentNumber": zod.string(),
+  "documentDate": zod.string().nullish(),
+  "createdAt": zod.string().optional(),
+  "operatorName": zod.string().nullish(),
+  "expiryDate": zod.string().nullish(),
+  "batchNumber": zod.string().nullish(),
+  "reason": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "isHistoricalIncomplete": zod.boolean(),
+  "allocations": zod.array(zod.object({
+  "batchId": zod.number().int(),
+  "quantity": zod.number().int(),
+  "batchNumber": zod.string().nullish(),
+  "expiryDate": zod.string().nullish()
+}))
+})),
+  "total": zod.number().int(),
+  "page": zod.number().int(),
+  "limit": zod.number().int()
+})
+
+
+/**
  * @summary List equipment with optional filters
  */
 export const ListEquipmentQueryParams = zod.object({

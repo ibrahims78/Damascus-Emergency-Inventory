@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useRoute, useLocation } from 'wouter';
+import { Link, useRoute, useLocation } from 'wouter';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   useDeleteItem,
@@ -70,6 +70,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { ItemForm } from './item-form';
 import { AdjustmentForm } from './adjustment-form';
+import { ItemDetailsPage } from './item-details';
 
 /* ──────────────────────────── Page router ───────────────────────────────── */
 
@@ -77,10 +78,12 @@ export function ItemsPage() {
   const [matchNew] = useRoute('/items/new');
   const [matchEdit, params] = useRoute('/items/:id/edit');
   const [matchAdjust, adjustParams] = useRoute('/items/:id/adjust');
+  const [matchDetails, detailsParams] = useRoute('/items/:id');
 
   if (matchNew) return <ItemForm />;
   if (matchEdit && params?.id) return <ItemForm itemId={parseInt(params.id)} />;
   if (matchAdjust && adjustParams?.id) return <AdjustmentForm preselectedItemId={parseInt(adjustParams.id)} />;
+  if (matchDetails && detailsParams?.id) return <ItemDetailsPage itemId={parseInt(detailsParams.id)} />;
 
   return <ItemsList />;
 }
@@ -756,7 +759,13 @@ function ItemsList() {
 
                         {/* Name */}
                         <TableCell>
-                          <p className="font-medium leading-snug">{item.name}</p>
+                           <Link
+                             href={`/items/${item.id}`}
+                             className="font-medium leading-snug text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                             aria-label={`فتح بطاقة المادة ${item.name}`}
+                           >
+                             {item.name}
+                           </Link>
                           {(item as any).supplier && (
                             <p className="text-xs text-muted-foreground mt-0.5">{(item as any).supplier}</p>
                           )}

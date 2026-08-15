@@ -23,6 +23,7 @@ import { SettingsPage } from '@/pages/settings';
 import { AuditPage } from '@/pages/audit';
 import { PrintTransactionPage } from '@/pages/print-transaction';
 import { AdjustmentForm } from '@/pages/adjustment-form';
+import { ItemDetailsPage } from '@/pages/item-details';
 import {
   CentralReturnForm,
   CustodyOutForm,
@@ -94,6 +95,7 @@ function Router() {
       <Route path="/items/new"><ProtectedRoute component={ItemsPage} /></Route>
       <Route path="/items/:id/edit"><ProtectedRoute component={ItemsPage} /></Route>
       <Route path="/items/:id/adjust"><ProtectedRoute component={ItemsPage} /></Route>
+      <Route path="/items/:id"><ProtectedRoute component={ItemDetailsPage} /></Route>
 
       <Route path="/equipment"><ProtectedRoute component={EquipmentPage} /></Route>
       <Route path="/equipment/new"><ProtectedRoute component={EquipmentPage} /></Route>

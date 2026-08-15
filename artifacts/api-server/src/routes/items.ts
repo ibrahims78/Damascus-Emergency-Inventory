@@ -14,6 +14,11 @@ import {
   InventoryMovementError,
   type FefoBatch,
 } from "../lib/inventory-movement-core";
+import {
+  getItemHistory,
+  ITEM_HISTORY_TYPES,
+  type ItemHistoryType,
+} from "../lib/item-history-service";
 import { eq, and, ilike, or, lte, sql, isNotNull, asc, desc, type AnyColumn } from "drizzle-orm";
 
 const router = Router();
@@ -447,7 +452,57 @@ router.get("/fefo-preview", requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/items/:id
+// GET /api/items/history?itemId=ID
+router.get("/history", requireAuth, async (req, res) => {
+  try {
+    const id = Number.parseInt(String(req.query.itemId ?? ""), 10);
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      res.status(400).json({ error: "Invalid item id" });
+      return;
+    }
+
+    const type =
+      typeof req.query.type === "string" && req.query.type
+        ? req.query.type
+        : undefined;
+    if (type && !ITEM_HISTORY_TYPES.includes(type as ItemHistoryType)) {
+      res.status(400).json({ error: "نوع الحركة غير صالح" });
+      return;
+    }
+
+    const parseDateFilter = (value: unknown) => {
+      if (value === undefined || value === "") return undefined;
+      const normalized = String(value);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return null;
+      return normalized;
+    };
+    const from = parseDateFilter(req.query.from);
+    const to = parseDateFilter(req.query.to);
+    if (from === null || to === null) {
+      res.status(400).json({ error: "صيغة التاريخ يجب أن تكون YYYY-MM-DD" });
+      return;
+    }
+
+    const result = await getItemHistory(id, {
+      type: type as ItemHistoryType | undefined,
+      from,
+      to,
+      document:
+        typeof req.query.document === "string" ? req.query.document.trim() : undefined,
+      page: Number.parseInt(String(req.query.page ?? "1"), 10) || 1,
+      limit: Number.parseInt(String(req.query.limit ?? "20"), 10) || 20,
+    });
+    if (!result) {
+      res.status(404).json({ error: "Item not found" });
+      return;
+    }
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 router.get("/:id", requireAuth, async (req, res) => {
   try {
     const id = parseInt(String(req.params.id), 10);

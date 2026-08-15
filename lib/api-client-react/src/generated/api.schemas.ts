@@ -166,6 +166,77 @@ export interface ItemListResponse {
   limit: number;
 }
 
+export interface ItemHistoryBatch {
+  id: number;
+  /** @nullable */
+  batchNumber?: string | null;
+  receivedQuantity: number;
+  remainingQuantity: number;
+  /** @nullable */
+  expiryDate?: string | null;
+  /** @nullable */
+  deliveryNoteNumber?: string | null;
+  /** @nullable */
+  deliveryNoteDate?: string | null;
+  createdAt?: string;
+}
+
+export interface ItemHistoryAllocation {
+  batchId: number;
+  quantity: number;
+  /** @nullable */
+  batchNumber?: string | null;
+  /** @nullable */
+  expiryDate?: string | null;
+}
+
+export type ItemHistoryMovementType = typeof ItemHistoryMovementType[keyof typeof ItemHistoryMovementType];
+
+
+export const ItemHistoryMovementType = {
+  in: 'in',
+  out: 'out',
+  adjust: 'adjust',
+  custody_out: 'custody_out',
+  custody_return: 'custody_return',
+  damage: 'damage',
+  central_return: 'central_return',
+} as const;
+
+export interface ItemHistoryMovement {
+  id: number;
+  type: ItemHistoryMovementType;
+  /** @nullable */
+  quantity: number | null;
+  /** @nullable */
+  partyName?: string | null;
+  documentNumber: string;
+  /** @nullable */
+  documentDate?: string | null;
+  createdAt?: string;
+  /** @nullable */
+  operatorName?: string | null;
+  /** @nullable */
+  expiryDate?: string | null;
+  /** @nullable */
+  batchNumber?: string | null;
+  /** @nullable */
+  reason?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  isHistoricalIncomplete: boolean;
+  allocations: ItemHistoryAllocation[];
+}
+
+export interface ItemHistoryResponse {
+  item: Item;
+  batches: ItemHistoryBatch[];
+  movements: ItemHistoryMovement[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export type EquipmentCondition = typeof EquipmentCondition[keyof typeof EquipmentCondition];
 
 
@@ -862,6 +933,36 @@ export type ListItemsSortDir = typeof ListItemsSortDir[keyof typeof ListItemsSor
 export const ListItemsSortDir = {
   asc: 'asc',
   desc: 'desc',
+} as const;
+
+export type GetItemHistoryParams = {
+itemId: number;
+type?: GetItemHistoryType;
+from?: string;
+to?: string;
+document?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: number;
+};
+
+export type GetItemHistoryType = typeof GetItemHistoryType[keyof typeof GetItemHistoryType];
+
+
+export const GetItemHistoryType = {
+  in: 'in',
+  out: 'out',
+  adjust: 'adjust',
+  custody_out: 'custody_out',
+  custody_return: 'custody_return',
+  damage: 'damage',
+  central_return: 'central_return',
 } as const;
 
 export type ListEquipmentParams = {

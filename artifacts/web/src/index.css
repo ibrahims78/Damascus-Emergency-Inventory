@@ -213,6 +213,17 @@
   }
 }
 
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  body {
+    background: white !important;
+  }
+}
+
 /* Utilities for elevated states */
 @layer utilities {
   input[type='search']::-webkit-search-cancel-button { @apply hidden; }
