@@ -6,9 +6,14 @@ import {
   useGetExpiryReport,
   useGetBelowMinReport,
   useGetEquipmentReport,
+  useGetStockPositionReport,
+  useGetCustodiesReport,
   type Item,
   type Transaction,
   type Equipment,
+  type StockPositionItem,
+  type StockPositionEquipment,
+  type CustodyReportRecord,
 } from '@workspace/api-client-react';
 import {
   Printer,
@@ -20,6 +25,8 @@ import {
   ShieldAlert,
   Stethoscope,
   ExternalLink,
+  Boxes,
+  UserRoundCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -645,9 +652,250 @@ function EquipmentTab() {
   );
 }
 
+// ─── tab 6: reconciled stock position ───────────────────────────────────────
+
+function StockPositionTab() {
+  const { data, isLoading } = useGetStockPositionReport();
+  const items = data?.items ?? [];
+  const equipment = data?.equipment ?? [];
+  const totalAvailable =
+    items.reduce((sum, item) => sum + item.availableQuantity, 0) +
+    equipment.reduce((sum, item) => sum + item.availableQuantity, 0);
+  const totalCustody =
+    items.reduce((sum, item) => sum + item.custodyQuantity, 0) +
+    equipment.reduce((sum, item) => sum + item.custodyQuantity, 0);
+  const totalDamaged =
+    items.reduce((sum, item) => sum + item.damagedQuantity, 0) +
+    equipment.reduce((sum, item) => sum + item.damagedQuantity, 0);
+
+  const handleExport = async () => {
+    await exportXlsx(
+      'الوضع-التفصيلي-للمخزون.xlsx',
+      ['النوع', 'الصنف', 'الإجمالي', 'المتاح', 'العهدة', 'التالف', 'الدفعات'],
+      [
+        ...items.map((item: StockPositionItem) => [
+          'مادة',
+          item.name,
+          String(item.currentStock),
+          String(item.availableQuantity),
+          String(item.custodyQuantity),
+          String(item.damagedQuantity),
+          String(item.batches.length),
+        ]),
+        ...equipment.map((item: StockPositionEquipment) => [
+          'تجهيز',
+          item.name,
+          String(item.quantity),
+          String(item.availableQuantity),
+          String(item.custodyQuantity),
+          String(item.damagedQuantity),
+          '—',
+        ]),
+      ],
+    );
+  };
+
+  return (
+    <>
+      <PrintHeader title="تقرير الوضع التفصيلي للمخزون" />
+      <div className="grid grid-cols-3 gap-3 mb-4 print:hidden">
+        <SummaryCard label="المتاح" value={totalAvailable.toLocaleString('ar')} accent="success" />
+        <SummaryCard label="على العهدة" value={totalCustody.toLocaleString('ar')} accent="warning" />
+        <SummaryCard label="التالف" value={totalDamaged.toLocaleString('ar')} accent="danger" />
+      </div>
+      <div className="flex justify-end gap-2 mb-4 print:hidden">
+        <Button variant="outline" size="sm" className="gap-2" onClick={() => window.print()}>
+          <Printer className="w-4 h-4" />طباعة
+        </Button>
+        <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>
+          <Download className="w-4 h-4" />تصدير Excel
+        </Button>
+      </div>
+
+      <div className="space-y-6">
+        <section className="border rounded-lg overflow-hidden">
+          <div className="bg-muted/40 px-4 py-3 font-semibold">المواد والدفعات</div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-right">المادة</TableHead>
+                <TableHead className="text-center">الرصيد</TableHead>
+                <TableHead className="text-center">المتاح</TableHead>
+                <TableHead className="text-center">العهدة</TableHead>
+                <TableHead className="text-center">التالف</TableHead>
+                <TableHead className="text-center">الدفعات</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">جاري التحميل...</TableCell></TableRow>
+              ) : items.length === 0 ? (
+                <EmptyState message="لا توجد مواد مسجّلة بعد" />
+              ) : (
+                items.map((item: StockPositionItem) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableCell className="text-center">{item.currentStock.toLocaleString('ar')}</TableCell>
+                    <TableCell className="text-center font-semibold text-success">{item.availableQuantity.toLocaleString('ar')}</TableCell>
+                    <TableCell className="text-center">{item.custodyQuantity.toLocaleString('ar')}</TableCell>
+                    <TableCell className="text-center text-destructive">{item.damagedQuantity.toLocaleString('ar')}</TableCell>
+                    <TableCell className="text-center">{item.batches.length.toLocaleString('ar')}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </section>
+
+        <section className="border rounded-lg overflow-hidden">
+          <div className="bg-muted/40 px-4 py-3 font-semibold">التجهيزات والحالة</div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-right">التجهيز</TableHead>
+                <TableHead className="text-right">الرقم التسلسلي</TableHead>
+                <TableHead className="text-center">الإجمالي</TableHead>
+                <TableHead className="text-center">المتاح</TableHead>
+                <TableHead className="text-center">العهدة</TableHead>
+                <TableHead className="text-center">التالف</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {equipment.length === 0 ? (
+                <EmptyState message="لا توجد تجهيزات مسجّلة بعد" />
+              ) : (
+                equipment.map((item: StockPositionEquipment) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">{item.serialNumber ?? '—'}</TableCell>
+                    <TableCell className="text-center">{item.quantity.toLocaleString('ar')}</TableCell>
+                    <TableCell className="text-center font-semibold text-success">{item.availableQuantity.toLocaleString('ar')}</TableCell>
+                    <TableCell className="text-center">{item.custodyQuantity.toLocaleString('ar')}</TableCell>
+                    <TableCell className="text-center text-destructive">{item.damagedQuantity.toLocaleString('ar')}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </section>
+      </div>
+    </>
+  );
+}
+
+// ─── tab 7: personal custody report ─────────────────────────────────────────
+
+function CustodiesTab() {
+  const [status, setStatus] = useState<'all' | 'open' | 'partially_returned' | 'damaged'>('all');
+  const [search, setSearch] = useState('');
+  const [overdueDays, setOverdueDays] = useState('30');
+  const { data, isLoading } = useGetCustodiesReport({
+    status: status === 'all' ? undefined : status,
+    search: search || undefined,
+    overdueDays: Number(overdueDays) || 30,
+  });
+  const records = data?.records ?? [];
+
+  const handleExport = async () => {
+    await exportXlsx(
+      'العهد-الشخصية-المفتوحة.xlsx',
+      ['التجهيز', 'الرقم التسلسلي', 'المستلم', 'مذكرة التسليم', 'التاريخ', 'المكان', 'المتبقي', 'الحالة', 'متأخرة'],
+      records.map((record: CustodyReportRecord) => [
+        record.equipmentName,
+        record.serialNumber ?? '',
+        record.holderName,
+        record.deliveryNoteNumber,
+        formatDate(record.deliveryDate),
+        record.location,
+        String(record.outstandingQuantity),
+        record.status === 'partially_returned' ? 'إعادة جزئية' : record.status === 'damaged' ? 'تالف' : 'مفتوحة',
+        record.overdue ? 'نعم' : 'لا',
+      ]),
+    );
+  };
+
+  return (
+    <>
+      <PrintHeader title="تقرير العهد الشخصية المفتوحة والمتأخرة" />
+      <div className="bg-card border rounded-lg p-4 mb-4 print:hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Input placeholder="بحث بالمستلم أو التجهيز أو المذكرة" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Select value={status} onValueChange={(value) => setStatus(value as typeof status)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">كل العهد المفتوحة</SelectItem>
+              <SelectItem value="open">مفتوحة</SelectItem>
+              <SelectItem value="partially_returned">إعادة جزئية</SelectItem>
+              <SelectItem value="damaged">تالف</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-2">
+            <Input type="number" min={1} max={3650} value={overdueDays} onChange={(e) => setOverdueDays(e.target.value)} dir="ltr" />
+            <span className="text-xs text-muted-foreground whitespace-nowrap">يوم للتأخر</span>
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-3 mb-4 print:hidden">
+        <SummaryCard label="عهد مفتوحة" value={data?.totals.open ?? 0} />
+        <SummaryCard label="الكمية المتبقية" value={(data?.totals.outstandingQuantity ?? 0).toLocaleString('ar')} accent="warning" />
+        <SummaryCard label="عهد متأخرة" value={data?.totals.overdue ?? 0} accent={(data?.totals.overdue ?? 0) > 0 ? 'danger' : 'success'} />
+      </div>
+      <div className="flex justify-end gap-2 mb-4 print:hidden">
+        <Button variant="outline" size="sm" className="gap-2" onClick={() => window.print()}>
+          <Printer className="w-4 h-4" />طباعة
+        </Button>
+        <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>
+          <Download className="w-4 h-4" />تصدير Excel
+        </Button>
+      </div>
+      <div className="border rounded-lg overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-right">التجهيز</TableHead>
+              <TableHead className="text-right">المستلم</TableHead>
+              <TableHead className="text-right">المذكرة</TableHead>
+              <TableHead className="text-center">التاريخ</TableHead>
+              <TableHead className="text-right">المكان</TableHead>
+              <TableHead className="text-center">المتبقي</TableHead>
+              <TableHead className="text-center">الحالة</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow><TableCell colSpan={7} className="h-32 text-center text-muted-foreground">جاري التحميل...</TableCell></TableRow>
+            ) : records.length === 0 ? (
+              <EmptyState message="لا توجد عهد مفتوحة بهذه المعايير" />
+            ) : (
+              records.map((record: CustodyReportRecord) => (
+                <TableRow key={record.id} className={record.overdue ? 'bg-destructive/5' : ''}>
+                  <TableCell className="font-medium">
+                    {record.equipmentName}
+                    {record.serialNumber && <div className="font-mono text-xs text-muted-foreground">{record.serialNumber}</div>}
+                  </TableCell>
+                  <TableCell>{record.holderName}</TableCell>
+                  <TableCell className="font-mono text-xs">{record.deliveryNoteNumber}</TableCell>
+                  <TableCell className="text-center text-sm">{formatDate(record.deliveryDate)}</TableCell>
+                  <TableCell className="text-sm">{record.location}</TableCell>
+                  <TableCell className="text-center font-semibold">{record.outstandingQuantity.toLocaleString('ar')}</TableCell>
+                  <TableCell className="text-center">
+                    <Badge variant={record.overdue ? 'destructive' : 'secondary'} className="text-xs">
+                      {record.overdue ? 'متأخرة' : record.status === 'partially_returned' ? 'إعادة جزئية' : record.status === 'damaged' ? 'تالف' : 'مفتوحة'}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </>
+  );
+}
+
 // ─── main page ──────────────────────────────────────────────────────────────
 
-const VALID_TABS = ['stock', 'movements', 'expiry', 'below-min', 'equipment'] as const;
+const VALID_TABS = ['stock', 'movements', 'expiry', 'below-min', 'equipment', 'stock-position', 'custodies'] as const;
 type TabValue = typeof VALID_TABS[number];
 
 function getInitialTab(): TabValue {
@@ -679,7 +927,7 @@ export function ReportsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5 h-auto print:hidden">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-7 h-auto print:hidden">
           <TabsTrigger value="stock" className="gap-1.5 text-xs py-2">
             <PackageSearch className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">جرد المخزون</span>
@@ -705,6 +953,16 @@ export function ReportsPage() {
             <span className="hidden sm:inline">التجهيزات</span>
             <span className="sm:hidden">تجهيزات</span>
           </TabsTrigger>
+          <TabsTrigger value="stock-position" className="gap-1.5 text-xs py-2">
+            <Boxes className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">الوضع التفصيلي</span>
+            <span className="sm:hidden">الوضع</span>
+          </TabsTrigger>
+          <TabsTrigger value="custodies" className="gap-1.5 text-xs py-2">
+            <UserRoundCheck className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">العهد المفتوحة</span>
+            <span className="sm:hidden">العهد</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="stock" className="mt-0">
@@ -721,6 +979,12 @@ export function ReportsPage() {
         </TabsContent>
         <TabsContent value="equipment" className="mt-0">
           <EquipmentTab />
+        </TabsContent>
+        <TabsContent value="stock-position" className="mt-0">
+          <StockPositionTab />
+        </TabsContent>
+        <TabsContent value="custodies" className="mt-0">
+          <CustodiesTab />
         </TabsContent>
       </Tabs>
 

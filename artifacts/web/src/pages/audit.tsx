@@ -13,6 +13,9 @@ import {
   Trash2,
   ArrowDownToLine,
   ArrowUpFromLine,
+  CircleCheck,
+  CircleX,
+  Archive,
   Settings2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -68,6 +71,10 @@ const actionLabels: Record<string, { label: string; color: string }> = {
   activate:        { label: 'تفعيل',          color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300' },
   transaction_in:  { label: 'إدخال مواد',     color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' },
   transaction_out: { label: 'إخراج مواد',     color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' },
+  movement_created: { label: 'تسجيل حركة',    color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' },
+  movement_failed:  { label: 'فشل حركة',      color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' },
+  backup_export:    { label: 'تصدير نسخة',    color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300' },
+  backup_restore:   { label: 'استعادة نسخة',  color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' },
 };
 
 const entityLabels: Record<string, string> = {
@@ -79,6 +86,7 @@ const entityLabels: Record<string, string> = {
   category:    'تصنيف',
   recipient:   'جهة مستلمة',
   exit_reason: 'سبب إخراج',
+  backup:      'نسخة احتياطية',
 };
 
 const actionIcons: Record<string, React.ReactNode> = {
@@ -89,6 +97,10 @@ const actionIcons: Record<string, React.ReactNode> = {
   delete:          <Trash2 className="w-3.5 h-3.5" />,
   transaction_in:  <ArrowDownToLine className="w-3.5 h-3.5" />,
   transaction_out: <ArrowUpFromLine className="w-3.5 h-3.5" />,
+  movement_created: <CircleCheck className="w-3.5 h-3.5" />,
+  movement_failed: <CircleX className="w-3.5 h-3.5" />,
+  backup_export: <Archive className="w-3.5 h-3.5" />,
+  backup_restore: <Archive className="w-3.5 h-3.5" />,
 };
 
 // ─── Main Page ───────────────────────────────────────────────────────────────

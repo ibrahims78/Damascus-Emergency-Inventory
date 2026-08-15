@@ -36,15 +36,26 @@ export function PrintTransactionPage() {
   }
 
   const { transaction: tx, organizationName, printedAt } = data;
-  const isIn   = tx.type === 'in';
-  const isOut  = tx.type === 'out';
+  const isIn = tx.type === 'in';
+  const isOut = tx.type === 'out';
+  const isCustodyOut = tx.type === 'custody_out';
+  const isCustodyReturn = tx.type === 'custody_return';
+  const isDamage = tx.type === 'damage';
+  const isCentralReturn = tx.type === 'central_return';
+  const isAdjustment = tx.type === 'adjust';
+  const isOperationalOut = isOut || isCustodyOut || isDamage || isCentralReturn;
 
-  const typeLabel =
-    isIn  ? 'سند إدخال' :
-    isOut ? 'سند إخراج' :
-            'رصيد افتتاحي';
-
-  const typeColor = isIn ? '#16a34a' : isOut ? '#dc2626' : '#6b7280';
+  const typeMeta: Record<string, { label: string; color: string }> = {
+    in: { label: 'سند إدخال', color: '#16a34a' },
+    out: { label: 'سند إخراج', color: '#dc2626' },
+    init: { label: 'رصيد افتتاحي', color: '#6b7280' },
+    adjust: { label: 'سند تسوية', color: '#7c3aed' },
+    custody_out: { label: 'سند عهدة', color: '#2563eb' },
+    custody_return: { label: 'سند إعادة عهدة', color: '#0891b2' },
+    damage: { label: 'سند إتلاف', color: '#ea580c' },
+    central_return: { label: 'سند مرتجع مركزي', color: '#9333ea' },
+  };
+  const { label: typeLabel, color: typeColor } = typeMeta[tx.type] ?? typeMeta.adjust;
   const itemName  = tx.itemType === 'equipment' ? tx.equipmentName : tx.itemName;
   const itemUnit  = tx.itemUnit;
 
@@ -160,7 +171,10 @@ export function PrintTransactionPage() {
             {isOut && tx.exitReason && (
               <InfoRow label="سبب الإخراج" value={tx.exitReason} />
             )}
-            {(isIn || !isOut) && tx.supplier && (
+            {isOut && tx.deliveryDestination && (
+              <InfoRow label="وجهة التسليم" value={tx.deliveryDestination === 'ambulance_point' ? 'نقطة إسعاف' : 'المبنى الإداري'} />
+            )}
+            {(isIn || (!isOperationalOut && !isCustodyReturn)) && tx.supplier && (
               <InfoRow label="المورد" value={tx.supplier} />
             )}
             {isIn && tx.deliveryNoteNumber && (
@@ -171,6 +185,30 @@ export function PrintTransactionPage() {
             )}
             {isIn && tx.supplySource && (
               <InfoRow label="جهة التوريد" value="المستودعات المركزية" />
+            )}
+            {isIn && tx.documentDate && (
+              <InfoRow label="تاريخ الوثيقة" value={tx.documentDate.substring(0, 10)} />
+            )}
+            {isCustodyOut && tx.custodyHolderName && (
+              <InfoRow label="صاحب العهدة" value={tx.custodyHolderName} />
+            )}
+            {isCustodyOut && tx.custodyNoteNumber && (
+              <InfoRow label="رقم سند العهدة" value={tx.custodyNoteNumber} />
+            )}
+            {isCustodyOut && tx.custodyDate && (
+              <InfoRow label="تاريخ العهدة" value={tx.custodyDate.substring(0, 10)} />
+            )}
+            {isCustodyOut && tx.custodyLocation && (
+              <InfoRow label="مكان العهدة" value={tx.custodyLocation} />
+            )}
+            {(isCustodyReturn || isDamage || isCentralReturn) && tx.returnCondition && (
+              <InfoRow label="حالة الإعادة" value={returnConditionLabel(tx.returnCondition)} />
+            )}
+            {(isCustodyReturn || isDamage || isCentralReturn || isAdjustment) && tx.reason && (
+              <InfoRow label="السبب" value={tx.reason} />
+            )}
+            {isCustodyReturn && tx.custodyLocation && (
+              <InfoRow label="مكان الإرجاع" value={tx.custodyLocation} />
             )}
             {tx.batchNumber && (
               <InfoRow label="رقم الدفعة / اللوت" value={tx.batchNumber} />
@@ -237,7 +275,7 @@ export function PrintTransactionPage() {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: isOut ? '1fr 1fr 1fr 1fr' : '1fr 1fr',
+               gridTemplateColumns: isOperationalOut || isCustodyReturn ? '1fr 1fr 1fr 1fr' : '1fr 1fr',
               gap: '24px',
               marginTop: '40px',
             }}
@@ -247,12 +285,12 @@ export function PrintTransactionPage() {
               name={tx.createdByName || undefined}
             />
 
-            {isOut && <SignatureBox title="المسؤول المرسل" />}
-            {isOut && <SignatureBox title="المشرف" />}
+            {(isOperationalOut || isCustodyReturn) && <SignatureBox title="المسؤول المرسل" />}
+            {(isOperationalOut || isCustodyReturn) && <SignatureBox title="المشرف" />}
 
             <SignatureBox
-              title={isOut ? 'المستلم' : isIn ? 'المورد / المسلِّم' : 'المسؤول'}
-              name={isOut && tx.recipientPerson ? tx.recipientPerson : undefined}
+              title={isCustodyOut ? 'صاحب العهدة' : isCustodyReturn ? 'المستلم' : isOperationalOut ? 'المستلم / الجهة' : isIn ? 'المورد / المسلِّم' : 'المسؤول'}
+              name={isCustodyOut ? tx.custodyHolderName ?? undefined : isOut && tx.recipientPerson ? tx.recipientPerson : undefined}
             />
           </div>
 
@@ -292,6 +330,15 @@ function InfoRow({ label, value, bold }: { label: string; value: string; bold?: 
       <span style={{ fontWeight: bold ? 700 : 500, fontSize: '13px' }}>{value}</span>
     </div>
   );
+}
+
+function returnConditionLabel(value: string): string {
+  return {
+    good: 'سليم',
+    damaged: 'تالف',
+    needs_maintenance: 'بحاجة إلى صيانة',
+    missing: 'مفقود',
+  }[value] ?? value;
 }
 
 function SignatureBox({ title, name }: { title: string; name?: string }) {

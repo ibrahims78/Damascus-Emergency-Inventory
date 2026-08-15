@@ -28,6 +28,7 @@ import type {
   ChangePassword200,
   ChangePasswordInput,
   CustodyOutInput,
+  CustodyReport,
   CustodyReturnInput,
   CustodySummary,
   DamageInput,
@@ -40,6 +41,7 @@ import type {
   ExitReason,
   ExitReasonInput,
   FefoPreview,
+  GetCustodiesReportParams,
   GetItemFefoPreviewParams,
   GetItemHistoryParams,
   GetMovementsReportParams,
@@ -61,6 +63,7 @@ import type {
   RecipientInput,
   SetupAdminInput,
   SetupStatus,
+  StockPositionReport,
   SystemSettings,
   SystemSettingsInput,
   Transaction,
@@ -3547,6 +3550,167 @@ export function useGetEquipmentReport<TData = Awaited<ReturnType<typeof getEquip
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetEquipmentReportQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetStockPositionReportUrl = () => {
+
+
+
+
+  return `/api/reports/stock-position`
+}
+
+/**
+ * @summary Reconciled stock position by ownership and state
+ */
+export const getStockPositionReport = async ( options?: Parameters<typeof customFetch>[1]): Promise<StockPositionReport> => {
+
+  return customFetch<StockPositionReport>(getGetStockPositionReportUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStockPositionReportQueryKey = () => {
+    return [
+    `/api/reports/stock-position`
+    ] as const;
+    }
+
+
+export const getGetStockPositionReportQueryOptions = <TData = Awaited<ReturnType<typeof getStockPositionReport>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStockPositionReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStockPositionReportQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStockPositionReport>>> = ({ signal }) => getStockPositionReport({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStockPositionReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStockPositionReportQueryResult = NonNullable<Awaited<ReturnType<typeof getStockPositionReport>>>
+export type GetStockPositionReportQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Reconciled stock position by ownership and state
+ */
+
+export function useGetStockPositionReport<TData = Awaited<ReturnType<typeof getStockPositionReport>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStockPositionReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStockPositionReportQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetCustodiesReportUrl = (params?: GetCustodiesReportParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/reports/custodies?${stringifiedParams}` : `/api/reports/custodies`
+}
+
+/**
+ * @summary Open and overdue personal custody report
+ */
+export const getCustodiesReport = async (params?: GetCustodiesReportParams, options?: Parameters<typeof customFetch>[1]): Promise<CustodyReport> => {
+
+  return customFetch<CustodyReport>(getGetCustodiesReportUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCustodiesReportQueryKey = (params?: GetCustodiesReportParams,) => {
+    return [
+    `/api/reports/custodies`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetCustodiesReportQueryOptions = <TData = Awaited<ReturnType<typeof getCustodiesReport>>, TError = ErrorType<unknown>>(params?: GetCustodiesReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCustodiesReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCustodiesReportQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCustodiesReport>>> = ({ signal }) => getCustodiesReport(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCustodiesReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCustodiesReportQueryResult = NonNullable<Awaited<ReturnType<typeof getCustodiesReport>>>
+export type GetCustodiesReportQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Open and overdue personal custody report
+ */
+
+export function useGetCustodiesReport<TData = Awaited<ReturnType<typeof getCustodiesReport>>, TError = ErrorType<unknown>>(
+ params?: GetCustodiesReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCustodiesReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCustodiesReportQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

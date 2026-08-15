@@ -905,6 +905,47 @@ paths:
                 items:
                   $ref: "#/components/schemas/Equipment"
 
+  /reports/stock-position:
+    get:
+      operationId: getStockPositionReport
+      tags: [reports]
+      summary: Reconciled stock position by ownership and state
+      responses:
+        "200":
+          description: Reconciled stock position
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockPositionReport"
+
+  /reports/custodies:
+    get:
+      operationId: getCustodiesReport
+      tags: [reports]
+      summary: Open and overdue personal custody report
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, partially_returned, damaged]
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: overdueDays
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 3650
+      responses:
+        "200":
+          description: Personal custody report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustodyReport"
+
   /users:
     get:
       operationId: listUsers
@@ -1854,6 +1895,108 @@ components:
         status:
           type: string
           enum: [open, partially_returned, returned, damaged, closed]
+
+    StockPositionBatch:
+      type: object
+      required: [id, itemId, remainingQuantity]
+      properties:
+        id: { type: integer }
+        itemId: { type: integer }
+        batchNumber: { type: ["string", "null"] }
+        expiryDate: { type: ["string", "null"], format: date }
+        remainingQuantity: { type: integer }
+
+    StockPositionItem:
+      type: object
+      required:
+        - id
+        - name
+        - unit
+        - itemType
+        - currentStock
+        - availableQuantity
+        - custodyQuantity
+        - damagedQuantity
+        - batches
+      properties:
+        id: { type: integer }
+        code: { type: ["string", "null"] }
+        name: { type: string }
+        unit: { type: string }
+        itemType: { type: string, enum: [item, equipment] }
+        currentStock: { type: integer }
+        availableQuantity: { type: integer }
+        custodyQuantity: { type: integer }
+        damagedQuantity: { type: integer }
+        batches:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockPositionBatch"
+
+    StockPositionEquipment:
+      type: object
+      required:
+        - id
+        - name
+        - serialNumber
+        - condition
+        - quantity
+        - availableQuantity
+        - custodyQuantity
+        - damagedQuantity
+        - damagedLedgerQuantity
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        serialNumber: { type: ["string", "null"] }
+        condition: { type: string }
+        quantity: { type: integer }
+        currentHolder: { type: ["string", "null"] }
+        availableQuantity: { type: integer }
+        custodyQuantity: { type: integer }
+        damagedQuantity: { type: integer }
+        damagedLedgerQuantity: { type: integer }
+
+    StockPositionReport:
+      type: object
+      required: [generatedAt, items, equipment]
+      properties:
+        generatedAt: { type: string, format: date-time }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockPositionItem"
+        equipment:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockPositionEquipment"
+
+    CustodyReportRecord:
+      allOf:
+        - $ref: "#/components/schemas/CustodySummary"
+        - type: object
+          required: [overdue]
+          properties:
+            overdue: { type: boolean }
+
+    CustodyReport:
+      type: object
+      required: [overdueDays, generatedAt, records, totals]
+      properties:
+        overdueDays: { type: integer }
+        generatedAt: { type: string, format: date-time }
+        records:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustodyReportRecord"
+        totals:
+          type: object
+          required: [open, partial, overdue, outstandingQuantity]
+          properties:
+            open: { type: integer }
+            partial: { type: integer }
+            overdue: { type: integer }
+            outstandingQuantity: { type: integer }
 
     Recipient:
       type: object

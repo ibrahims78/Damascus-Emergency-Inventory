@@ -133,6 +133,13 @@ router.post(
           maintenanceNotes: maintenanceNotes || null,
         })
         .returning();
+      await auditLog({
+        req,
+        action: "create",
+        entityType: "equipment",
+        entityId: eq_.id,
+        details: { name: eq_.name, quantity: eq_.quantity, serialNumber: eq_.serialNumber },
+      });
       res.status(201).json(eq_);
       // Trigger alert worker so new equipment alerts are generated immediately
       runAlertWorker().catch((e) => console.error("Alert worker:", e));
@@ -277,6 +284,18 @@ router.post(
         }
       }
 
+      await auditLog({
+        req,
+        action: "create",
+        entityType: "equipment",
+        details: {
+          source: "bulk-import",
+          mode,
+          created: results.created,
+          updated: results.updated,
+          errors: results.errors.length,
+        },
+      });
       res.json(results);
       // Trigger worker after import so equipment alerts are generated immediately
       runAlertWorker();
@@ -382,6 +401,18 @@ router.put(
         res.status(404).json({ error: "Equipment not found" });
         return;
       }
+      await auditLog({
+        req,
+        action: "update",
+        entityType: "equipment",
+        entityId: eq_.id,
+        details: {
+          name: eq_.name,
+          condition: eq_.condition,
+          quantity: eq_.quantity,
+          serialNumber: eq_.serialNumber,
+        },
+      });
       res.json(eq_);
       runAlertWorker(); // re-evaluate: condition / minQuantity may have changed
     } catch (err: any) {

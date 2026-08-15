@@ -1404,6 +1404,86 @@ export const GetEquipmentReportResponse = zod.array(GetEquipmentReportResponseIt
 
 
 /**
+ * @summary Reconciled stock position by ownership and state
+ */
+export const GetStockPositionReportResponse = zod.object({
+  "generatedAt": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "id": zod.number().int(),
+  "code": zod.string().nullish(),
+  "name": zod.string(),
+  "unit": zod.string(),
+  "itemType": zod.enum(['item', 'equipment']),
+  "currentStock": zod.number().int(),
+  "availableQuantity": zod.number().int(),
+  "custodyQuantity": zod.number().int(),
+  "damagedQuantity": zod.number().int(),
+  "batches": zod.array(zod.object({
+  "id": zod.number().int(),
+  "itemId": zod.number().int(),
+  "batchNumber": zod.string().nullish(),
+  "expiryDate": zod.coerce.date().nullish(),
+  "remainingQuantity": zod.number().int()
+}))
+})),
+  "equipment": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "serialNumber": zod.string().nullable(),
+  "condition": zod.string(),
+  "quantity": zod.number().int(),
+  "currentHolder": zod.string().nullish(),
+  "availableQuantity": zod.number().int(),
+  "custodyQuantity": zod.number().int(),
+  "damagedQuantity": zod.number().int(),
+  "damagedLedgerQuantity": zod.number().int()
+}))
+})
+
+
+/**
+ * @summary Open and overdue personal custody report
+ */
+export const getCustodiesReportQueryOverdueDaysMax = 3650;
+
+
+
+export const GetCustodiesReportQueryParams = zod.object({
+  "status": zod.enum(['open', 'partially_returned', 'damaged']).optional(),
+  "search": zod.coerce.string().optional(),
+  "overdueDays": zod.coerce.number().int().min(1).max(getCustodiesReportQueryOverdueDaysMax).optional()
+})
+
+export const GetCustodiesReportResponse = zod.object({
+  "overdueDays": zod.number().int(),
+  "generatedAt": zod.coerce.date(),
+  "records": zod.array(zod.object({
+  "id": zod.number().int(),
+  "equipmentId": zod.number().int(),
+  "equipmentName": zod.string(),
+  "serialNumber": zod.string().nullish(),
+  "quantity": zod.number().int(),
+  "returnedQuantity": zod.number().int(),
+  "outstandingQuantity": zod.number().int(),
+  "recipientId": zod.number().int().nullish(),
+  "holderName": zod.string(),
+  "deliveryNoteNumber": zod.string(),
+  "deliveryDate": zod.coerce.date(),
+  "location": zod.string(),
+  "status": zod.enum(['open', 'partially_returned', 'returned', 'damaged', 'closed'])
+}).and(zod.object({
+  "overdue": zod.boolean()
+}))),
+  "totals": zod.object({
+  "open": zod.number().int(),
+  "partial": zod.number().int(),
+  "overdue": zod.number().int(),
+  "outstandingQuantity": zod.number().int()
+})
+})
+
+
+/**
  * @summary List all users (admin only)
  */
 export const ListUsersResponseItem = zod.object({

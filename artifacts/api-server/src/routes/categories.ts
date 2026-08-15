@@ -2,7 +2,8 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { categoriesTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
-import { requireAuth } from "../middlewares/auth";
+import { requireAuth, requireRole } from "../middlewares/auth";
+import { auditLog } from "../middlewares/audit";
 
 const router = Router();
 
@@ -20,7 +21,7 @@ router.get("/", requireAuth, async (_req, res) => {
 });
 
 // POST /api/categories
-router.post("/", requireAuth, async (req, res) => {
+router.post("/", requireAuth, requireRole("admin"), async (req, res) => {
   try {
     const { name, type } = req.body as { name?: string; type?: string };
     if (!name || !name.trim()) {
@@ -35,6 +36,13 @@ router.post("/", requireAuth, async (req, res) => {
       .insert(categoriesTable)
       .values({ name: name.trim(), type: type as "consumable" | "equipment" })
       .returning();
+    await auditLog({
+      req,
+      action: "create",
+      entityType: "category",
+      entityId: created.id,
+      details: { name: created.name, type: created.type },
+    });
     res.status(201).json(created);
   } catch (err: any) {
     if (err?.code === "23505") {
@@ -47,7 +55,7 @@ router.post("/", requireAuth, async (req, res) => {
 });
 
 // PUT /api/categories/:id
-router.put("/:id", requireAuth, async (req, res) => {
+router.put("/:id", requireAuth, requireRole("admin"), async (req, res) => {
   try {
     const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid category id" }); return; }
@@ -69,6 +77,13 @@ router.put("/:id", requireAuth, async (req, res) => {
       res.status(404).json({ error: "التصنيف غير موجود" });
       return;
     }
+    await auditLog({
+      req,
+      action: "update",
+      entityType: "category",
+      entityId: updated.id,
+      details: { name: updated.name, type: updated.type },
+    });
     res.json(updated);
   } catch (err: any) {
     if (err?.code === "23505") {
@@ -81,7 +96,7 @@ router.put("/:id", requireAuth, async (req, res) => {
 });
 
 // DELETE /api/categories/:id
-router.delete("/:id", requireAuth, async (req, res) => {
+router.delete("/:id", requireAuth, requireRole("admin"), async (req, res) => {
   try {
     const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid category id" }); return; }
@@ -93,6 +108,13 @@ router.delete("/:id", requireAuth, async (req, res) => {
       res.status(404).json({ error: "التصنيف غير موجود" });
       return;
     }
+    await auditLog({
+      req,
+      action: "delete",
+      entityType: "category",
+      entityId: deleted.id,
+      details: { name: deleted.name },
+    });
     res.json({ success: true });
   } catch (err: any) {
     // FK violation — category is in use

@@ -10,6 +10,7 @@
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
+- `pnpm --filter @workspace/scripts run phase8:acceptance` — API acceptance smoke test while API workflow is running
 - `DATABASE_URL` is provisioned automatically by Replit (runtime-managed)
 - `SESSION_SECRET` is set as a Replit Secret
 
@@ -50,10 +51,11 @@
 - **لوحة التحكم** — إحصائيات + مخططات حركة المواد
 - **المواد / التجهيزات** — CRUD كامل مع بحث وفلتر
 - **العمليات** — تسجيل إدخال وإخراج + سند A4 قابل للطباعة (RTL)
-- **التقارير** — 5 تبويبات (جرد، حركة، انتهاء صلاحية، أقل من الحد، تجهيزات) + تصدير CSV
+- **التقارير** — 7 تبويبات (جرد، حركة، انتهاء صلاحية، أقل من الحد، تجهيزات، الوضع التفصيلي، العهد المفتوحة) + طباعة وتصدير Excel
 - **المستخدمون** — CRUD كامل (admin فقط) مع أدوار ثلاثة
 - **الإعدادات** — ملف شخصي، تغيير كلمة المرور، إعدادات المنظومة
-- **التنبيهات** — جرس في الـ Header يتحدث كل 5 دقائق
+- **التنبيهات** — جرس في الـ Header مع SSE وحالات قراءة/حل
+- **التوثيق** — `docs/operations.md` للتشغيل والنسخ الاحتياطي، و`docs/user-guide-ar.md` لدليل المستخدم
 
 ## User preferences
 

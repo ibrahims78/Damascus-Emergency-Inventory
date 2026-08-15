@@ -18,7 +18,7 @@ import custodiesRouter from "./custodies";
 
 const router = Router();
 
-router.use("/health", healthRouter);
+router.use("/healthz", healthRouter);
 router.use("/auth", authRouter);
 router.use("/categories", categoriesRouter);
 router.use("/items", itemsRouter);

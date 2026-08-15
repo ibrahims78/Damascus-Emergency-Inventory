@@ -709,6 +709,77 @@ export interface CustodySummary {
   status: CustodySummaryStatus;
 }
 
+export interface StockPositionBatch {
+  id: number;
+  itemId: number;
+  /** @nullable */
+  batchNumber?: string | null;
+  /** @nullable */
+  expiryDate?: string | null;
+  remainingQuantity: number;
+}
+
+export type StockPositionItemItemType = typeof StockPositionItemItemType[keyof typeof StockPositionItemItemType];
+
+
+export const StockPositionItemItemType = {
+  item: 'item',
+  equipment: 'equipment',
+} as const;
+
+export interface StockPositionItem {
+  id: number;
+  /** @nullable */
+  code?: string | null;
+  name: string;
+  unit: string;
+  itemType: StockPositionItemItemType;
+  currentStock: number;
+  availableQuantity: number;
+  custodyQuantity: number;
+  damagedQuantity: number;
+  batches: StockPositionBatch[];
+}
+
+export interface StockPositionEquipment {
+  id: number;
+  name: string;
+  /** @nullable */
+  serialNumber: string | null;
+  condition: string;
+  quantity: number;
+  /** @nullable */
+  currentHolder?: string | null;
+  availableQuantity: number;
+  custodyQuantity: number;
+  damagedQuantity: number;
+  damagedLedgerQuantity: number;
+}
+
+export interface StockPositionReport {
+  generatedAt: string;
+  items: StockPositionItem[];
+  equipment: StockPositionEquipment[];
+}
+
+export type CustodyReportRecord = CustodySummary & {
+  overdue: boolean;
+};
+
+export type CustodyReportTotals = {
+  open: number;
+  partial: number;
+  overdue: number;
+  outstandingQuantity: number;
+};
+
+export interface CustodyReport {
+  overdueDays: number;
+  generatedAt: string;
+  records: CustodyReportRecord[];
+  totals: CustodyReportTotals;
+}
+
 export interface Recipient {
   id: number;
   name: string;
@@ -1032,6 +1103,25 @@ from?: string;
 to?: string;
 type?: string;
 };
+
+export type GetCustodiesReportParams = {
+status?: GetCustodiesReportStatus;
+search?: string;
+/**
+ * @minimum 1
+ * @maximum 3650
+ */
+overdueDays?: number;
+};
+
+export type GetCustodiesReportStatus = typeof GetCustodiesReportStatus[keyof typeof GetCustodiesReportStatus];
+
+
+export const GetCustodiesReportStatus = {
+  open: 'open',
+  partially_returned: 'partially_returned',
+  damaged: 'damaged',
+} as const;
 
 export type ChangePassword200 = {
   ok?: boolean;

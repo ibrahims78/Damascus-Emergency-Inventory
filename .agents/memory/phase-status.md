@@ -3,8 +3,8 @@ name: Phase completion status
 description: Tracks which implementation phases are done and which remain
 ---
 
-## Current development plan — Phases 1–6 complete ✅
-## Phases 7–9 — Pending ⏳
+## Current development plan — Phases 1–8 complete ✅
+## Phase 9 — Documentation complete; production gate pending ⏳
 ## August 2026 Review — 10-gap remediation ✅ Complete
 
 ## Second Code Audit — 7 additional bugs fixed ✅ (August 2026)
@@ -49,7 +49,19 @@ Full overhaul of the alerts bell:
 - Header rewritten: SSE replaces polling, unread badge (not total), severity sections (critical/warning), per-alert read+resolve buttons, mark-all-read, direct entity navigation
 - UserRole uses `warehouse_manager` not `accountant` (OpenAPI schema source of truth)
 
-## Phase 7 (Deploy) — Pending
+## Phase 7 (Reports, print, audit, permissions) — Complete ✅
+- Added reconciled stock-position and open/overdue custody report tabs and OpenAPI contracts.
+- Expanded transaction printing for custody, return, damage, central return, and adjustment movements.
+- Normalized category write permissions to admin and expanded CRUD audit coverage.
+
+## Phase 8 (Acceptance and operations verification) — Complete ✅
+- `phase8:acceptance` covers health, unauthenticated reports, viewer login, report contracts, custody filtering, and category RBAC.
+- Full typecheck/build and phase 1–6 smoke suite pass; API and web workflows run.
+
+## Phase 9 (Migration and release) — Documentation complete; release gate pending ⏳
+- Added `docs/operations.md`, `docs/user-guide-ar.md`, and `CHANGELOG.md`.
+- GitHub push still requires the user to authorize the GitHub/Replit integration.
+- Production release still requires operational approval of balance rules and environment data.
 
 ## Key architectural notes
 - ProtectedRoute: useEffect BEFORE early returns (Rules of Hooks)
