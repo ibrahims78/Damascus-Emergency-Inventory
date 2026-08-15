@@ -2,3 +2,4 @@
 - [Phase completion status](phase-status.md) — current development plan phases 1–5 are complete; phases 6–9 remain outside this implementation scope
 - [Replit deployment CORS](replit-deployment-cors.md) — API CORS must allow both replit.dev previews and replit.app published origins
 - [Phase-one schema migrations](phase1-schema-migrations.md) — existing DB upgrades need additive SQL, not a generated full-schema baseline
+- [GitHub synchronization](github-repository-sync.md) — public HTTPS fetch works, but pushing requires an authenticated GitHub/Replit integration
