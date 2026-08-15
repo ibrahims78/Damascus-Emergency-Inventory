@@ -5,28 +5,25 @@
  * Ambulance & Emergency Warehouse Management System API — Damascus
  * OpenAPI spec version: 0.1.0
  */
+import type { OutTransactionInputDeliveryDestination } from './outTransactionInputDeliveryDestination';
 import type { OutTransactionInputItemType } from './outTransactionInputItemType';
 
 export interface OutTransactionInput {
   itemType: OutTransactionInputItemType;
-  /** @nullable */
-  itemId?: number | null;
+  itemId: number;
   /** @nullable */
   equipmentId?: number | null;
-  /** @nullable */
-  quantity?: number | null;
-  /** @nullable */
-  recipientId?: number | null;
+  /** @minimum 1 */
+  quantity: number;
+  recipientId: number;
   /** @nullable */
   recipientPerson?: string | null;
   /** @nullable */
-  exitReasonId?: number | null;
-  /** @nullable */
-  internalDeliveryNoteNumber?: string | null;
-  /** @nullable */
-  internalDeliveryNoteDate?: string | null;
-  /** @nullable */
-  deliveryDestination?: string | null;
+  exitReasonId: number | null;
+  /** @minLength 1 */
+  internalDeliveryNoteNumber: string;
+  internalDeliveryNoteDate: Date;
+  deliveryDestination: OutTransactionInputDeliveryDestination;
   /** @nullable */
   notes?: string | null;
 }

@@ -14,6 +14,7 @@ import {
   transactionsTable,
   type TransactionType,
 } from "@workspace/db";
+import { DELIVERY_DESTINATIONS } from "@workspace/db";
 import { and, eq, sql } from "drizzle-orm";
 import type { Request } from "express";
 import {
@@ -81,6 +82,17 @@ const today = () => new Date().toISOString().slice(0, 10);
 function textOrNull(value: unknown): string | null {
   const valueAsText = String(value ?? "").trim();
   return valueAsText || null;
+}
+
+function assertDeliveryDestination(value: unknown): "administrative_building" | "ambulance_point" {
+  const destination = assertNonEmpty(value, "جهة التسليم");
+  if (!DELIVERY_DESTINATIONS.includes(destination as (typeof DELIVERY_DESTINATIONS)[number])) {
+    throw new InventoryMovementError(
+      "INVALID_DELIVERY_DESTINATION",
+      "جهة التسليم يجب أن تكون مبنى إداريًا أو نقطة إسعاف",
+    );
+  }
+  return destination as "administrative_building" | "ambulance_point";
 }
 
 function parseOptionalId(value: unknown): number | null {
@@ -257,7 +269,7 @@ async function getRecipientSnapshot(
   const [recipient] = await tx
     .select({ name: recipientsTable.name })
     .from(recipientsTable)
-    .where(eq(recipientsTable.id, recipientId));
+    .where(and(eq(recipientsTable.id, recipientId), eq(recipientsTable.isActive, true)));
   if (!recipient) {
     throw new InventoryMovementError("RECIPIENT_NOT_FOUND", "الجهة المستلمة غير موجودة", 404);
   }
@@ -507,6 +519,16 @@ async function createConsumableOut(
     );
   }
   const quantity = assertPositiveInteger(input.quantity, "الكمية");
+  const internalDeliveryNoteNumber = assertNonEmpty(
+    input.internalDeliveryNoteNumber,
+    "رقم مذكرة التسليم الداخلية",
+  );
+  const internalDeliveryNoteDate = assertIsoDate(
+    input.internalDeliveryNoteDate,
+    "تاريخ مذكرة التسليم الداخلية",
+    true,
+  )!;
+  const deliveryDestination = assertDeliveryDestination(input.deliveryDestination);
   const recipientId = parseOptionalId(input.recipientId);
   const exitReasonId = parseOptionalId(input.exitReasonId);
   if (!recipientId) {
@@ -521,7 +543,12 @@ async function createConsumableOut(
   const transaction = await insertTransaction(
     tx,
     context,
-    input,
+    {
+      ...input,
+      internalDeliveryNoteNumber,
+      internalDeliveryNoteDate,
+      deliveryDestination,
+    },
     "out",
     entity,
     quantity,

@@ -11,5 +11,4 @@ export type OutTransactionInputItemType = typeof OutTransactionInputItemType[key
 
 export const OutTransactionInputItemType = {
   item: 'item',
-  equipment: 'equipment',
 } as const;

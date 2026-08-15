@@ -9,7 +9,8 @@
     "phase1:schema-smoke": "node ./phase1-schema-smoke.mjs",
     "phase2:movement-unit": "tsx ./phase2-movement-unit.ts",
     "phase2:movement-smoke": "tsx ./phase2-movement-smoke.ts",
-    "phase3:inbound-smoke": "tsx ./phase3-inbound-smoke.ts"
+    "phase3:inbound-smoke": "tsx ./phase3-inbound-smoke.ts",
+    "phase4:consumables-fefo": "tsx ./phase4-consumables-fefo.ts"
   },
   "devDependencies": {
     "@types/node": "catalog:",

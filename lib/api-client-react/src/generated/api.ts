@@ -38,6 +38,8 @@ import type {
   EquipmentUpdate,
   ExitReason,
   ExitReasonInput,
+  FefoPreview,
+  GetItemFefoPreviewParams,
   GetMovementsReportParams,
   HealthStatus,
   InTransactionInput,
@@ -1362,6 +1364,90 @@ export const useDeleteEquipment = <TError = ErrorType<void>,
       > => {
       return useMutation(getDeleteEquipmentMutationOptions(options));
     }
+
+export const getGetItemFefoPreviewUrl = (params: GetItemFefoPreviewParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/items/fefo-preview?${stringifiedParams}` : `/api/items/fefo-preview`
+}
+
+/**
+ * @summary Preview FEFO allocations for a consumable item
+ */
+export const getItemFefoPreview = async (params: GetItemFefoPreviewParams, options?: Parameters<typeof customFetch>[1]): Promise<FefoPreview> => {
+
+  return customFetch<FefoPreview>(getGetItemFefoPreviewUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetItemFefoPreviewQueryKey = (params?: GetItemFefoPreviewParams,) => {
+    return [
+    `/api/items/fefo-preview`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetItemFefoPreviewQueryOptions = <TData = Awaited<ReturnType<typeof getItemFefoPreview>>, TError = ErrorType<void>>(params: GetItemFefoPreviewParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getItemFefoPreview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetItemFefoPreviewQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getItemFefoPreview>>> = ({ signal }) => getItemFefoPreview(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getItemFefoPreview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetItemFefoPreviewQueryResult = NonNullable<Awaited<ReturnType<typeof getItemFefoPreview>>>
+export type GetItemFefoPreviewQueryError = ErrorType<void>
+
+
+/**
+ * @summary Preview FEFO allocations for a consumable item
+ */
+
+export function useGetItemFefoPreview<TData = Awaited<ReturnType<typeof getItemFefoPreview>>, TError = ErrorType<void>>(
+ params: GetItemFefoPreviewParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getItemFefoPreview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetItemFefoPreviewQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListTransactionsUrl = (params?: ListTransactionsParams,) => {
   const normalizedParams = new URLSearchParams();

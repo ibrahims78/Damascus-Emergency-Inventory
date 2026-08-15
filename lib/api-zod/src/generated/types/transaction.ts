@@ -5,6 +5,7 @@
  * Ambulance & Emergency Warehouse Management System API — Damascus
  * OpenAPI spec version: 0.1.0
  */
+import type { TransactionDeliveryDestination } from './transactionDeliveryDestination';
 import type { TransactionItemType } from './transactionItemType';
 import type { TransactionSupplySource } from './transactionSupplySource';
 import type { TransactionType } from './transactionType';
@@ -54,7 +55,7 @@ export interface Transaction {
   /** @nullable */
   internalDeliveryNoteDate?: string | null;
   /** @nullable */
-  deliveryDestination?: string | null;
+  deliveryDestination?: TransactionDeliveryDestination;
   /** @nullable */
   custodyHolderName?: string | null;
   /** @nullable */

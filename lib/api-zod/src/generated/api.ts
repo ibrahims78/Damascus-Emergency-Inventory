@@ -420,6 +420,38 @@ export const DeleteEquipmentResponse = zod.void()
 
 
 /**
+ * @summary Preview FEFO allocations for a consumable item
+ */
+
+
+
+export const GetItemFefoPreviewQueryParams = zod.object({
+  "itemId": zod.coerce.number().int(),
+  "quantity": zod.coerce.number().int().min(1)
+})
+
+export const GetItemFefoPreviewResponse = zod.object({
+  "itemId": zod.number().int(),
+  "itemStock": zod.number().int(),
+  "requestedQuantity": zod.number().int(),
+  "availableQuantity": zod.number().int(),
+  "canFulfill": zod.boolean(),
+  "allocations": zod.array(zod.object({
+  "batchId": zod.number().int(),
+  "quantity": zod.number().int(),
+  "batchNumber": zod.string().nullish(),
+  "expiryDate": zod.string().nullish()
+})),
+  "expiredBatches": zod.array(zod.object({
+  "batchId": zod.number().int(),
+  "remainingQuantity": zod.number().int(),
+  "batchNumber": zod.string().nullish(),
+  "expiryDate": zod.string().nullish()
+}))
+})
+
+
+/**
  * @summary List transactions with optional filters
  */
 export const ListTransactionsQueryParams = zod.object({
@@ -457,7 +489,7 @@ export const ListTransactionsResponse = zod.object({
   "deliveryNoteDate": zod.string().nullish(),
   "internalDeliveryNoteNumber": zod.string().nullish(),
   "internalDeliveryNoteDate": zod.string().nullish(),
-  "deliveryDestination": zod.string().nullish(),
+  "deliveryDestination": zod.union([zod.literal('administrative_building'),zod.literal('ambulance_point'),zod.literal(null)]).nullish(),
   "custodyHolderName": zod.string().nullish(),
   "custodyNoteNumber": zod.string().nullish(),
   "custodyDate": zod.string().nullish(),
@@ -519,7 +551,7 @@ export const CreateInTransactionResponse = zod.object({
   "deliveryNoteDate": zod.string().nullish(),
   "internalDeliveryNoteNumber": zod.string().nullish(),
   "internalDeliveryNoteDate": zod.string().nullish(),
-  "deliveryDestination": zod.string().nullish(),
+  "deliveryDestination": zod.union([zod.literal('administrative_building'),zod.literal('ambulance_point'),zod.literal(null)]).nullish(),
   "custodyHolderName": zod.string().nullish(),
   "custodyNoteNumber": zod.string().nullish(),
   "custodyDate": zod.string().nullish(),
@@ -536,17 +568,21 @@ export const CreateInTransactionResponse = zod.object({
 /**
  * @summary Record an outbound transaction
  */
+
+
+
+
 export const CreateOutTransactionBody = zod.object({
-  "itemType": zod.enum(['item', 'equipment']),
-  "itemId": zod.number().int().nullish(),
+  "itemType": zod.enum(['item']),
+  "itemId": zod.number().int(),
   "equipmentId": zod.number().int().nullish(),
-  "quantity": zod.number().int().nullish(),
-  "recipientId": zod.number().int().nullish(),
+  "quantity": zod.number().int().min(1),
+  "recipientId": zod.number().int(),
   "recipientPerson": zod.string().nullish(),
-  "exitReasonId": zod.number().int().nullish(),
-  "internalDeliveryNoteNumber": zod.string().nullish(),
-  "internalDeliveryNoteDate": zod.string().nullish(),
-  "deliveryDestination": zod.string().nullish(),
+  "exitReasonId": zod.number().int().nullable(),
+  "internalDeliveryNoteNumber": zod.string().min(1),
+  "internalDeliveryNoteDate": zod.coerce.date(),
+  "deliveryDestination": zod.enum(['administrative_building', 'ambulance_point']),
   "notes": zod.string().nullish()
 })
 
@@ -574,7 +610,7 @@ export const CreateOutTransactionResponse = zod.object({
   "deliveryNoteDate": zod.string().nullish(),
   "internalDeliveryNoteNumber": zod.string().nullish(),
   "internalDeliveryNoteDate": zod.string().nullish(),
-  "deliveryDestination": zod.string().nullish(),
+  "deliveryDestination": zod.union([zod.literal('administrative_building'),zod.literal('ambulance_point'),zod.literal(null)]).nullish(),
   "custodyHolderName": zod.string().nullish(),
   "custodyNoteNumber": zod.string().nullish(),
   "custodyDate": zod.string().nullish(),
@@ -627,7 +663,7 @@ export const CreateInventoryAdjustmentResponse = zod.object({
   "deliveryNoteDate": zod.string().nullish(),
   "internalDeliveryNoteNumber": zod.string().nullish(),
   "internalDeliveryNoteDate": zod.string().nullish(),
-  "deliveryDestination": zod.string().nullish(),
+  "deliveryDestination": zod.union([zod.literal('administrative_building'),zod.literal('ambulance_point'),zod.literal(null)]).nullish(),
   "custodyHolderName": zod.string().nullish(),
   "custodyNoteNumber": zod.string().nullish(),
   "custodyDate": zod.string().nullish(),
@@ -683,7 +719,7 @@ export const CreateCustodyOutTransactionResponse = zod.object({
   "deliveryNoteDate": zod.string().nullish(),
   "internalDeliveryNoteNumber": zod.string().nullish(),
   "internalDeliveryNoteDate": zod.string().nullish(),
-  "deliveryDestination": zod.string().nullish(),
+  "deliveryDestination": zod.union([zod.literal('administrative_building'),zod.literal('ambulance_point'),zod.literal(null)]).nullish(),
   "custodyHolderName": zod.string().nullish(),
   "custodyNoteNumber": zod.string().nullish(),
   "custodyDate": zod.string().nullish(),
@@ -736,7 +772,7 @@ export const CreateCustodyReturnTransactionResponse = zod.object({
   "deliveryNoteDate": zod.string().nullish(),
   "internalDeliveryNoteNumber": zod.string().nullish(),
   "internalDeliveryNoteDate": zod.string().nullish(),
-  "deliveryDestination": zod.string().nullish(),
+  "deliveryDestination": zod.union([zod.literal('administrative_building'),zod.literal('ambulance_point'),zod.literal(null)]).nullish(),
   "custodyHolderName": zod.string().nullish(),
   "custodyNoteNumber": zod.string().nullish(),
   "custodyDate": zod.string().nullish(),
@@ -790,7 +826,7 @@ export const CreateDamageTransactionResponse = zod.object({
   "deliveryNoteDate": zod.string().nullish(),
   "internalDeliveryNoteNumber": zod.string().nullish(),
   "internalDeliveryNoteDate": zod.string().nullish(),
-  "deliveryDestination": zod.string().nullish(),
+  "deliveryDestination": zod.union([zod.literal('administrative_building'),zod.literal('ambulance_point'),zod.literal(null)]).nullish(),
   "custodyHolderName": zod.string().nullish(),
   "custodyNoteNumber": zod.string().nullish(),
   "custodyDate": zod.string().nullish(),
@@ -845,7 +881,7 @@ export const CreateCentralReturnTransactionResponse = zod.object({
   "deliveryNoteDate": zod.string().nullish(),
   "internalDeliveryNoteNumber": zod.string().nullish(),
   "internalDeliveryNoteDate": zod.string().nullish(),
-  "deliveryDestination": zod.string().nullish(),
+  "deliveryDestination": zod.union([zod.literal('administrative_building'),zod.literal('ambulance_point'),zod.literal(null)]).nullish(),
   "custodyHolderName": zod.string().nullish(),
   "custodyNoteNumber": zod.string().nullish(),
   "custodyDate": zod.string().nullish(),
@@ -890,7 +926,7 @@ export const GetTransactionResponse = zod.object({
   "deliveryNoteDate": zod.string().nullish(),
   "internalDeliveryNoteNumber": zod.string().nullish(),
   "internalDeliveryNoteDate": zod.string().nullish(),
-  "deliveryDestination": zod.string().nullish(),
+  "deliveryDestination": zod.union([zod.literal('administrative_building'),zod.literal('ambulance_point'),zod.literal(null)]).nullish(),
   "custodyHolderName": zod.string().nullish(),
   "custodyNoteNumber": zod.string().nullish(),
   "custodyDate": zod.string().nullish(),
@@ -936,7 +972,7 @@ export const GetTransactionPrintResponse = zod.object({
   "deliveryNoteDate": zod.string().nullish(),
   "internalDeliveryNoteNumber": zod.string().nullish(),
   "internalDeliveryNoteDate": zod.string().nullish(),
-  "deliveryDestination": zod.string().nullish(),
+  "deliveryDestination": zod.union([zod.literal('administrative_building'),zod.literal('ambulance_point'),zod.literal(null)]).nullish(),
   "custodyHolderName": zod.string().nullish(),
   "custodyNoteNumber": zod.string().nullish(),
   "custodyDate": zod.string().nullish(),
@@ -1173,7 +1209,7 @@ export const GetMovementsReportResponseItem = zod.object({
   "deliveryNoteDate": zod.string().nullish(),
   "internalDeliveryNoteNumber": zod.string().nullish(),
   "internalDeliveryNoteDate": zod.string().nullish(),
-  "deliveryDestination": zod.string().nullish(),
+  "deliveryDestination": zod.union([zod.literal('administrative_building'),zod.literal('ambulance_point'),zod.literal(null)]).nullish(),
   "custodyHolderName": zod.string().nullish(),
   "custodyNoteNumber": zod.string().nullish(),
   "custodyDate": zod.string().nullish(),

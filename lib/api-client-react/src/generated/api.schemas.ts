@@ -304,6 +304,17 @@ export const TransactionSupplySource = {
   central_warehouses: 'central_warehouses',
 } as const;
 
+/**
+ * @nullable
+ */
+export type TransactionDeliveryDestination = typeof TransactionDeliveryDestination[keyof typeof TransactionDeliveryDestination] | null;
+
+
+export const TransactionDeliveryDestination = {
+  administrative_building: 'administrative_building',
+  ambulance_point: 'ambulance_point',
+} as const;
+
 export interface Transaction {
   id: number;
   type: TransactionType;
@@ -349,7 +360,7 @@ export interface Transaction {
   /** @nullable */
   internalDeliveryNoteDate?: string | null;
   /** @nullable */
-  deliveryDestination?: string | null;
+  deliveryDestination?: TransactionDeliveryDestination;
   /** @nullable */
   custodyHolderName?: string | null;
   /** @nullable */
@@ -381,6 +392,34 @@ export interface TransactionPrint {
   transaction: Transaction;
   organizationName: string;
   printedAt: string;
+}
+
+export interface FefoAllocation {
+  batchId: number;
+  quantity: number;
+  /** @nullable */
+  batchNumber?: string | null;
+  /** @nullable */
+  expiryDate?: string | null;
+}
+
+export interface FefoExpiredBatch {
+  batchId: number;
+  remainingQuantity: number;
+  /** @nullable */
+  batchNumber?: string | null;
+  /** @nullable */
+  expiryDate?: string | null;
+}
+
+export interface FefoPreview {
+  itemId: number;
+  itemStock: number;
+  requestedQuantity: number;
+  availableQuantity: number;
+  canFulfill: boolean;
+  allocations: FefoAllocation[];
+  expiredBatches: FefoExpiredBatch[];
 }
 
 export type InTransactionInputItemType = typeof InTransactionInputItemType[keyof typeof InTransactionInputItemType];
@@ -425,29 +464,32 @@ export type OutTransactionInputItemType = typeof OutTransactionInputItemType[key
 
 export const OutTransactionInputItemType = {
   item: 'item',
-  equipment: 'equipment',
+} as const;
+
+export type OutTransactionInputDeliveryDestination = typeof OutTransactionInputDeliveryDestination[keyof typeof OutTransactionInputDeliveryDestination];
+
+
+export const OutTransactionInputDeliveryDestination = {
+  administrative_building: 'administrative_building',
+  ambulance_point: 'ambulance_point',
 } as const;
 
 export interface OutTransactionInput {
   itemType: OutTransactionInputItemType;
-  /** @nullable */
-  itemId?: number | null;
+  itemId: number;
   /** @nullable */
   equipmentId?: number | null;
-  /** @nullable */
-  quantity?: number | null;
-  /** @nullable */
-  recipientId?: number | null;
+  /** @minimum 1 */
+  quantity: number;
+  recipientId: number;
   /** @nullable */
   recipientPerson?: string | null;
   /** @nullable */
-  exitReasonId?: number | null;
-  /** @nullable */
-  internalDeliveryNoteNumber?: string | null;
-  /** @nullable */
-  internalDeliveryNoteDate?: string | null;
-  /** @nullable */
-  deliveryDestination?: string | null;
+  exitReasonId: number | null;
+  /** @minLength 1 */
+  internalDeliveryNoteNumber: string;
+  internalDeliveryNoteDate: string;
+  deliveryDestination: OutTransactionInputDeliveryDestination;
   /** @nullable */
   notes?: string | null;
 }
@@ -820,6 +862,14 @@ export const ListEquipmentSortDir = {
   asc: 'asc',
   desc: 'desc',
 } as const;
+
+export type GetItemFefoPreviewParams = {
+itemId: number;
+/**
+ * @minimum 1
+ */
+quantity: number;
+};
 
 export type ListTransactionsParams = {
 type?: string;

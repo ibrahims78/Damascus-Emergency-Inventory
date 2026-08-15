@@ -166,6 +166,9 @@ try {
       quantity: 12,
       recipientId,
       exitReasonId,
+      internalDeliveryNoteNumber: `PHASE2-OUT-${suffix}-A`,
+      internalDeliveryNoteDate: "2099-01-03",
+      deliveryDestination: "ambulance_point",
     },
     context(),
   );
@@ -195,6 +198,9 @@ try {
         quantity: 4,
         recipientId,
         exitReasonId,
+        internalDeliveryNoteNumber: `PHASE2-OUT-${suffix}-B`,
+        internalDeliveryNoteDate: "2099-01-04",
+        deliveryDestination: "administrative_building",
       },
       context(),
     );

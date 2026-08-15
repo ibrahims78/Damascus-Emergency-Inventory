@@ -5,12 +5,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
   useListItems,
-  useListEquipment,
   useListRecipients,
   useListExitReasons,
+  useGetItemFefoPreview,
   useCreateOutTransaction,
   type Item,
-  type Equipment,
   type Recipient,
   type ExitReason,
 } from '@workspace/api-client-react';
@@ -43,17 +42,24 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 
 const schema = z.object({
-  itemType: z.enum(['item', 'equipment']),
+  itemType: z.literal('item'),
   itemId: z.coerce.number().optional().nullable(),
-  equipmentId: z.coerce.number().optional().nullable(),
-  quantity: z.coerce.number().min(1, 'الكمية يجب أن تكون 1 على الأقل').optional().nullable(),
+  quantity: z.coerce.number().min(1, 'الكمية يجب أن تكون 1 على الأقل'),
   recipientId: z.coerce.number().min(1, 'الجهة المستلمة مطلوبة'),
-  recipientPerson: z.string().optional().nullable(),
   exitReasonId: z.coerce.number().min(1, 'سبب الإخراج مطلوب'),
+  internalDeliveryNoteNumber: z.string().trim().min(1, 'رقم مذكرة التسليم الداخلية مطلوب'),
+  internalDeliveryNoteDate: z.string().refine(isValidDate, 'تاريخ مذكرة التسليم الداخلية غير صالح'),
+  deliveryDestination: z.enum(['administrative_building', 'ambulance_point']),
   notes: z.string().optional().nullable(),
 });
 
 type FormValues = z.infer<typeof schema>;
+
+function isValidDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
 
 export function TransactionOutForm() {
   const [, setLocation] = useLocation();
@@ -61,7 +67,6 @@ export function TransactionOutForm() {
   const [pendingConfirm, setPendingConfirm] = useState(false);
 
   const { data: itemsData } = useListItems({ limit: 500 });
-  const { data: equipmentData } = useListEquipment({ limit: 500 });
   const { data: recipients } = useListRecipients();
   const { data: exitReasons } = useListExitReasons();
   const mutation = useCreateOutTransaction();
@@ -71,34 +76,45 @@ export function TransactionOutForm() {
     defaultValues: {
       itemType: 'item',
       itemId: null,
-      equipmentId: null,
       quantity: 1,
       recipientId: 0,
-      recipientPerson: '',
       exitReasonId: 0,
+      internalDeliveryNoteNumber: '',
+      internalDeliveryNoteDate: '',
+      deliveryDestination: 'ambulance_point',
       notes: '',
     },
   });
 
-  const watchItemType = form.watch('itemType');
   const watchItemId = form.watch('itemId');
-  const watchEquipmentId = form.watch('equipmentId');
   const watchQuantity = form.watch('quantity') ?? 0;
 
   const selectedItem =
-    watchItemType === 'item' && watchItemId
+    watchItemId
       ? itemsData?.items.find((i: Item) => i.id === Number(watchItemId))
       : null;
 
-  const selectedEquipment =
-    watchItemType === 'equipment' && watchEquipmentId
-      ? equipmentData?.equipment.find((e: Equipment) => e.id === Number(watchEquipmentId))
-      : null;
+  const fefoParams =
+    watchItemId && watchQuantity > 0
+      ? { itemId: Number(watchItemId), quantity: Number(watchQuantity) }
+      : { itemId: 0, quantity: 1 };
+  const { data: fefoPreview, isFetching: isFefoPreviewFetching } =
+    useGetItemFefoPreview(fefoParams, {
+      query: {
+        queryKey: ['/api/items/fefo-preview', fefoParams],
+        enabled: Boolean(watchItemId && watchQuantity > 0),
+      },
+    });
 
   const quantityExceedsStock =
     selectedItem != null && watchQuantity > 0
       ? watchQuantity > selectedItem.currentStock
       : false;
+  const batchStockInsufficient =
+    selectedItem != null &&
+    watchQuantity > 0 &&
+    fefoPreview != null &&
+    !fefoPreview.canFulfill;
 
   const wouldBeBelowMin =
     selectedItem != null && watchQuantity > 0 && !quantityExceedsStock
@@ -107,24 +123,22 @@ export function TransactionOutForm() {
 
   const handleSubmit = (data: FormValues) => {
     // Validate item/equipment selection
-    if (data.itemType === 'item' && !data.itemId) {
+    if (!data.itemId) {
       form.setError('itemId', { message: 'يرجى اختيار المادة' });
       return;
     }
-    if (data.itemType === 'equipment' && !data.equipmentId) {
-      form.setError('equipmentId', { message: 'يرجى اختيار التجهيز' });
-      return;
-    }
-    if (data.itemType === 'item' && (!data.quantity || data.quantity < 1)) {
+    if (!data.quantity || data.quantity < 1) {
       form.setError('quantity', { message: 'الكمية يجب أن تكون 1 على الأقل' });
       return;
     }
 
     // Hard block: quantity exceeds stock
-    if (quantityExceedsStock) {
+    if (quantityExceedsStock || batchStockInsufficient) {
       toast({
         variant: 'destructive',
-        description: `الكمية المطلوبة (${data.quantity}) تتجاوز الرصيد المتاح (${selectedItem?.currentStock} ${selectedItem?.unit})`,
+        description: batchStockInsufficient
+          ? `الكمية المطلوبة (${data.quantity}) تتجاوز رصيد الدفعات الصالحة (${fefoPreview?.availableQuantity ?? 0} ${selectedItem?.unit})`
+          : `الكمية المطلوبة (${data.quantity}) تتجاوز الرصيد المتاح (${selectedItem?.currentStock} ${selectedItem?.unit})`,
       });
       return;
     }
@@ -139,14 +153,15 @@ export function TransactionOutForm() {
     mutation.mutate(
       {
         data: {
-          itemType: data.itemType as 'item' | 'equipment',
-          itemId: data.itemType === 'item' ? (data.itemId ?? null) : null,
-          equipmentId:
-            data.itemType === 'equipment' ? (data.equipmentId ?? null) : null,
-          quantity: data.itemType === 'item' ? (data.quantity ?? null) : null,
+          itemType: 'item',
+          itemId: data.itemId ?? null,
+          equipmentId: null,
+          quantity: data.quantity,
           recipientId: data.recipientId,
-          recipientPerson: data.recipientPerson || null,
           exitReasonId: data.exitReasonId,
+          internalDeliveryNoteNumber: data.internalDeliveryNoteNumber.trim(),
+          internalDeliveryNoteDate: data.internalDeliveryNoteDate,
+          deliveryDestination: data.deliveryDestination,
           notes: data.notes || null,
         },
       },
@@ -167,7 +182,7 @@ export function TransactionOutForm() {
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       {/* Page Header */}
-      <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4">
         <Button
           variant="ghost"
           size="icon"
@@ -189,199 +204,243 @@ export function TransactionOutForm() {
       <div className="bg-card border rounded-lg shadow-sm p-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-            {/* Item Type Toggle */}
+            <div className="rounded-md border border-primary/20 bg-primary/5 p-4 text-sm">
+              <p className="font-semibold text-primary">إخراج مواد مستهلكة</p>
+              <p className="mt-1 text-muted-foreground">
+                هذه الشاشة تخص المواد المستهلكة فقط. يتم اختيار الدفعات تلقائيًا
+                حسب أقرب تاريخ صلاحية (FEFO)، ولا تتضمن عهدة شخصية.
+              </p>
+            </div>
+
+            {/* Item Select */}
             <FormField
               control={form.control}
-              name="itemType"
+              name="itemId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>نوع الصنف *</FormLabel>
-                  <div className="flex gap-3">
-                    <Button
-                      type="button"
-                      variant={field.value === 'item' ? 'default' : 'outline'}
-                      className="flex-1"
-                      onClick={() => {
-                        field.onChange('item');
-                        form.setValue('equipmentId', null);
-                        form.clearErrors('equipmentId');
-                        setPendingConfirm(false);
-                      }}
-                    >
-                      مادة / مستهلك
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={field.value === 'equipment' ? 'default' : 'outline'}
-                      className="flex-1"
-                      onClick={() => {
-                        field.onChange('equipment');
-                        form.setValue('itemId', null);
-                        form.setValue('quantity', null);
-                        form.clearErrors('itemId');
-                        setPendingConfirm(false);
-                      }}
-                    >
-                      تجهيز / معدة
-                    </Button>
-                  </div>
+                  <FormLabel>المادة *</FormLabel>
+                  <Select
+                    value={field.value ? field.value.toString() : ''}
+                    onValueChange={(v) => {
+                      field.onChange(parseInt(v));
+                      setPendingConfirm(false);
+                    }}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="اختر المادة من القائمة..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {itemsData?.items
+                        .filter((i: Item) => i.isActive)
+                        .map((item: Item) => (
+                          <SelectItem key={item.id} value={item.id.toString()}>
+                            {item.name}
+                            {item.code ? ` (${item.code})` : ''} — رصيد:{' '}
+                            {item.currentStock} {item.unit}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+
+                  {selectedItem && (
+                    <div className="mt-2 p-3 bg-muted/50 rounded-md flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                      <span className="text-muted-foreground">الرصيد الحالي:</span>
+                      <Badge
+                        variant={
+                          selectedItem.currentStock <= selectedItem.minStock
+                            ? 'destructive'
+                            : 'secondary'
+                        }
+                      >
+                        {selectedItem.currentStock} {selectedItem.unit}
+                      </Badge>
+                      <span className="text-muted-foreground">الرصيد الصالح للصرف:</span>
+                      <Badge variant={batchStockInsufficient ? 'destructive' : 'outline'}>
+                        {fefoPreview?.availableQuantity ?? '—'} {selectedItem.unit}
+                      </Badge>
+                    </div>
+                  )}
+                  <FormMessage />
                 </FormItem>
               )}
             />
 
-            {/* Item Select */}
-            {watchItemType === 'item' && (
-              <FormField
-                control={form.control}
-                name="itemId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>المادة *</FormLabel>
-                    <Select
-                      value={field.value ? field.value.toString() : ''}
-                      onValueChange={(v) => {
-                        field.onChange(parseInt(v));
+            {/* Quantity (items only) */}
+            <FormField
+              control={form.control}
+              name="quantity"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    الكمية *
+                    {selectedItem && (
+                      <span className="font-normal text-muted-foreground mr-2 text-xs">
+                        (الحد الأقصى: {selectedItem.currentStock} {selectedItem.unit})
+                      </span>
+                    )}
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={selectedItem?.currentStock}
+                      {...field}
+                      value={field.value ?? ''}
+                      onChange={(e) => {
+                        field.onChange(
+                          e.target.value === '' ? null : e.target.valueAsNumber,
+                        );
                         setPendingConfirm(false);
                       }}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="اختر المادة من القائمة..." />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {itemsData?.items
-                          .filter((i: Item) => i.isActive)
-                          .map((item: Item) => (
-                            <SelectItem key={item.id} value={item.id.toString()}>
-                              {item.name}
-                              {item.code ? ` (${item.code})` : ''} — رصيد:{' '}
-                              {item.currentStock} {item.unit}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
+                      className={`max-w-[180px] ${quantityExceedsStock || batchStockInsufficient ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                    />
+                  </FormControl>
 
-                    {/* Stock Info */}
-                    {selectedItem && (
-                      <div className="mt-2 p-3 bg-muted/50 rounded-md flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                        <span className="text-muted-foreground">الرصيد الحالي:</span>
-                        <Badge
-                          variant={
-                            selectedItem.currentStock <= selectedItem.minStock
-                              ? 'destructive'
-                              : 'secondary'
-                          }
-                        >
-                          {selectedItem.currentStock} {selectedItem.unit}
-                        </Badge>
-                        <span className="text-muted-foreground">الحد الأدنى:</span>
+                  {quantityExceedsStock && (
+                    <div className="flex items-center gap-2 text-destructive text-sm mt-1 p-2 bg-destructive/10 rounded">
+                      <ShieldAlert className="w-4 h-4 shrink-0" />
+                      <span>
+                        الكمية تتجاوز الرصيد المتاح ({selectedItem?.currentStock}{' '}
+                        {selectedItem?.unit})
+                      </span>
+                    </div>
+                  )}
+                  {batchStockInsufficient && (
+                    <div className="flex items-center gap-2 text-destructive text-sm mt-1 p-2 bg-destructive/10 rounded">
+                      <ShieldAlert className="w-4 h-4 shrink-0" />
+                      <span>
+                        الدفعات الصالحة لا تكفي؛ المتاح للصرف{' '}
+                        {fefoPreview?.availableQuantity} {selectedItem?.unit}
+                      </span>
+                    </div>
+                  )}
+                  {wouldBeBelowMin && (
+                    <div className="flex items-center gap-2 text-warning text-sm mt-1 p-2 bg-warning/10 rounded">
+                      <AlertTriangle className="w-4 h-4 shrink-0" />
+                      <span>
+                        تحذير: الرصيد بعد الإخراج ({selectedItem!.currentStock - watchQuantity}{' '}
+                        {selectedItem?.unit}) سيكون أقل من الحد الأدنى (
+                        {selectedItem?.minStock} {selectedItem?.unit})
+                      </span>
+                    </div>
+                  )}
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* FEFO Preview */}
+            {selectedItem && (
+              <div className="rounded-md border border-secondary bg-secondary/10 p-4 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-semibold">تخصيص الدفعات المتوقع (FEFO)</p>
+                  {isFefoPreviewFetching && (
+                    <span className="text-xs text-muted-foreground">جاري الحساب...</span>
+                  )}
+                </div>
+                {!isFefoPreviewFetching && fefoPreview?.canFulfill && fefoPreview.allocations.length > 0 && (
+                  <div className="mt-2 space-y-1 text-muted-foreground">
+                    {fefoPreview.allocations.map((allocation) => (
+                      <div key={allocation.batchId} className="flex items-center justify-between gap-3">
+                        <span>
+                          دفعة {allocation.batchNumber || 'بلا رقم'}
+                          {allocation.expiryDate
+                            ? ` — صلاحية ${allocation.expiryDate}`
+                            : ' — بلا تاريخ صلاحية'}
+                        </span>
                         <Badge variant="outline">
-                          {selectedItem.minStock} {selectedItem.unit}
+                          {allocation.quantity} {selectedItem.unit}
                         </Badge>
                       </div>
-                    )}
-                    <FormMessage />
-                  </FormItem>
+                    ))}
+                  </div>
                 )}
-              />
+                {!isFefoPreviewFetching && fefoPreview && !fefoPreview.canFulfill && (
+                  <p className="mt-2 text-destructive">
+                    لا تكفي الدفعات الصالحة للكمية المطلوبة. الدفعات المنتهية لا تدخل في الصرف.
+                  </p>
+                )}
+                {!isFefoPreviewFetching && fefoPreview?.canFulfill && fefoPreview.allocations.length === 0 && (
+                  <p className="mt-2 text-muted-foreground">
+                    لا توجد دفعات قابلة للصرف لهذه المادة.
+                  </p>
+                )}
+              </div>
             )}
 
-            {/* Equipment Select */}
-            {watchItemType === 'equipment' && (
+            {/* Internal delivery note */}
+            <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
-                name="equipmentId"
+                name="internalDeliveryNoteNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>التجهيز *</FormLabel>
-                    <Select
-                      value={field.value ? field.value.toString() : ''}
-                      onValueChange={(v) => {
-                        field.onChange(parseInt(v));
-                        setPendingConfirm(false);
-                      }}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="اختر التجهيز من القائمة..." />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {equipmentData?.equipment
-                          .filter((e: Equipment) => e.condition !== 'consumed')
-                          .map((eq: Equipment) => (
-                            <SelectItem key={eq.id} value={eq.id.toString()}>
-                              {eq.name}
-                              {eq.serialNumber ? ` — ${eq.serialNumber}` : ''}
-                              {eq.model ? ` (${eq.model})` : ''}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-
-            {/* Quantity (items only) */}
-            {watchItemType === 'item' && (
-              <FormField
-                control={form.control}
-                name="quantity"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      الكمية *
-                      {selectedItem && (
-                        <span className="font-normal text-muted-foreground mr-2 text-xs">
-                          (الحد الأقصى: {selectedItem.currentStock} {selectedItem.unit})
-                        </span>
-                      )}
-                    </FormLabel>
+                    <FormLabel>رقم مذكرة التسليم الداخلية *</FormLabel>
                     <FormControl>
                       <Input
-                        type="number"
-                        min={1}
-                        max={selectedItem?.currentStock}
                         {...field}
-                        value={field.value ?? ''}
-                        onChange={(e) => {
-                          field.onChange(
-                            e.target.value === '' ? null : e.target.valueAsNumber,
-                          );
+                        placeholder="مثال: داخلي-2026-001"
+                        onChange={(event) => {
+                          field.onChange(event);
                           setPendingConfirm(false);
                         }}
-                        className={`max-w-[180px] ${quantityExceedsStock ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                       />
                     </FormControl>
-
-                    {/* Stock Warnings */}
-                    {quantityExceedsStock && (
-                      <div className="flex items-center gap-2 text-destructive text-sm mt-1 p-2 bg-destructive/10 rounded">
-                        <ShieldAlert className="w-4 h-4 shrink-0" />
-                        <span>
-                          الكمية تتجاوز الرصيد المتاح (
-                          {selectedItem?.currentStock} {selectedItem?.unit})
-                        </span>
-                      </div>
-                    )}
-                    {wouldBeBelowMin && (
-                      <div className="flex items-center gap-2 text-warning text-sm mt-1 p-2 bg-warning/10 rounded">
-                        <AlertTriangle className="w-4 h-4 shrink-0" />
-                        <span>
-                          تحذير: الرصيد بعد الإخراج ({selectedItem!.currentStock - watchQuantity}{' '}
-                          {selectedItem?.unit}) سيكون أقل من الحد الأدنى (
-                          {selectedItem?.minStock} {selectedItem?.unit})
-                        </span>
-                      </div>
-                    )}
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            )}
+              <FormField
+                control={form.control}
+                name="internalDeliveryNoteDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>تاريخ مذكرة التسليم الداخلية *</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        {...field}
+                        onChange={(event) => {
+                          field.onChange(event);
+                          setPendingConfirm(false);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="deliveryDestination"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>جهة التسليم *</FormLabel>
+                  <Select
+                    value={field.value}
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      setPendingConfirm(false);
+                    }}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="اختر جهة التسليم..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="administrative_building">مبنى إداري</SelectItem>
+                      <SelectItem value="ambulance_point">نقطة إسعاف</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             {/* Recipient */}
             <FormField
@@ -389,7 +448,7 @@ export function TransactionOutForm() {
               name="recipientId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>الجهة المستلمة *</FormLabel>
+                  <FormLabel>اسم المستلم / الجهة *</FormLabel>
                   <Select
                     value={field.value && field.value > 0 ? field.value.toString() : ''}
                     onValueChange={(v) => {
@@ -410,25 +469,6 @@ export function TransactionOutForm() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Recipient Person */}
-            <FormField
-              control={form.control}
-              name="recipientPerson"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>اسم المستلم (اختياري)</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={field.value || ''}
-                      placeholder="اسم الشخص المستلم داخل الجهة"
-                    />
-                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -493,17 +533,15 @@ export function TransactionOutForm() {
                 <div>
                   <p className="font-semibold mb-1">تأكيد عملية الإخراج</p>
                   <p className="text-foreground/80">
-                    سيتم تسجيل إخراج{' '}
-                    {watchItemType === 'item' ? (
-                      <>
-                        <strong>{selectedItem?.name}</strong> بكمية{' '}
-                        <strong>
-                          {watchQuantity} {selectedItem?.unit}
-                        </strong>
-                      </>
-                    ) : (
-                      <strong>{selectedEquipment?.name}</strong>
-                    )}
+                    سيتم تسجيل إخراج <strong>{selectedItem?.name}</strong> بكمية{' '}
+                    <strong>
+                      {watchQuantity} {selectedItem?.unit}
+                    </strong>{' '}
+                    بمذكرة داخلية رقم{' '}
+                    <strong>{form.getValues('internalDeliveryNoteNumber')}</strong>.
+                    {fefoPreview?.allocations.length ? (
+                      <> سيصرف النظام تلقائيًا من {fefoPreview.allocations.length} دفعة حسب FEFO.</>
+                    ) : null}
                     {wouldBeBelowMin && (
                       <span className="text-warning font-medium">
                         {' '}(تحذير: سيكون الرصيد تحت الحد الأدنى)
@@ -528,7 +566,12 @@ export function TransactionOutForm() {
               <Button
                 type="submit"
                 variant="destructive"
-                disabled={mutation.isPending || quantityExceedsStock}
+                disabled={
+                  mutation.isPending ||
+                  quantityExceedsStock ||
+                  batchStockInsufficient ||
+                  isFefoPreviewFetching
+                }
                 className="gap-2"
               >
                 <Save className="w-4 h-4" />

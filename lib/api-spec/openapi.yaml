@@ -351,6 +351,34 @@ paths:
         "404":
           description: Not found
 
+  /items/fefo-preview:
+    get:
+      operationId: getItemFefoPreview
+      tags: [items]
+      summary: Preview FEFO allocations for a consumable item
+      parameters:
+        - name: itemId
+          in: query
+          required: true
+          schema: { type: integer }
+        - name: quantity
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: FEFO allocation preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FefoPreview"
+        "400":
+          description: Invalid quantity or non-consumable item
+        "404":
+          description: Item not found
+
   /transactions:
     get:
       operationId: listTransactions
@@ -1383,6 +1411,7 @@ components:
           type: ["string", "null"]
         deliveryDestination:
           type: ["string", "null"]
+          enum: [administrative_building, ambulance_point, null]
         custodyHolderName:
           type: ["string", "null"]
         custodyNoteNumber:
@@ -1430,6 +1459,55 @@ components:
         printedAt:
           type: string
 
+    FefoAllocation:
+      type: object
+      required: [batchId, quantity]
+      properties:
+        batchId:
+          type: integer
+        quantity:
+          type: integer
+        batchNumber:
+          type: ["string", "null"]
+        expiryDate:
+          type: ["string", "null"]
+
+    FefoExpiredBatch:
+      type: object
+      required: [batchId, remainingQuantity]
+      properties:
+        batchId:
+          type: integer
+        remainingQuantity:
+          type: integer
+        batchNumber:
+          type: ["string", "null"]
+        expiryDate:
+          type: ["string", "null"]
+
+    FefoPreview:
+      type: object
+      required: [itemId, itemStock, requestedQuantity, availableQuantity, canFulfill, allocations, expiredBatches]
+      properties:
+        itemId:
+          type: integer
+        itemStock:
+          type: integer
+        requestedQuantity:
+          type: integer
+        availableQuantity:
+          type: integer
+        canFulfill:
+          type: boolean
+        allocations:
+          type: array
+          items:
+            $ref: "#/components/schemas/FefoAllocation"
+        expiredBatches:
+          type: array
+          items:
+            $ref: "#/components/schemas/FefoExpiredBatch"
+
     InTransactionInput:
       type: object
       required: [itemType, deliveryNoteNumber, deliveryNoteDate]
@@ -1463,29 +1541,33 @@ components:
 
     OutTransactionInput:
       type: object
-      required: [itemType]
+      required: [itemType, itemId, quantity, recipientId, exitReasonId, internalDeliveryNoteNumber, internalDeliveryNoteDate, deliveryDestination]
       properties:
         itemType:
           type: string
-          enum: [item, equipment]
+          enum: [item]
         itemId:
-          type: ["integer", "null"]
+          type: integer
         equipmentId:
           type: ["integer", "null"]
         quantity:
-          type: ["integer", "null"]
+          type: integer
+          minimum: 1
         recipientId:
-          type: ["integer", "null"]
+          type: integer
         recipientPerson:
           type: ["string", "null"]
         exitReasonId:
           type: ["integer", "null"]
         internalDeliveryNoteNumber:
-          type: ["string", "null"]
+          type: string
+          minLength: 1
         internalDeliveryNoteDate:
-          type: ["string", "null"]
+          type: string
+          format: date
         deliveryDestination:
-          type: ["string", "null"]
+          type: string
+          enum: [administrative_building, ambulance_point]
         notes:
           type: ["string", "null"]
 

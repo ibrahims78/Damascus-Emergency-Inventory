@@ -1,8 +1,19 @@
 import { Router } from "express";
-import { db, itemsTable, categoriesTable, systemSettingsTable } from "@workspace/db";
+import {
+  db,
+  inventoryBatchesTable,
+  itemsTable,
+  categoriesTable,
+  systemSettingsTable,
+} from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
 import { auditLog } from "../middlewares/audit";
 import { runAlertWorker } from "../lib/alert-worker";
+import {
+  allocateBatchesFefo,
+  InventoryMovementError,
+  type FefoBatch,
+} from "../lib/inventory-movement-core";
 import { eq, and, ilike, or, lte, sql, isNotNull, asc, desc, type AnyColumn } from "drizzle-orm";
 
 const router = Router();
@@ -330,6 +341,111 @@ router.post(
     }
   }
 );
+
+// GET /api/items/fefo-preview
+router.get("/fefo-preview", requireAuth, async (req, res) => {
+  try {
+    const id = Number.parseInt(String(req.query.itemId ?? ""), 10);
+    const quantity = Number.parseInt(String(req.query.quantity ?? ""), 10);
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      res.status(400).json({ error: "Invalid item id" });
+      return;
+    }
+    if (!Number.isSafeInteger(quantity) || quantity <= 0) {
+      res.status(400).json({ error: "الكمية يجب أن تكون عددًا صحيحًا أكبر من الصفر" });
+      return;
+    }
+
+    const [item] = await db
+      .select({
+        id: itemsTable.id,
+        itemType: itemsTable.itemType,
+        currentStock: itemsTable.currentStock,
+      })
+      .from(itemsTable)
+      .where(and(eq(itemsTable.id, id), eq(itemsTable.isActive, true)));
+
+    if (!item) {
+      res.status(404).json({ error: "Item not found" });
+      return;
+    }
+    if (item.itemType !== "item") {
+      res.status(400).json({ error: "معاينة FEFO متاحة للمواد المستهلكة فقط" });
+      return;
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const batches = await db
+      .select({
+        id: inventoryBatchesTable.id,
+        remainingQuantity: inventoryBatchesTable.remainingQuantity,
+        expiryDate: inventoryBatchesTable.expiryDate,
+        batchNumber: inventoryBatchesTable.batchNumber,
+      })
+      .from(inventoryBatchesTable)
+      .where(
+        and(
+          eq(inventoryBatchesTable.itemId, id),
+          sql`${inventoryBatchesTable.remainingQuantity} > 0`,
+        ),
+      )
+      .orderBy(sql`${inventoryBatchesTable.expiryDate} ASC NULLS LAST`, asc(inventoryBatchesTable.id));
+
+    const normalizedBatches: FefoBatch[] = batches.map((batch) => ({
+      id: batch.id,
+      remainingQuantity: batch.remainingQuantity,
+      expiryDate: batch.expiryDate,
+      batchNumber: batch.batchNumber,
+    }));
+    const eligibleBatches = normalizedBatches.filter(
+      (batch) => !batch.expiryDate || batch.expiryDate >= today,
+    );
+    const expiredBatches = normalizedBatches.filter(
+      (batch) => Boolean(batch.expiryDate && batch.expiryDate < today),
+    );
+    const availableQuantity = eligibleBatches.reduce(
+      (total, batch) => total + batch.remainingQuantity,
+      0,
+    );
+
+    let allocations: ReturnType<typeof allocateBatchesFefo> = [];
+    let canFulfill = false;
+    try {
+      allocations = allocateBatchesFefo(normalizedBatches, quantity, today);
+      canFulfill = true;
+    } catch (error) {
+      if (
+        !(error instanceof InventoryMovementError) ||
+        error.code !== "INSUFFICIENT_BATCH_STOCK"
+      ) {
+        throw error;
+      }
+    }
+
+    res.json({
+      itemId: item.id,
+      itemStock: item.currentStock,
+      requestedQuantity: quantity,
+      availableQuantity,
+      canFulfill,
+      allocations: allocations.map((allocation) => ({
+        batchId: allocation.batchId,
+        quantity: allocation.quantity,
+        batchNumber: allocation.batchNumberSnap,
+        expiryDate: allocation.expiryDateSnap,
+      })),
+      expiredBatches: expiredBatches.map((batch) => ({
+        batchId: batch.id,
+        remainingQuantity: batch.remainingQuantity,
+        batchNumber: batch.batchNumber,
+        expiryDate: batch.expiryDate,
+      })),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 // GET /api/items/:id
 router.get("/:id", requireAuth, async (req, res) => {
