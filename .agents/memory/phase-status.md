@@ -60,7 +60,7 @@ Full overhaul of the alerts bell:
 
 ## Phase 9 (Migration and release) — Documentation complete; release gate pending ⏳
 - Added `docs/operations.md`, `docs/user-guide-ar.md`, and `CHANGELOG.md`.
-- GitHub push still requires the user to authorize the GitHub/Replit integration.
+- GitHub push requires an authenticated GitHub/Replit integration or an equivalent secure `GITHUB_TOKEN`.
 - Production release still requires operational approval of balance rules and environment data.
 
 ## Key architectural notes
