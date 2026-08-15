@@ -37,11 +37,23 @@ const schema = z.object({
   itemId: z.coerce.number().optional().nullable(),
   equipmentId: z.coerce.number().optional().nullable(),
   quantity: z.coerce.number().min(1, 'الكمية يجب أن تكون 1 على الأقل').optional().nullable(),
-  supplier: z.string().optional().nullable(),
+  deliveryNoteNumber: z.string().trim().min(1, 'رقم مذكرة التسليم مطلوب'),
+  deliveryNoteDate: z.string().refine(isValidDate, 'تاريخ مذكرة التسليم غير صالح'),
+  expiryDate: z
+    .string()
+    .optional()
+    .refine((value) => !value || isValidDate(value), 'تاريخ الصلاحية غير صالح'),
+  batchNumber: z.string().optional(),
   notes: z.string().optional().nullable(),
 });
 
 type FormValues = z.infer<typeof schema>;
+
+function isValidDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
 
 export function TransactionInForm() {
   const [, setLocation] = useLocation();
@@ -59,7 +71,10 @@ export function TransactionInForm() {
       itemId: null,
       equipmentId: null,
       quantity: 1,
-      supplier: '',
+      deliveryNoteNumber: '',
+      deliveryNoteDate: '',
+      expiryDate: '',
+      batchNumber: '',
       notes: '',
     },
   });
@@ -108,7 +123,11 @@ export function TransactionInForm() {
           itemId: data.itemType === 'item' ? (data.itemId ?? null) : null,
           equipmentId: data.itemType === 'equipment' ? (data.equipmentId ?? null) : null,
           quantity: data.itemType === 'item' ? (data.quantity ?? null) : null,
-          supplier: data.supplier || null,
+          deliveryNoteNumber: data.deliveryNoteNumber.trim(),
+          deliveryNoteDate: data.deliveryNoteDate,
+          supplySource: 'central_warehouses',
+          expiryDate: data.expiryDate || null,
+          batchNumber: data.batchNumber?.trim() || null,
           notes: data.notes || null,
         },
       },
@@ -335,24 +354,106 @@ export function TransactionInForm() {
               />
             )}
 
-            {/* Supplier */}
+            {/* Central supply source */}
+            <div className="rounded-md border border-primary/20 bg-primary/5 p-4 text-sm">
+              <p className="font-semibold text-primary">جهة التوريد</p>
+              <p className="mt-1 text-muted-foreground">
+                المستودعات المركزية (قيمة نظامية ثابتة لا يمكن تغييرها)
+              </p>
+            </div>
+
+            {/* Delivery note */}
             <FormField
               control={form.control}
-              name="supplier"
+              name="deliveryNoteNumber"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>الجهة الموردة (اختياري)</FormLabel>
+                  <FormLabel>رقم مذكرة التسليم *</FormLabel>
                   <FormControl>
                     <Input
                       {...field}
                       value={field.value || ''}
-                      placeholder="مثال: شركة الدواء السورية، مستودع وزارة الصحة..."
+                      placeholder="مثال: مذكرة-2026-001"
+                      onChange={(event) => {
+                        field.onChange(event);
+                        setPendingConfirm(false);
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="deliveryNoteDate"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>تاريخ مذكرة التسليم *</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="date"
+                      {...field}
+                      onChange={(event) => {
+                        field.onChange(event);
+                        setPendingConfirm(false);
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="expiryDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      تاريخ الصلاحية <span className="font-normal text-muted-foreground">(اختياري)</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        {...field}
+                        value={field.value || ''}
+                        onChange={(event) => {
+                          field.onChange(event);
+                          setPendingConfirm(false);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="batchNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      رقم الدفعة <span className="font-normal text-muted-foreground">(اختياري)</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value || ''}
+                        placeholder="عند توفره"
+                        onChange={(event) => {
+                          field.onChange(event);
+                          setPendingConfirm(false);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             {/* Notes */}
             <FormField
@@ -381,7 +482,9 @@ export function TransactionInForm() {
                 <div>
                   <p className="font-semibold text-success mb-1">تأكيد العملية</p>
                   <p className="text-foreground/80">
-                    سيتم تسجيل إدخال{' '}
+                      سيتم تسجيل إدخال من المستودعات المركزية برقم مذكرة{' '}
+                      <strong>{form.getValues('deliveryNoteNumber')}</strong> بتاريخ{' '}
+                      <strong>{form.getValues('deliveryNoteDate')}</strong> للصنف{' '}
                     {watchItemType === 'item' ? (
                       <>
                         <strong>{selectedItem?.name}</strong> بكمية{' '}
@@ -392,6 +495,16 @@ export function TransactionInForm() {
                     ) : (
                       <strong>{selectedEquipment?.name}</strong>
                     )}
+                      {form.getValues('expiryDate') ? (
+                        <>
+                          {' '}وبصلاحية <strong>{form.getValues('expiryDate')}</strong>
+                        </>
+                      ) : (
+                        <> بدون تاريخ صلاحية</>
+                      )}
+                      {form.getValues('batchNumber') && (
+                        <>، الدفعة <strong>{form.getValues('batchNumber')}</strong></>
+                      )}
                     . اضغط "تأكيد وطباعة" للمتابعة.
                   </p>
                 </div>

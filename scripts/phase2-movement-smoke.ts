@@ -12,6 +12,7 @@ const suffix = `${Date.now()}`;
 const username = `__phase2_smoke_${suffix}`;
 let userId = 0;
 let itemId = 0;
+let concurrentItemId = 0;
 let equipmentId = 0;
 let recipientId = 0;
 let exitReasonId = 0;
@@ -62,6 +63,7 @@ async function cleanup() {
       WHERE created_by = ${userId}
     `;
     if (itemId) await tx`DELETE FROM items WHERE id = ${itemId}`;
+    if (concurrentItemId) await tx`DELETE FROM items WHERE id = ${concurrentItemId}`;
     if (equipmentId) await tx`DELETE FROM equipment WHERE id = ${equipmentId}`;
     if (recipientId) await tx`DELETE FROM recipients WHERE id = ${recipientId}`;
     if (exitReasonId) await tx`DELETE FROM exit_reasons WHERE id = ${exitReasonId}`;
@@ -82,6 +84,12 @@ try {
     RETURNING id
   `;
   itemId = Number(item.id);
+  const [concurrentItem] = await sql`
+    INSERT INTO items (name, item_type, unit, current_stock, min_stock)
+    VALUES (${`__phase2_concurrent_item_${suffix}`}, 'item', 'unit', 0, 0)
+    RETURNING id
+  `;
+  concurrentItemId = Number(concurrentItem.id);
   const [equipment] = await sql`
     INSERT INTO equipment (name, condition, quantity, min_quantity)
     VALUES (${`__phase2_equipment_${suffix}`}, 'good', 2, 0)
@@ -101,12 +109,35 @@ try {
   `;
   exitReasonId = Number(exitReason.id);
 
+  const concurrentMovements = await Promise.all(
+    Array.from({ length: 20 }, (_, index) =>
+      createInventoryMovement(
+        {
+          kind: "in",
+          itemType: "item",
+          itemId: concurrentItemId,
+          quantity: 1,
+          deliveryNoteNumber: `PHASE2-CONCURRENT-${suffix}-${index}`,
+          deliveryNoteDate: "2099-01-01",
+        },
+        context(),
+      ),
+    ),
+  );
+  assert.equal(
+    new Set(concurrentMovements.map((movement) => movement.documentNumber)).size,
+    20,
+  );
+  console.log("PASS concurrent document numbers (20 operations)");
+
   await createInventoryMovement(
     {
       kind: "in",
       itemType: "item",
       itemId,
       quantity: 10,
+      deliveryNoteNumber: `PHASE2-IN-${suffix}-A`,
+      deliveryNoteDate: "2099-01-01",
       expiryDate: "2099-01-01",
       batchNumber: "BATCH-A",
     },
@@ -118,6 +149,8 @@ try {
       itemType: "item",
       itemId,
       quantity: 5,
+      deliveryNoteNumber: `PHASE2-IN-${suffix}-B`,
+      deliveryNoteDate: "2099-01-02",
       expiryDate: "2099-02-01",
       batchNumber: "BATCH-B",
     },
@@ -303,9 +336,9 @@ try {
     FROM audit_log
     WHERE user_id = ${userId} AND action = 'movement_created'
   `;
-  assert.equal(Number(successAudits.count), 10);
+  assert.equal(Number(successAudits.count), 30);
   console.log("PASS damage + central return atomic balance effects");
-  console.log("Phase 2 movement smoke tests passed (5 scenarios).");
+  console.log("Phase 2 movement smoke tests passed (6 scenarios).");
 } finally {
   await cleanup();
   await sql.end({ timeout: 5 });

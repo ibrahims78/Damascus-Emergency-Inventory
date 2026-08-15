@@ -1368,6 +1368,9 @@ components:
           type: ["string", "null"]
         expiryDate:
           type: ["string", "null"]
+        supplySource:
+          type: ["string", "null"]
+          enum: [central_warehouses, null]
         documentDate:
           type: ["string", "null"]
         deliveryNoteNumber:
@@ -1429,7 +1432,7 @@ components:
 
     InTransactionInput:
       type: object
-      required: [itemType]
+      required: [itemType, deliveryNoteNumber, deliveryNoteDate]
       properties:
         itemType:
           type: string
@@ -1440,16 +1443,17 @@ components:
           type: ["integer", "null"]
         quantity:
           type: ["integer", "null"]
-        supplier:
-          type: ["string", "null"]
         deliveryNoteNumber:
-          type: ["string", "null"]
+          type: string
+          minLength: 1
         deliveryNoteDate:
-          type: ["string", "null"]
+          type: string
+          format: date
         documentDate:
           type: ["string", "null"]
         supplySource:
-          type: ["string", "null"]
+          type: string
+          enum: [central_warehouses]
         expiryDate:
           type: ["string", "null"]
         batchNumber:

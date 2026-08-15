@@ -85,7 +85,8 @@ function textOrNull(value: unknown): string | null {
 
 function parseOptionalId(value: unknown): number | null {
   if (value === undefined || value === null || value === "") return null;
-  const parsed = Number.parseInt(String(value), 10);
+  const normalized = String(value).trim();
+  const parsed = /^\d+$/.test(normalized) ? Number(normalized) : Number.NaN;
   if (!Number.isSafeInteger(parsed) || parsed <= 0) {
     throw new InventoryMovementError("INVALID_REFERENCE", "مرجع الصنف غير صالح");
   }
@@ -413,6 +414,15 @@ async function createInbound(
     input.quantity ?? (entity.itemType === "equipment" ? 1 : null),
     "الكمية",
   );
+  const deliveryNoteNumber = assertNonEmpty(
+    input.deliveryNoteNumber,
+    "رقم مذكرة التسليم",
+  );
+  const deliveryNoteDate = assertIsoDate(
+    input.deliveryNoteDate,
+    "تاريخ مذكرة التسليم",
+    true,
+  )!;
   const supplySource = input.supplySource
     ? assertNonEmpty(input.supplySource, "جهة التوريد")
     : "central_warehouses";
@@ -422,13 +432,20 @@ async function createInbound(
       "جهة التوريد المعتمدة هي المستودعات المركزية فقط",
     );
   }
+  const normalizedInput: MovementInput = {
+    ...input,
+    supplySource,
+    deliveryNoteNumber,
+    deliveryNoteDate,
+    documentDate: input.documentDate ?? deliveryNoteDate,
+  };
 
   if (entity.itemType === "item") {
     const item = await lockItem(tx, entity.itemId!);
     const transaction = await insertTransaction(
       tx,
       context,
-      { ...input, supplySource },
+      normalizedInput,
       "in",
       entity,
       quantity,
@@ -447,8 +464,8 @@ async function createInbound(
       receivedQuantity: quantity,
       remainingQuantity: quantity,
       expiryDate: assertIsoDate(input.expiryDate, "الصلاحية"),
-      deliveryNoteNumber: textOrNull(input.deliveryNoteNumber),
-      deliveryNoteDate: assertIsoDate(input.deliveryNoteDate, "مذكرة التسليم"),
+      deliveryNoteNumber,
+      deliveryNoteDate,
       supplySource: "central_warehouses",
       sourceTransactionId: transaction.id,
     });
@@ -459,7 +476,7 @@ async function createInbound(
   const transaction = await insertTransaction(
     tx,
     context,
-    { ...input, supplySource },
+    normalizedInput,
     "in",
     entity,
     quantity,

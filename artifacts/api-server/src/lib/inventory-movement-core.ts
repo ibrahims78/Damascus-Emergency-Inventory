@@ -28,8 +28,14 @@ export function assertPositiveInteger(
   value: unknown,
   field: string,
 ): number {
+  const normalized =
+    typeof value === "number" ? value : String(value ?? "").trim();
   const parsed =
-    typeof value === "number" ? value : Number.parseInt(String(value ?? ""), 10);
+    typeof normalized === "number"
+      ? normalized
+      : /^\d+$/.test(normalized)
+        ? Number(normalized)
+        : Number.NaN;
   if (!Number.isSafeInteger(parsed) || parsed <= 0) {
     throw new InventoryMovementError(
       "INVALID_QUANTITY",
@@ -98,10 +104,13 @@ export function assertEntityReference(
     );
   }
 
-  const parsedItemId = itemId ? Number.parseInt(String(itemId), 10) : null;
-  const parsedEquipmentId = equipmentId
-    ? Number.parseInt(String(equipmentId), 10)
-    : null;
+  const parseId = (value: unknown) => {
+    if (value === undefined || value === null || value === "") return null;
+    const normalized = String(value).trim();
+    return /^\d+$/.test(normalized) ? Number(normalized) : Number.NaN;
+  };
+  const parsedItemId = parseId(itemId);
+  const parsedEquipmentId = parseId(equipmentId);
   const validItemId =
     parsedItemId !== null &&
     Number.isSafeInteger(parsedItemId) &&

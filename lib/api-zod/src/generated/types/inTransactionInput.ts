@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { InTransactionInputItemType } from './inTransactionInputItemType';
+import type { InTransactionInputSupplySource } from './inTransactionInputSupplySource';
 
 export interface InTransactionInput {
   itemType: InTransactionInputItemType;
@@ -15,16 +16,12 @@ export interface InTransactionInput {
   equipmentId?: number | null;
   /** @nullable */
   quantity?: number | null;
-  /** @nullable */
-  supplier?: string | null;
-  /** @nullable */
-  deliveryNoteNumber?: string | null;
-  /** @nullable */
-  deliveryNoteDate?: string | null;
+  /** @minLength 1 */
+  deliveryNoteNumber: string;
+  deliveryNoteDate: Date;
   /** @nullable */
   documentDate?: string | null;
-  /** @nullable */
-  supplySource?: string | null;
+  supplySource?: InTransactionInputSupplySource;
   /** @nullable */
   expiryDate?: string | null;
   /** @nullable */

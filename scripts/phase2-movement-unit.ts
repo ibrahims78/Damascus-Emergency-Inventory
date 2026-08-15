@@ -3,6 +3,7 @@ import {
   allocateBatchesFefo,
   assertEntityReference,
   assertIsoDate,
+  assertPositiveInteger,
   InventoryMovementError,
 } from "../artifacts/api-server/src/lib/inventory-movement-core";
 
@@ -73,5 +74,15 @@ expectMovementError(
   () => assertIsoDate("2026-02-30", "اختبار", true),
   "INVALID_DATE",
 );
+expectMovementError(
+  "malformed quantity is not partially parsed",
+  () => assertPositiveInteger("2abc", "الكمية"),
+  "INVALID_QUANTITY",
+);
+expectMovementError(
+  "malformed entity id is not partially parsed",
+  () => assertEntityReference("item", "12x", null),
+  "ENTITY_TYPE_MISMATCH",
+);
 
-console.log("Phase 2 movement unit tests passed (5 cases).");
+console.log("Phase 2 movement unit tests passed (7 cases).");

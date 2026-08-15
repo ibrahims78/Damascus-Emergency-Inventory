@@ -163,6 +163,15 @@ export function PrintTransactionPage() {
             {(isIn || !isOut) && tx.supplier && (
               <InfoRow label="المورد" value={tx.supplier} />
             )}
+            {isIn && tx.deliveryNoteNumber && (
+              <InfoRow label="رقم مذكرة التسليم" value={tx.deliveryNoteNumber} />
+            )}
+            {isIn && tx.deliveryNoteDate && (
+              <InfoRow label="تاريخ مذكرة التسليم" value={tx.deliveryNoteDate.substring(0, 10)} />
+            )}
+            {isIn && tx.supplySource && (
+              <InfoRow label="جهة التوريد" value="المستودعات المركزية" />
+            )}
             {tx.batchNumber && (
               <InfoRow label="رقم الدفعة / اللوت" value={tx.batchNumber} />
             )}

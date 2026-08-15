@@ -294,6 +294,16 @@ export const TransactionItemType = {
   equipment: 'equipment',
 } as const;
 
+/**
+ * @nullable
+ */
+export type TransactionSupplySource = typeof TransactionSupplySource[keyof typeof TransactionSupplySource] | null;
+
+
+export const TransactionSupplySource = {
+  central_warehouses: 'central_warehouses',
+} as const;
+
 export interface Transaction {
   id: number;
   type: TransactionType;
@@ -326,6 +336,8 @@ export interface Transaction {
   batchNumber?: string | null;
   /** @nullable */
   expiryDate?: string | null;
+  /** @nullable */
+  supplySource?: TransactionSupplySource;
   /** @nullable */
   documentDate?: string | null;
   /** @nullable */
@@ -379,6 +391,13 @@ export const InTransactionInputItemType = {
   equipment: 'equipment',
 } as const;
 
+export type InTransactionInputSupplySource = typeof InTransactionInputSupplySource[keyof typeof InTransactionInputSupplySource];
+
+
+export const InTransactionInputSupplySource = {
+  central_warehouses: 'central_warehouses',
+} as const;
+
 export interface InTransactionInput {
   itemType: InTransactionInputItemType;
   /** @nullable */
@@ -387,16 +406,12 @@ export interface InTransactionInput {
   equipmentId?: number | null;
   /** @nullable */
   quantity?: number | null;
-  /** @nullable */
-  supplier?: string | null;
-  /** @nullable */
-  deliveryNoteNumber?: string | null;
-  /** @nullable */
-  deliveryNoteDate?: string | null;
+  /** @minLength 1 */
+  deliveryNoteNumber: string;
+  deliveryNoteDate: string;
   /** @nullable */
   documentDate?: string | null;
-  /** @nullable */
-  supplySource?: string | null;
+  supplySource?: InTransactionInputSupplySource;
   /** @nullable */
   expiryDate?: string | null;
   /** @nullable */
