@@ -3,7 +3,7 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
-import { pool } from "@workspace/db";
+import { desktopMode, pool } from "@workspace/db";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { startAlertWorker } from "./lib/alert-worker";
@@ -60,14 +60,17 @@ app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 
 const PgSession = connectPgSimple(session);
-
-app.use(
-  session({
-    store: new PgSession({
+const sessionStore = desktopMode
+  ? undefined
+  : new PgSession({
       pool,
       tableName: "user_sessions",
       createTableIfMissing: true,
-    }),
+    });
+
+app.use(
+  session({
+    ...(sessionStore ? { store: sessionStore } : {}),
     secret: sessionSecret || "fallback-dev-secret-change-in-prod",
     resave: false,
     saveUninitialized: false,
