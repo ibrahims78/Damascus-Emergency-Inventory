@@ -3,3 +3,4 @@
 - [Replit deployment CORS](replit-deployment-cors.md) — API CORS must allow both replit.dev previews and replit.app published origins
 - [Phase-one schema migrations](phase1-schema-migrations.md) — existing DB upgrades need additive SQL, not a generated full-schema baseline
 - [GitHub synchronization](github-repository-sync.md) — public HTTPS fetch works; pushing requires bound OAuth or a secure GITHUB_TOKEN
+- [Workflow restart behavior](workflow-restart-processes.md) — a failed artifact restart can leave a child server process holding its port
