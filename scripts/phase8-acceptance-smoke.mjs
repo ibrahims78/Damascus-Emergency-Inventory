@@ -51,6 +51,16 @@ try {
   assert.equal(health.body?.status, "ok");
   console.log("PASS health endpoint");
 
+  const previewOrigin =
+    "https://ed9ad8a1-09af-45d0-9c05-fac15ee4b0d2-00-1d0io39gk7xsc.picard.replit.dev";
+  const previewHealth = await request("/healthz", {
+    headers: { Origin: previewOrigin },
+  });
+  assert.equal(previewHealth.response.status, 200);
+  assert.equal(previewHealth.response.headers.get("access-control-allow-origin"), previewOrigin);
+  assert.equal(previewHealth.response.headers.get("access-control-allow-credentials"), "true");
+  console.log("PASS nested Replit preview CORS");
+
   const unauthenticated = await request("/reports/stock-position");
   assert.equal(unauthenticated.response.status, 401);
   console.log("PASS reports reject unauthenticated access");
@@ -94,7 +104,7 @@ try {
   assert.equal(categoryList.response.status, 200);
   console.log("PASS authenticated category read");
 
-  console.log("Phase 8 acceptance smoke tests passed (6 checks).");
+  console.log("Phase 8 acceptance smoke tests passed (7 checks).");
 } finally {
   await cleanup();
 }
