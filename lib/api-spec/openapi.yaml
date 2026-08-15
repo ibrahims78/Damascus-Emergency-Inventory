@@ -547,6 +547,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/Transaction"
 
+  /custodies:
+    get:
+      operationId: listCustodies
+      tags: [transactions]
+      summary: List personal custody records
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, partially_returned, returned, damaged, closed]
+        - name: search
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Personal custody records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CustodySummary"
+
   /transactions/{id}:
     get:
       operationId: getTransaction
@@ -1680,6 +1704,50 @@ components:
           format: date
         notes:
           type: ["string", "null"]
+
+    CustodySummary:
+      type: object
+      required:
+        - id
+        - equipmentId
+        - equipmentName
+        - quantity
+        - returnedQuantity
+        - outstandingQuantity
+        - holderName
+        - deliveryNoteNumber
+        - deliveryDate
+        - location
+        - status
+      properties:
+        id:
+          type: integer
+        equipmentId:
+          type: integer
+        equipmentName:
+          type: string
+        serialNumber:
+          type: ["string", "null"]
+        quantity:
+          type: integer
+        returnedQuantity:
+          type: integer
+        outstandingQuantity:
+          type: integer
+        recipientId:
+          type: ["integer", "null"]
+        holderName:
+          type: string
+        deliveryNoteNumber:
+          type: string
+        deliveryDate:
+          type: string
+          format: date
+        location:
+          type: string
+        status:
+          type: string
+          enum: [open, partially_returned, returned, damaged, closed]
 
     Recipient:
       type: object

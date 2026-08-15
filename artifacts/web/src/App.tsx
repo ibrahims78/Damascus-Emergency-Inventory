@@ -23,6 +23,12 @@ import { SettingsPage } from '@/pages/settings';
 import { AuditPage } from '@/pages/audit';
 import { PrintTransactionPage } from '@/pages/print-transaction';
 import { AdjustmentForm } from '@/pages/adjustment-form';
+import {
+  CentralReturnForm,
+  CustodyOutForm,
+  CustodyReturnForm,
+  DamageForm,
+} from '@/pages/inventory-lifecycle-forms';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -96,6 +102,10 @@ function Router() {
       <Route path="/transactions"><ProtectedRoute component={TransactionsPage} /></Route>
       <Route path="/transactions/in/new"><ProtectedRoute component={TransactionsPage} /></Route>
       <Route path="/transactions/out/new"><ProtectedRoute component={TransactionsPage} /></Route>
+      <Route path="/custody/out/new"><ProtectedRoute component={CustodyOutForm} /></Route>
+      <Route path="/custody/return/new"><ProtectedRoute component={CustodyReturnForm} /></Route>
+      <Route path="/damage/new"><ProtectedRoute component={DamageForm} /></Route>
+      <Route path="/central-return/new"><ProtectedRoute component={CentralReturnForm} /></Route>
 
       <Route path="/reports"><ProtectedRoute component={ReportsPage} /></Route>
 

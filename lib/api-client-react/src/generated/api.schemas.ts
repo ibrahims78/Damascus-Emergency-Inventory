@@ -609,6 +609,35 @@ export interface CentralReturnInput {
   notes?: string | null;
 }
 
+export type CustodySummaryStatus = typeof CustodySummaryStatus[keyof typeof CustodySummaryStatus];
+
+
+export const CustodySummaryStatus = {
+  open: 'open',
+  partially_returned: 'partially_returned',
+  returned: 'returned',
+  damaged: 'damaged',
+  closed: 'closed',
+} as const;
+
+export interface CustodySummary {
+  id: number;
+  equipmentId: number;
+  equipmentName: string;
+  /** @nullable */
+  serialNumber?: string | null;
+  quantity: number;
+  returnedQuantity: number;
+  outstandingQuantity: number;
+  /** @nullable */
+  recipientId?: number | null;
+  holderName: string;
+  deliveryNoteNumber: string;
+  deliveryDate: string;
+  location: string;
+  status: CustodySummaryStatus;
+}
+
 export interface Recipient {
   id: number;
   name: string;
@@ -880,6 +909,22 @@ search?: string;
 page?: number;
 limit?: number;
 };
+
+export type ListCustodiesParams = {
+status?: ListCustodiesStatus;
+search?: string;
+};
+
+export type ListCustodiesStatus = typeof ListCustodiesStatus[keyof typeof ListCustodiesStatus];
+
+
+export const ListCustodiesStatus = {
+  open: 'open',
+  partially_returned: 'partially_returned',
+  returned: 'returned',
+  damaged: 'damaged',
+  closed: 'closed',
+} as const;
 
 export type GetMovementsReportParams = {
 from?: string;

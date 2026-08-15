@@ -896,6 +896,32 @@ export const CreateCentralReturnTransactionResponse = zod.object({
 
 
 /**
+ * @summary List personal custody records
+ */
+export const ListCustodiesQueryParams = zod.object({
+  "status": zod.enum(['open', 'partially_returned', 'returned', 'damaged', 'closed']).optional(),
+  "search": zod.coerce.string().optional()
+})
+
+export const ListCustodiesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "equipmentId": zod.number().int(),
+  "equipmentName": zod.string(),
+  "serialNumber": zod.string().nullish(),
+  "quantity": zod.number().int(),
+  "returnedQuantity": zod.number().int(),
+  "outstandingQuantity": zod.number().int(),
+  "recipientId": zod.number().int().nullish(),
+  "holderName": zod.string(),
+  "deliveryNoteNumber": zod.string(),
+  "deliveryDate": zod.coerce.date(),
+  "location": zod.string(),
+  "status": zod.enum(['open', 'partially_returned', 'returned', 'damaged', 'closed'])
+})
+export const ListCustodiesResponse = zod.array(ListCustodiesResponseItem)
+
+
+/**
  * @summary Get transaction by ID
  */
 export const GetTransactionParams = zod.object({

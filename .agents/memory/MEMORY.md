@@ -1,4 +1,4 @@
 - [Project overview & run commands](project-overview.md) — warehouse mgmt app for Damascus EMS; pnpm monorepo, Express + Drizzle + React/Vite; SESSION_SECRET required
-- [Phase completion status](phase-status.md) — current development plan phases 1–3 are complete; phases 4–9 remain outside this implementation scope
+- [Phase completion status](phase-status.md) — current development plan phases 1–5 are complete; phases 6–9 remain outside this implementation scope
 - [Replit deployment CORS](replit-deployment-cors.md) — API CORS must allow both replit.dev previews and replit.app published origins
 - [Phase-one schema migrations](phase1-schema-migrations.md) — existing DB upgrades need additive SQL, not a generated full-schema baseline

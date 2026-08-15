@@ -494,7 +494,7 @@ async function createInbound(
     quantity,
     documentNumber,
   );
-  await tx
+  const updated = await tx
     .update(equipmentTable)
     .set({
       quantity: sql`${equipmentTable.quantity} + ${quantity}`,
@@ -589,6 +589,12 @@ async function createCustodyOut(
   )!;
   const custodyLocation = assertNonEmpty(input.custodyLocation, "مكان العهدة");
   const equipment = await lockEquipment(tx, entity.equipmentId!);
+  if (equipment.serial_number && quantity !== 1) {
+    throw new InventoryMovementError(
+      "SERIAL_EQUIPMENT_QUANTITY_INVALID",
+      "التجهيز ذو الرقم التسلسلي يمثل وحدة واحدة فقط",
+    );
+  }
   const openCustody = await getOpenCustodyQuantity(tx, equipment.id);
   const available = calculateEquipmentAvailable(equipment.quantity, openCustody);
   if (available < quantity) {
@@ -628,7 +634,7 @@ async function createCustodyOut(
     location: custodyLocation,
     createdBy: context.userId,
   });
-  await tx
+   const updated = await tx
     .update(equipmentTable)
     .set({
       currentHolder:
@@ -695,7 +701,7 @@ async function createDamage(
     quantity,
     documentNumber,
   );
-  await tx
+  const updated = await tx
     .update(equipmentTable)
     .set({
       quantity: sql`${equipmentTable.quantity} - ${quantity}`,
@@ -707,7 +713,14 @@ async function createDamage(
         eq(equipmentTable.id, equipment.id),
         sql`${equipmentTable.quantity} >= ${quantity}`,
       ),
+    )
+    .returning({ id: equipmentTable.id });
+  if (updated.length !== 1) {
+    throw new InventoryMovementError(
+      "INSUFFICIENT_EQUIPMENT_AVAILABLE",
+      "لم يعد رصيد التجهيز كافيًا بعد القفل",
     );
+  }
   await tx.insert(damageRecordsTable).values({
     transactionId: transaction.id,
     itemType: "equipment",
@@ -816,7 +829,7 @@ async function createCustodyReturn(
     .where(eq(personalCustodiesTable.id, custodyId));
 
   if (condition !== "good") {
-    await tx
+    const updated = await tx
       .update(equipmentTable)
       .set({
         quantity: sql`${equipmentTable.quantity} - ${quantity}`,
@@ -828,7 +841,14 @@ async function createCustodyReturn(
           eq(equipmentTable.id, equipment.id),
           sql`${equipmentTable.quantity} >= ${quantity}`,
         ),
+      )
+      .returning({ id: equipmentTable.id });
+    if (updated.length !== 1) {
+      throw new InventoryMovementError(
+        "INSUFFICIENT_EQUIPMENT_AVAILABLE",
+        "لم يعد رصيد التجهيز كافيًا لإتمام الإعادة",
       );
+    }
   }
   return transaction;
 }
@@ -873,7 +893,7 @@ async function createCentralReturn(
     await allocateAndDecrementBatches(tx, entity.itemId!, quantity, transaction.id);
     await decrementItemStock(tx, entity.itemId!, quantity);
   } else {
-    await tx
+     const updated = await tx
       .update(equipmentTable)
       .set({
         quantity: sql`${equipmentTable.quantity} - ${quantity}`,
@@ -884,7 +904,14 @@ async function createCentralReturn(
           eq(equipmentTable.id, entity.equipmentId!),
           sql`${equipmentTable.quantity} >= ${quantity}`,
         ),
-      );
+       )
+       .returning({ id: equipmentTable.id });
+     if (updated.length !== 1) {
+       throw new InventoryMovementError(
+         "INSUFFICIENT_EQUIPMENT_AVAILABLE",
+         "لم يعد رصيد التجهيز كافيًا لإتمام المرتجع",
+       );
+     }
   }
   await tx.insert(centralReturnsTable).values({
     transactionId: transaction.id,
@@ -973,12 +1000,10 @@ export async function createInventoryMovement(
         case "in":
           transaction = await createInbound(tx, context, input, entity!, documentNumber);
           break;
-        case "out":
-          if (input.custody === true || input.custody === "true") {
-            transaction = await createCustodyOut(tx, context, input, entity!, documentNumber);
-          } else {
-            transaction = await createConsumableOut(tx, context, input, entity!, documentNumber);
-          }
+         case "out":
+           // The consumables route is intentionally exclusive. Personal
+           // custody has its own endpoint and audit type.
+           transaction = await createConsumableOut(tx, context, input, entity!, documentNumber);
           break;
         case "custody_out":
           transaction = await createCustodyOut(tx, context, input, entity!, documentNumber);

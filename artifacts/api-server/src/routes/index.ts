@@ -14,6 +14,7 @@ import usersRouter from "./users";
 import settingsRouter from "./settings";
 import auditRouter from "./audit";
 import backupRouter from "./backup";
+import custodiesRouter from "./custodies";
 
 const router = Router();
 
@@ -32,5 +33,6 @@ router.use("/users", usersRouter);
 router.use("/settings", settingsRouter);
 router.use("/audit", auditRouter);
 router.use("/backup", backupRouter);
+router.use("/custodies", custodiesRouter);
 
 export default router;

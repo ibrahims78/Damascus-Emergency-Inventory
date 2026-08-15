@@ -29,6 +29,7 @@ import type {
   ChangePasswordInput,
   CustodyOutInput,
   CustodyReturnInput,
+  CustodySummary,
   DamageInput,
   DashboardCharts,
   DashboardStats,
@@ -47,6 +48,7 @@ import type {
   ItemInput,
   ItemListResponse,
   ItemUpdate,
+  ListCustodiesParams,
   ListEquipmentParams,
   ListItemsParams,
   ListTransactionsParams,
@@ -2029,6 +2031,90 @@ export const useCreateCentralReturnTransaction = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getCreateCentralReturnTransactionMutationOptions(options));
     }
+
+export const getListCustodiesUrl = (params?: ListCustodiesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/custodies?${stringifiedParams}` : `/api/custodies`
+}
+
+/**
+ * @summary List personal custody records
+ */
+export const listCustodies = async (params?: ListCustodiesParams, options?: Parameters<typeof customFetch>[1]): Promise<CustodySummary[]> => {
+
+  return customFetch<CustodySummary[]>(getListCustodiesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCustodiesQueryKey = (params?: ListCustodiesParams,) => {
+    return [
+    `/api/custodies`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListCustodiesQueryOptions = <TData = Awaited<ReturnType<typeof listCustodies>>, TError = ErrorType<unknown>>(params?: ListCustodiesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCustodies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCustodiesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCustodies>>> = ({ signal }) => listCustodies(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCustodies>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCustodiesQueryResult = NonNullable<Awaited<ReturnType<typeof listCustodies>>>
+export type ListCustodiesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List personal custody records
+ */
+
+export function useListCustodies<TData = Awaited<ReturnType<typeof listCustodies>>, TError = ErrorType<unknown>>(
+ params?: ListCustodiesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCustodies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCustodiesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetTransactionUrl = (id: number,) => {
 

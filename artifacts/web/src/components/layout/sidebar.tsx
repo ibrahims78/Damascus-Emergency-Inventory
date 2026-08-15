@@ -14,6 +14,10 @@ import {
   ChevronsRight,
   ChevronsLeft,
   Code2,
+  ArchiveRestore,
+  FileWarning,
+  RotateCcw,
+  UserRoundCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -38,6 +42,13 @@ const navItems = [
   { href: '/reports',      label: 'التقارير',             icon: FileText },
 ];
 
+const movementItems = [
+  { href: '/custody/out/new',    label: 'تسليم عهدة شخصية', icon: UserRoundCheck },
+  { href: '/custody/return/new', label: 'إعادة عهدة',       icon: RotateCcw },
+  { href: '/damage/new',         label: 'تسجيل تلف',        icon: FileWarning },
+  { href: '/central-return/new', label: 'مرتجع مركزي',      icon: ArchiveRestore },
+];
+
 const adminItems = [
   { href: '/users',    label: 'المستخدمين',  icon: Users },
   { href: '/audit',    label: 'سجل التدقيق', icon: ShieldCheck },
@@ -51,7 +62,9 @@ export function Sidebar() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const allItems =
-    user?.role === 'admin' ? [...navItems, ...adminItems] : navItems;
+    user?.role === 'admin'
+      ? [...navItems, ...movementItems, ...adminItems]
+      : [...navItems, ...movementItems];
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -129,6 +142,7 @@ export function Sidebar() {
           {allItems.map((item) => {
             const Icon = item.icon;
             const isAdminStart = item.href === '/users';
+            const isMovementStart = item.href === '/custody/out/new';
             const isActive =
               item.href === '/'
                 ? location === '/'
@@ -165,6 +179,11 @@ export function Sidebar() {
                         </div>
                       )
                     }
+                  </div>
+                )}
+                {isMovementStart && (
+                  <div className={cn('pt-3 pb-1', collapsed ? 'px-1' : 'px-3')}>
+                    {collapsed ? <div className="border-t" /> : <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">حركات العهد والأحداث</div>}
                   </div>
                 )}
 

@@ -43,7 +43,15 @@ export function TransactionsPage() {
 
 const PAGE_SIZE = 50;
 
-type TypeFilter = 'all' | 'in' | 'out' | 'adjust';
+type TypeFilter =
+  | 'all'
+  | 'in'
+  | 'out'
+  | 'adjust'
+  | 'custody_out'
+  | 'custody_return'
+  | 'damage'
+  | 'central_return';
 type ItemTypeFilter = 'all' | 'item' | 'equipment';
 
 /** Debounce a value by `delay` ms — avoids a new API call on every keystroke */
@@ -76,8 +84,19 @@ function typeBadge(type: string) {
       </Badge>
     );
   return (
-    <Badge variant="secondary" className="text-xs font-medium">
-      رصيد افتتاحي
+    <Badge
+      variant="secondary"
+      className={`text-xs font-medium ${type === 'custody_out' || type === 'custody_return' ? 'border-blue-300 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : type === 'damage' ? 'border-red-300 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : type === 'central_return' ? 'border-purple-300 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' : ''}`}
+    >
+      {type === 'custody_out'
+        ? 'تسليم عهدة'
+        : type === 'custody_return'
+          ? 'إعادة عهدة'
+          : type === 'damage'
+            ? 'تلف'
+            : type === 'central_return'
+              ? 'مرتجع مركزي'
+              : 'رصيد افتتاحي'}
     </Badge>
   );
 }
@@ -189,6 +208,10 @@ function TransactionsList() {
                 <SelectItem value="in">إدخال فقط</SelectItem>
                 <SelectItem value="out">إخراج فقط</SelectItem>
                 <SelectItem value="adjust">تسوية جرد فقط</SelectItem>
+                <SelectItem value="custody_out">تسليم عهدة فقط</SelectItem>
+                <SelectItem value="custody_return">إعادة عهدة فقط</SelectItem>
+                <SelectItem value="damage">تلف فقط</SelectItem>
+                <SelectItem value="central_return">مرتجع مركزي فقط</SelectItem>
               </SelectContent>
             </Select>
           </div>
