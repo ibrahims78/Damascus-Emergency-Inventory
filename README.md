@@ -17,7 +17,7 @@
 | 🔧 **إدارة التجهيزات** | تتبع الأجهزة والمعدات مع سجل كامل |
 | 📋 **العمليات (الحركات)** | تسجيل إدخال/إخراج + سند A4 قابل للطباعة بالعربية |
 | 📊 **لوحة التحكم** | إحصائيات فورية ومخططات حركة المواد |
-| 📈 **التقارير** | جرد شامل، حركة، انتهاء صلاحية، مواد دون الحد، تجهيزات |
+| 📈 **التقارير** | 7 تبويبات: جرد، حركة، انتهاء صلاحية، أقل من الحد، تجهيزات، الوضع التفصيلي، والعهد المفتوحة |
 | 👥 **إدارة المستخدمين** | أدوار ثلاثة (مدير / محاسب / مشاهد) |
 | 🔔 **التنبيهات** | جرس تنبيه في الـ Header يتجدد تلقائياً |
 | ⚙️ **الإعدادات** | ملف شخصي، تغيير كلمة المرور، إعدادات المنظومة |
@@ -32,7 +32,7 @@
 Frontend          Backend           Database          Shared
 ─────────         ─────────         ─────────         ──────
 React 19          Express 5         PostgreSQL        Zod v4
-Vite 7            Node.js 24        Drizzle ORM       TypeScript 5.9
+Vite 7            Node.js 20+       Drizzle ORM       TypeScript 5.9
 TailwindCSS       Pino (logging)    Drizzle Kit       OpenAPI 3.0
 Radix UI          Session auth                        Orval (codegen)
 TanStack Query    Zod validation
@@ -87,9 +87,9 @@ pnpm install
 # 3. Push database schema
 pnpm --filter @workspace/db run push
 
-# 4. Start services
-pnpm --filter @workspace/api-server run dev   # API on :8080
-pnpm --filter @workspace/web run dev          # Web on :22333
+# 4. Start services manually
+PORT=8080 pnpm --filter @workspace/api-server run dev
+PORT=22333 BASE_PATH=/ pnpm --filter @workspace/web run dev
 ```
 
 ### Default Credentials
@@ -136,7 +136,10 @@ Key endpoints:
 | `GET` | `/api/items` | List items |
 | `GET` | `/api/transactions` | List transactions |
 | `POST` | `/api/transactions` | Record IN/OUT transaction |
-| `GET` | `/api/reports/inventory` | Inventory report |
+| `GET` | `/api/healthz` | Health check |
+| `GET` | `/api/reports/stock` | Stock report |
+| `GET` | `/api/reports/stock-position` | Reconciled stock position |
+| `GET` | `/api/reports/custodies` | Open and overdue custody report |
 | `GET` | `/api/alerts` | Active alerts |
 | `GET` | `/api/settings` | System settings |
 
@@ -147,7 +150,7 @@ Key endpoints:
 | Role | Arabic | Permissions |
 |---|---|---|
 | `admin` | مدير | Full access including user management |
-| `accountant` | محاسب | Items, transactions, reports |
+| `warehouse_manager` | مسؤول مستودع | Items, equipment, transactions, reports |
 | `viewer` | مشاهد | Read-only access |
 
 ---
