@@ -1,0 +1,49 @@
+{
+  "name": "damascus-emergency-inventory-desktop",
+  "version": "1.0.0",
+  "description": "Desktop edition of the Damascus Emergency Inventory application.",
+  "author": "Damascus Emergency Inventory",
+  "private": true,
+  "main": "electron/main.cjs",
+  "scripts": {
+    "prepare-web": "pnpm --dir ../../artifacts/web run build && node scripts/copy-web.cjs",
+    "start": "electron .",
+    "dev": "pnpm run prepare-web && electron .",
+    "package:dir": "pnpm run prepare-web && electron-builder --dir",
+    "package": "pnpm run prepare-web && electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^39.2.6",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "syrian.emergency.inventory.desktop",
+    "productName": "Damascus Emergency Inventory",
+    "asar": true,
+    "files": [
+      "electron/**/*",
+      "app/web/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Office"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ]
+    }
+  }
+}
