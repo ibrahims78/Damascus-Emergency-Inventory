@@ -28,3 +28,10 @@ uri = "file://%D8%A8%D9%8A%D8%A7%D9%86%D8%A7%D8%AA_%D8%A7%D8%AE%D8%AA%D8%A8%D8%A
 type = "table"
 title = "بيانات_اختبار_60_تجهيزة.xlsx"
 description = "ملف Excel يحتوي 60 تجهيزة طبية وهمية واقعية لمنظومة إسعاف دمشق، يتضمن حقلَي الكمية والحد الأدنى الجديدَين."
+
+[[outputs]]
+id = "2gH-ks8gyaGF3Yfev-Eax"
+uri = "file://releases/v1/dist/Damascus-Emergency-Inventory-1.0.1-win-x64.zip"
+type = "unspecified"
+title = "Damascus Emergency Inventory 1.0.1 — Windows x64"
+description = "نسخة Windows المحمولة المصلحة. فك الضغط ثم شغّل Damascus Emergency Inventory.exe."
