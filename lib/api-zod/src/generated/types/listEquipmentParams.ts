@@ -12,6 +12,10 @@ export type ListEquipmentParams = {
 condition?: string;
 search?: string;
 page?: number;
+/**
+ * @minimum 1
+ * @maximum 500
+ */
 limit?: number;
 sortBy?: ListEquipmentSortBy;
 sortDir?: ListEquipmentSortDir;

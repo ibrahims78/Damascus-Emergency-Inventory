@@ -20,7 +20,9 @@ router.get("/", requireAuth, async (req, res) => {
     } = req.query as Record<string, string>;
 
     const pageNum = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10)));
+    // Dropdown forms request up to 500 equipment records in one stable,
+    // sorted list. Keep the server cap aligned with that contract.
+    const limitNum = Math.min(500, Math.max(1, parseInt(limit, 10)));
     const offset = (pageNum - 1) * limitNum;
 
     const SORT_COLS: Record<string, any> = {

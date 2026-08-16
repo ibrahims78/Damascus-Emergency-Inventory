@@ -1018,6 +1018,7 @@ function CategoriesTab() {
   const [newType, setNewType] = useState<'consumable' | 'equipment'>('consumable');
   const [editId, setEditId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
+  const [editType, setEditType] = useState<'consumable' | 'equipment'>('consumable');
 
   const { data: categories = [], isLoading } = useQuery<Category[]>({
     queryKey: ['categories-settings'],
@@ -1050,12 +1051,12 @@ function CategoriesTab() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, name }: { id: number; name: string }) => {
+    mutationFn: async ({ id, name, type }: { id: number; name: string; type: 'consumable' | 'equipment' }) => {
       const res = await fetch(`/api/categories/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, type }),
       });
       if (!res.ok) { const e = await res.json().catch(() => ({})) as { error?: string }; throw new Error(e.error || 'خطأ'); }
       return res.json();
@@ -1149,11 +1150,18 @@ function CategoriesTab() {
                           className="h-8 flex-1"
                           autoFocus
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') updateMutation.mutate({ id: cat.id, name: editName });
+                            if (e.key === 'Enter') updateMutation.mutate({ id: cat.id, name: editName, type: editType });
                             if (e.key === 'Escape') setEditId(null);
                           }}
                         />
-                        <Button size="sm" className="h-8 gap-1" onClick={() => updateMutation.mutate({ id: cat.id, name: editName })} disabled={updateMutation.isPending}>
+                        <Select value={editType} onValueChange={(value) => setEditType(value as 'consumable' | 'equipment')}>
+                          <SelectTrigger className="h-8 w-40"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="consumable">مستهلكات (مواد)</SelectItem>
+                            <SelectItem value="equipment">تجهيزات</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button size="sm" className="h-8 gap-1" onClick={() => updateMutation.mutate({ id: cat.id, name: editName, type: editType })} disabled={updateMutation.isPending}>
                           <Save className="w-3.5 h-3.5" />حفظ
                         </Button>
                         <Button size="sm" variant="ghost" className="h-8" onClick={() => setEditId(null)}>
@@ -1164,7 +1172,7 @@ function CategoriesTab() {
                       <>
                         <span className="flex-1 font-medium text-sm">{cat.name}</span>
                         <span className="text-xs text-muted-foreground">{typeLabel[cat.type]}</span>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" title="تعديل" onClick={() => { setEditId(cat.id); setEditName(cat.name); }}>
+                         <Button size="icon" variant="ghost" className="h-7 w-7" title="تعديل" onClick={() => { setEditId(cat.id); setEditName(cat.name); setEditType(cat.type); }}>
                           <Pencil className="w-3.5 h-3.5" />
                         </Button>
                         <Button

@@ -14,6 +14,10 @@ search?: string;
 belowMin?: boolean;
 nearExpiry?: boolean;
 page?: number;
+/**
+ * @minimum 1
+ * @maximum 500
+ */
 limit?: number;
 sortBy?: ListItemsSortBy;
 sortDir?: ListItemsSortDir;

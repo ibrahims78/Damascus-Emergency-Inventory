@@ -88,13 +88,17 @@ export const ListCategoriesResponse = zod.array(ListCategoriesResponseItem)
 /**
  * @summary List items with optional filters
  */
+export const listItemsQueryLimitMax = 500;
+
+
+
 export const ListItemsQueryParams = zod.object({
   "categoryId": zod.coerce.number().int().optional(),
   "search": zod.coerce.string().optional(),
   "belowMin": zod.coerce.boolean().optional(),
   "nearExpiry": zod.coerce.boolean().optional(),
   "page": zod.coerce.number().int().optional(),
-  "limit": zod.coerce.number().int().optional(),
+  "limit": zod.coerce.number().int().min(1).max(listItemsQueryLimitMax).optional(),
   "sortBy": zod.enum(['name', 'currentStock', 'minStock', 'expiryDate', 'createdAt']).optional(),
   "sortDir": zod.enum(['asc', 'desc']).optional()
 })
@@ -323,11 +327,15 @@ export const GetItemHistoryResponse = zod.object({
 /**
  * @summary List equipment with optional filters
  */
+export const listEquipmentQueryLimitMax = 500;
+
+
+
 export const ListEquipmentQueryParams = zod.object({
   "condition": zod.coerce.string().optional(),
   "search": zod.coerce.string().optional(),
   "page": zod.coerce.number().int().optional(),
-  "limit": zod.coerce.number().int().optional(),
+  "limit": zod.coerce.number().int().min(1).max(listEquipmentQueryLimitMax).optional(),
   "sortBy": zod.enum(['name', 'condition', 'quantity', 'manufactureYear', 'createdAt']).optional(),
   "sortDir": zod.enum(['asc', 'desc']).optional()
 })

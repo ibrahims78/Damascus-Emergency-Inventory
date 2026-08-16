@@ -7,6 +7,27 @@ import { eq, desc } from "drizzle-orm";
 
 const router = Router();
 
+// The same canonical defaults are exposed by the settings API and used by
+// the admin editor. This keeps the item form's unit dropdown populated even
+// before an administrator saves a customized list.
+const DEFAULT_UNITS = [
+  "قطعة",
+  "علبة",
+  "لتر",
+  "مل",
+  "كيس",
+  "زجاجة",
+  "برميل",
+  "رول",
+  "كرتون",
+  "طرد",
+  "حبة",
+  "زوج",
+  "مجموعة",
+  "جرام",
+  "كيلوغرام",
+];
+
 async function getOrCreateSettings() {
   let settings = await db.query.systemSettingsTable.findFirst();
   if (!settings) {
@@ -20,7 +41,10 @@ async function getOrCreateSettings() {
 router.get("/", requireAuth, async (_req, res) => {
   try {
     const settings = await getOrCreateSettings();
-    res.json(settings);
+    res.json({
+      ...settings,
+      unitsList: settings.unitsList ?? JSON.stringify(DEFAULT_UNITS),
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal server error" });
