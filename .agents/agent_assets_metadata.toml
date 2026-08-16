@@ -35,3 +35,10 @@ uri = "file://releases/v1/dist/Damascus-Emergency-Inventory-1.0.1-win-x64.zip"
 type = "unspecified"
 title = "Damascus Emergency Inventory 1.0.1 — Windows x64"
 description = "نسخة Windows المحمولة المصلحة. فك الضغط ثم شغّل Damascus Emergency Inventory.exe."
+
+[[outputs]]
+id = "u7zmDiI1Zj0SIVJ-Ngmq-"
+uri = "file://releases/v1/dist/Damascus-Emergency-Inventory-1.0.2-win-x64.zip"
+type = "unspecified"
+title = "Damascus Emergency Inventory 1.0.2 — Windows x64"
+description = "الحزمة المحمولة المصلحة لويندوز 10. فك الضغط ثم شغّل Damascus Emergency Inventory.exe."
