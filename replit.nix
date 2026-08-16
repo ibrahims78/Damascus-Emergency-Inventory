@@ -1,5 +1,10 @@
 {pkgs}: {
   deps = [
+    pkgs.jdk
+    pkgs.openjdk17
+    pkgs.jdk17
+    pkgs.android-tools
+    pkgs.gradle
     pkgs.wineWowPackages.stable
     pkgs.xorg.xorgserver
     pkgs.libgbm

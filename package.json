@@ -13,6 +13,9 @@
     "@replit/connectors-sdk": "^0.4.1"
   },
   "devDependencies": {
+    "@capacitor/android": "^7.4.4",
+    "@capacitor/cli": "^7.4.4",
+    "@capacitor/core": "^7.4.4",
     "prettier": "^3.9.6",
     "typescript": "~5.9.3"
   }

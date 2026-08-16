@@ -75,6 +75,11 @@ function useAlertSSE(onUpdate: () => void) {
   onUpdateRef.current = onUpdate;
 
   useEffect(() => {
+    if (import.meta.env.VITE_OFFLINE_MODE === '1') {
+      const interval = window.setInterval(() => onUpdateRef.current(), 60_000);
+      return () => window.clearInterval(interval);
+    }
+
     let es: EventSource | null = null;
     let retryTimeout: ReturnType<typeof setTimeout> | null = null;
     let retryDelay = 2_000;
