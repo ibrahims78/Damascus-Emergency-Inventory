@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useLocation } from 'wouter';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,7 +10,7 @@ import {
   type Item,
   type Equipment,
 } from '@workspace/api-client-react';
-import { ArrowRight, Save, PackagePlus, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Save, PackagePlus, CheckCircle2, Check, ChevronsUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -23,14 +23,17 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 const schema = z.object({
   itemType: z.enum(['item', 'equipment']),
@@ -59,6 +62,8 @@ export function TransactionInForm() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [pendingConfirm, setPendingConfirm] = useState(false);
+  const [itemPickerOpen, setItemPickerOpen] = useState(false);
+  const [equipmentPickerOpen, setEquipmentPickerOpen] = useState(false);
 
   const { data: itemsData } = useListItems({ limit: 500 });
   const { data: equipmentData } = useListEquipment({ limit: 500 });
@@ -218,30 +223,34 @@ export function TransactionInForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>المادة *</FormLabel>
-                    <Select
-                      value={field.value ? field.value.toString() : ''}
-                      onValueChange={(v) => {
-                        field.onChange(parseInt(v));
-                        setPendingConfirm(false);
-                      }}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="اختر المادة من القائمة..." />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {itemsData?.items
-                          .filter((i: Item) => i.isActive)
-                          .map((item: Item) => (
-                            <SelectItem key={item.id} value={item.id.toString()}>
-                              {item.name}
-                              {item.code ? ` (${item.code})` : ''} — رصيد:{' '}
-                              {item.currentStock} {item.unit}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <CatalogCombobox
+                        value={field.value ? field.value.toString() : ''}
+                        open={itemPickerOpen}
+                        onOpenChange={setItemPickerOpen}
+                        onValueChange={(value) => {
+                          field.onChange(Number(value));
+                          setPendingConfirm(false);
+                        }}
+                        placeholder="اختر المادة من القائمة..."
+                        searchPlaceholder="ابحث باسم المادة أو رمزها..."
+                        emptyMessage="لا توجد مادة مطابقة"
+                        loading={!itemsData}
+                        options={(itemsData?.items ?? [])
+                          .filter((item: Item) => item.isActive)
+                          .map((item: Item) => ({
+                            value: item.id.toString(),
+                            searchValue: `${item.id} ${item.name} ${item.code ?? ''}`,
+                            label: (
+                              <>
+                                {item.name}
+                                {item.code ? ` (${item.code})` : ''} — رصيد: {item.currentStock}{' '}
+                                {item.unit}
+                              </>
+                            ),
+                          }))}
+                      />
+                    </FormControl>
 
                     {/* Current Stock Info */}
                     {selectedItem && (
@@ -283,28 +292,32 @@ export function TransactionInForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>التجهيز *</FormLabel>
-                    <Select
-                      value={field.value ? field.value.toString() : ''}
-                      onValueChange={(v) => {
-                        field.onChange(parseInt(v));
-                        setPendingConfirm(false);
-                      }}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="اختر التجهيز من القائمة..." />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {equipmentData?.equipment.map((eq: Equipment) => (
-                          <SelectItem key={eq.id} value={eq.id.toString()}>
-                            {eq.name}
-                            {eq.serialNumber ? ` — رقم تسلسلي: ${eq.serialNumber}` : ''}
-                            {eq.model ? ` (${eq.model})` : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <CatalogCombobox
+                        value={field.value ? field.value.toString() : ''}
+                        open={equipmentPickerOpen}
+                        onOpenChange={setEquipmentPickerOpen}
+                        onValueChange={(value) => {
+                          field.onChange(Number(value));
+                          setPendingConfirm(false);
+                        }}
+                        placeholder="اختر التجهيز من القائمة..."
+                        searchPlaceholder="ابحث باسم التجهيز أو الرقم التسلسلي..."
+                        emptyMessage="لا يوجد تجهيز مطابق"
+                        loading={!equipmentData}
+                        options={(equipmentData?.equipment ?? []).map((equipment: Equipment) => ({
+                          value: equipment.id.toString(),
+                          searchValue: `${equipment.id} ${equipment.name} ${equipment.serialNumber ?? ''} ${equipment.model ?? ''}`,
+                          label: (
+                            <>
+                              {equipment.name}
+                              {equipment.serialNumber ? ` — رقم تسلسلي: ${equipment.serialNumber}` : ''}
+                              {equipment.model ? ` (${equipment.model})` : ''}
+                            </>
+                          ),
+                        }))}
+                      />
+                    </FormControl>
 
                     {selectedEquipment && (
                       <div className="mt-2 p-3 bg-muted/50 rounded-md text-sm flex gap-4">
@@ -550,4 +563,85 @@ function conditionLabel(condition: string) {
     needs_inspection: 'تحتاج فحص',
   };
   return map[condition] ?? condition;
+}
+
+type CatalogOption = {
+  value: string;
+  searchValue: string;
+  label: ReactNode;
+};
+
+function CatalogCombobox({
+  value,
+  open,
+  onOpenChange,
+  onValueChange,
+  options,
+  placeholder,
+  searchPlaceholder,
+  emptyMessage,
+  loading,
+}: {
+  value: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onValueChange: (value: string) => void;
+  options: CatalogOption[];
+  placeholder: string;
+  searchPlaceholder: string;
+  emptyMessage: string;
+  loading: boolean;
+}) {
+  const selectedOption = options.find((option) => option.value === value);
+
+  return (
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between gap-3 font-normal"
+        >
+          <span className={cn('min-w-0 truncate text-right', !selectedOption && 'text-muted-foreground')}>
+            {selectedOption?.label ?? placeholder}
+          </span>
+          <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="w-[var(--radix-popover-trigger-width)] min-w-[22rem] max-w-[calc(100vw-2rem)] p-0"
+      >
+        <Command>
+          <CommandInput placeholder={searchPlaceholder} />
+          <CommandList className="max-h-[60vh] sm:max-h-[24rem]">
+            <CommandEmpty>{loading ? 'جاري تحميل الخيارات...' : emptyMessage}</CommandEmpty>
+            <CommandGroup>
+              {options.map((option) => (
+                <CommandItem
+                  key={option.value}
+                  value={option.searchValue}
+                  onSelect={() => {
+                    onValueChange(option.value);
+                    onOpenChange(false);
+                  }}
+                  className="items-start py-2.5 pr-8"
+                >
+                  <Check
+                    className={cn(
+                      'mt-0.5 h-4 w-4 shrink-0',
+                      value === option.value ? 'opacity-100' : 'opacity-0',
+                    )}
+                  />
+                  <span className="min-w-0 truncate text-right">{option.label}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
 }
