@@ -1093,10 +1093,17 @@ export const GetTransactionPrintResponse = zod.object({
 /**
  * @summary List recipient organizations
  */
+export const listRecipientsQueryIncludeInactiveDefault = false;
+
+export const ListRecipientsQueryParams = zod.object({
+  "includeInactive": zod.coerce.boolean().default(listRecipientsQueryIncludeInactiveDefault)
+})
+
 export const ListRecipientsResponseItem = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "notes": zod.string().nullish()
+  "notes": zod.string().nullish(),
+  "isActive": zod.boolean().optional()
 })
 export const ListRecipientsResponse = zod.array(ListRecipientsResponseItem)
 
@@ -1112,16 +1119,25 @@ export const CreateRecipientBody = zod.object({
 export const CreateRecipientResponse = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "notes": zod.string().nullish()
+  "notes": zod.string().nullish(),
+  "isActive": zod.boolean().optional()
 })
 
 
 /**
  * @summary List exit reasons
  */
+export const listExitReasonsQueryIncludeInactiveDefault = false;
+
+export const ListExitReasonsQueryParams = zod.object({
+  "includeInactive": zod.coerce.boolean().default(listExitReasonsQueryIncludeInactiveDefault)
+})
+
 export const ListExitReasonsResponseItem = zod.object({
   "id": zod.number().int(),
-  "name": zod.string()
+  "name": zod.string(),
+  "isSystem": zod.boolean().optional(),
+  "isActive": zod.boolean().optional()
 })
 export const ListExitReasonsResponse = zod.array(ListExitReasonsResponseItem)
 
@@ -1135,7 +1151,9 @@ export const CreateExitReasonBody = zod.object({
 
 export const CreateExitReasonResponse = zod.object({
   "id": zod.number().int(),
-  "name": zod.string()
+  "name": zod.string(),
+  "isSystem": zod.boolean().optional(),
+  "isActive": zod.boolean().optional()
 })
 
 
@@ -1582,7 +1600,8 @@ export const UpdateRecipientBody = zod.object({
 export const UpdateRecipientResponse = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "notes": zod.string().nullish()
+  "notes": zod.string().nullish(),
+  "isActive": zod.boolean().optional()
 })
 
 
@@ -1596,7 +1615,8 @@ export const ToggleRecipientParams = zod.object({
 export const ToggleRecipientResponse = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
-  "notes": zod.string().nullish()
+  "notes": zod.string().nullish(),
+  "isActive": zod.boolean().optional()
 })
 
 
@@ -1609,7 +1629,28 @@ export const ToggleExitReasonParams = zod.object({
 
 export const ToggleExitReasonResponse = zod.object({
   "id": zod.number().int(),
+  "name": zod.string(),
+  "isSystem": zod.boolean().optional(),
+  "isActive": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Update a custom exit reason
+ */
+export const UpdateExitReasonParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const UpdateExitReasonBody = zod.object({
   "name": zod.string()
+})
+
+export const UpdateExitReasonResponse = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "isSystem": zod.boolean().optional(),
+  "isActive": zod.boolean().optional()
 })
 
 

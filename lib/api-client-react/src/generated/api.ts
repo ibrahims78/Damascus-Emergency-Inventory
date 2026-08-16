@@ -54,7 +54,9 @@ import type {
   ItemUpdate,
   ListCustodiesParams,
   ListEquipmentParams,
+  ListExitReasonsParams,
   ListItemsParams,
+  ListRecipientsParams,
   ListTransactionsParams,
   LoginCredentials,
   OkResponse,
@@ -2359,20 +2361,27 @@ export function useGetTransactionPrint<TData = Awaited<ReturnType<typeof getTran
 
 
 
-export const getListRecipientsUrl = () => {
+export const getListRecipientsUrl = (params?: ListRecipientsParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/recipients`
+  return stringifiedParams.length > 0 ? `/api/recipients?${stringifiedParams}` : `/api/recipients`
 }
 
 /**
  * @summary List recipient organizations
  */
-export const listRecipients = async ( options?: Parameters<typeof customFetch>[1]): Promise<Recipient[]> => {
+export const listRecipients = async (params?: ListRecipientsParams, options?: Parameters<typeof customFetch>[1]): Promise<Recipient[]> => {
 
-  return customFetch<Recipient[]>(getListRecipientsUrl(),
+  return customFetch<Recipient[]>(getListRecipientsUrl(params),
   {
     ...options,
     method: 'GET'
@@ -2385,23 +2394,23 @@ export const listRecipients = async ( options?: Parameters<typeof customFetch>[1
 
 
 
-export const getListRecipientsQueryKey = () => {
+export const getListRecipientsQueryKey = (params?: ListRecipientsParams,) => {
     return [
-    `/api/recipients`
+    `/api/recipients`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListRecipientsQueryOptions = <TData = Awaited<ReturnType<typeof listRecipients>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRecipients>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListRecipientsQueryOptions = <TData = Awaited<ReturnType<typeof listRecipients>>, TError = ErrorType<unknown>>(params?: ListRecipientsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRecipients>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListRecipientsQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListRecipientsQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRecipients>>> = ({ signal }) => listRecipients({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRecipients>>> = ({ signal }) => listRecipients(params, { signal, ...requestOptions });
 
 
 
@@ -2419,11 +2428,11 @@ export type ListRecipientsQueryError = ErrorType<unknown>
  */
 
 export function useListRecipients<TData = Awaited<ReturnType<typeof listRecipients>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRecipients>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: ListRecipientsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRecipients>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getListRecipientsQueryOptions(options)
+  const queryOptions = getListRecipientsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -2507,20 +2516,27 @@ export const useCreateRecipient = <TError = ErrorType<unknown>,
       return useMutation(getCreateRecipientMutationOptions(options));
     }
 
-export const getListExitReasonsUrl = () => {
+export const getListExitReasonsUrl = (params?: ListExitReasonsParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/exit-reasons`
+  return stringifiedParams.length > 0 ? `/api/exit-reasons?${stringifiedParams}` : `/api/exit-reasons`
 }
 
 /**
  * @summary List exit reasons
  */
-export const listExitReasons = async ( options?: Parameters<typeof customFetch>[1]): Promise<ExitReason[]> => {
+export const listExitReasons = async (params?: ListExitReasonsParams, options?: Parameters<typeof customFetch>[1]): Promise<ExitReason[]> => {
 
-  return customFetch<ExitReason[]>(getListExitReasonsUrl(),
+  return customFetch<ExitReason[]>(getListExitReasonsUrl(params),
   {
     ...options,
     method: 'GET'
@@ -2533,23 +2549,23 @@ export const listExitReasons = async ( options?: Parameters<typeof customFetch>[
 
 
 
-export const getListExitReasonsQueryKey = () => {
+export const getListExitReasonsQueryKey = (params?: ListExitReasonsParams,) => {
     return [
-    `/api/exit-reasons`
+    `/api/exit-reasons`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListExitReasonsQueryOptions = <TData = Awaited<ReturnType<typeof listExitReasons>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listExitReasons>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListExitReasonsQueryOptions = <TData = Awaited<ReturnType<typeof listExitReasons>>, TError = ErrorType<unknown>>(params?: ListExitReasonsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listExitReasons>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListExitReasonsQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListExitReasonsQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listExitReasons>>> = ({ signal }) => listExitReasons({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listExitReasons>>> = ({ signal }) => listExitReasons(params, { signal, ...requestOptions });
 
 
 
@@ -2567,11 +2583,11 @@ export type ListExitReasonsQueryError = ErrorType<unknown>
  */
 
 export function useListExitReasons<TData = Awaited<ReturnType<typeof listExitReasons>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listExitReasons>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: ListExitReasonsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listExitReasons>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getListExitReasonsQueryOptions(options)
+  const queryOptions = getListExitReasonsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -4302,6 +4318,78 @@ export const useToggleExitReason = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getToggleExitReasonMutationOptions(options));
+    }
+
+export const getUpdateExitReasonUrl = (id: number,) => {
+
+
+
+
+  return `/api/exit-reasons/${id}`
+}
+
+/**
+ * @summary Update a custom exit reason
+ */
+export const updateExitReason = async (id: number,
+    exitReasonInput: ExitReasonInput, options?: Parameters<typeof customFetch>[1]): Promise<ExitReason> => {
+
+  return customFetch<ExitReason>(getUpdateExitReasonUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(exitReasonInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateExitReasonMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateExitReason>>, TError,{id: number;data: BodyType<ExitReasonInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateExitReason>>, TError,{id: number;data: BodyType<ExitReasonInput>}, TContext> => {
+
+const mutationKey = ['updateExitReason'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateExitReason>>, {id: number;data: BodyType<ExitReasonInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateExitReason(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateExitReasonMutationResult = NonNullable<Awaited<ReturnType<typeof updateExitReason>>>
+    export type UpdateExitReasonMutationBody = BodyType<ExitReasonInput>
+    export type UpdateExitReasonMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a custom exit reason
+ */
+export const useUpdateExitReason = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateExitReason>>, TError,{id: number;data: BodyType<ExitReasonInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateExitReason>>,
+        TError,
+        {id: number;data: BodyType<ExitReasonInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateExitReasonMutationOptions(options));
     }
 
 export const getUpdateUserUrl = (id: number,) => {

@@ -6,9 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface ExitReason {
-  id: number;
-  name: string;
-  isSystem?: boolean;
-  isActive?: boolean;
-}
+export type ListRecipientsParams = {
+includeInactive?: boolean;
+};

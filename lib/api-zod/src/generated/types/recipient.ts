@@ -11,4 +11,5 @@ export interface Recipient {
   name: string;
   /** @nullable */
   notes?: string | null;
+  isActive?: boolean;
 }

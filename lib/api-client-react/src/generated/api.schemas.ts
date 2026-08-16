@@ -785,6 +785,7 @@ export interface Recipient {
   name: string;
   /** @nullable */
   notes?: string | null;
+  isActive?: boolean;
 }
 
 export interface RecipientInput {
@@ -796,6 +797,8 @@ export interface RecipientInput {
 export interface ExitReason {
   id: number;
   name: string;
+  isSystem?: boolean;
+  isActive?: boolean;
 }
 
 export interface ExitReasonInput {
@@ -1097,6 +1100,14 @@ export const ListCustodiesStatus = {
   damaged: 'damaged',
   closed: 'closed',
 } as const;
+
+export type ListRecipientsParams = {
+includeInactive?: boolean;
+};
+
+export type ListExitReasonsParams = {
+includeInactive?: boolean;
+};
 
 export type GetMovementsReportParams = {
 from?: string;

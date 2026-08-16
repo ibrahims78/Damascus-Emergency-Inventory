@@ -656,6 +656,10 @@ paths:
       operationId: listRecipients
       tags: [recipients]
       summary: List recipient organizations
+      parameters:
+        - name: includeInactive
+          in: query
+          schema: { type: boolean, default: false }
       responses:
         "200":
           description: List of recipients
@@ -688,6 +692,10 @@ paths:
       operationId: listExitReasons
       tags: [exit-reasons]
       summary: List exit reasons
+      parameters:
+        - name: includeInactive
+          in: query
+          schema: { type: boolean, default: false }
       responses:
         "200":
           description: List of exit reasons
@@ -1082,6 +1090,30 @@ paths:
           in: path
           required: true
           schema: { type: integer }
+      responses:
+        "200":
+          description: Updated exit reason
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExitReason"
+
+  /exit-reasons/{id}:
+    put:
+      operationId: updateExitReason
+      tags: [exit-reasons]
+      summary: Update a custom exit reason
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExitReasonInput"
       responses:
         "200":
           description: Updated exit reason
@@ -2008,6 +2040,8 @@ components:
           type: string
         notes:
           type: ["string", "null"]
+        isActive:
+          type: boolean
 
     RecipientInput:
       type: object
@@ -2026,6 +2060,10 @@ components:
           type: integer
         name:
           type: string
+        isSystem:
+          type: boolean
+        isActive:
+          type: boolean
 
     ExitReasonInput:
       type: object
