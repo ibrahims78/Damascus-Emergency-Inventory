@@ -11,6 +11,7 @@
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - `pnpm --filter @workspace/scripts run phase8:acceptance` — API acceptance smoke test while API workflow is running
+- `pnpm run build:android:offline` — build the Android v1.0.3 APK with the local IndexedDB offline API
 - `DATABASE_URL` is provisioned automatically by Replit (runtime-managed)
 - `SESSION_SECRET` is set as a Replit Secret
 
@@ -56,6 +57,13 @@
 - **الإعدادات** — ملف شخصي، تغيير كلمة المرور، إعدادات المنظومة
 - **التنبيهات** — جرس في الـ Header مع SSE وحالات قراءة/حل
 - **التوثيق** — `docs/operations.md` للتشغيل والنسخ الاحتياطي، و`docs/user-guide-ar.md` لدليل المستخدم
+
+## Android offline release
+
+- The Android application is a Capacitor wrapper around the web frontend.
+- Android release builds set `VITE_OFFLINE_MODE=1`, which replaces `/api/*` calls with the local IndexedDB-backed implementation in `artifacts/web/src/lib/offline-api.ts`.
+- The APK does not require the Replit API, PostgreSQL, or an external server. Data stays on the device and can be exported from the application backup screen.
+- Release artifacts and checksums are stored under `releases/android/v1.0.3/`.
 
 ## User preferences
 
