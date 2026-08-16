@@ -25,6 +25,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { CatalogCombobox } from '@/components/catalog-combobox';
 import {
   Select,
   SelectContent,
@@ -163,8 +164,10 @@ function EntityPicker({
   onItemChange: (id: number | null) => void;
   onEquipmentChange: (id: number | null) => void;
 }) {
-  const { data: itemsData } = useListItems({ limit: 500 });
-  const { data: equipmentData } = useListEquipment({ limit: 500 });
+  const { data: itemsData } = useListItems({ limit: 5000 });
+  const { data: equipmentData } = useListEquipment({ limit: 5000 });
+  const [itemPickerOpen, setItemPickerOpen] = useState(false);
+  const [equipmentPickerOpen, setEquipmentPickerOpen] = useState(false);
   return (
     <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
       <div className="flex gap-2">
@@ -177,29 +180,41 @@ function EntityPicker({
       </div>
       {type === 'item' ? (
         <Field label="المادة" required>
-          <Select value={itemId ? String(itemId) : ''} onValueChange={(value) => onItemChange(Number(value))}>
-            <SelectTrigger><SelectValue placeholder="اختر المادة..." /></SelectTrigger>
-            <SelectContent>
-              {itemsData?.items.filter((item: Item) => item.isActive).map((item: Item) => (
-                <SelectItem key={item.id} value={String(item.id)}>
-                  {item.name} — المتاح {item.currentStock} {item.unit}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <CatalogCombobox
+            value={itemId ? String(itemId) : ''}
+            open={itemPickerOpen}
+            onOpenChange={setItemPickerOpen}
+            onValueChange={(value) => onItemChange(Number(value))}
+            placeholder="اختر المادة..."
+            searchPlaceholder="ابحث باسم المادة أو رمزها..."
+            emptyMessage="لا توجد مادة مطابقة"
+            loading={!itemsData}
+            options={(itemsData?.items ?? [])
+              .filter((item: Item) => item.isActive)
+              .map((item: Item) => ({
+                value: String(item.id),
+                searchValue: `${item.id} ${item.name} ${item.code ?? ''} ${item.batchNumber ?? ''}`,
+                label: `${item.name}${item.code ? ` (${item.code})` : ''} — المتاح ${item.currentStock} ${item.unit}`,
+              }))}
+          />
         </Field>
       ) : (
         <Field label="التجهيز" required>
-          <Select value={equipmentId ? String(equipmentId) : ''} onValueChange={(value) => onEquipmentChange(Number(value))}>
-            <SelectTrigger><SelectValue placeholder="اختر التجهيز..." /></SelectTrigger>
-            <SelectContent>
-              {equipmentData?.equipment.map((equipment: Equipment) => (
-                <SelectItem key={equipment.id} value={String(equipment.id)}>
-                  {equipment.name} — المتاح {equipment.quantity} {equipment.serialNumber ? `(S/N: ${equipment.serialNumber})` : ''}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <CatalogCombobox
+            value={equipmentId ? String(equipmentId) : ''}
+            open={equipmentPickerOpen}
+            onOpenChange={setEquipmentPickerOpen}
+            onValueChange={(value) => onEquipmentChange(Number(value))}
+            placeholder="اختر التجهيز..."
+            searchPlaceholder="ابحث باسم التجهيز أو الرقم التسلسلي..."
+            emptyMessage="لا يوجد تجهيز مطابق"
+            loading={!equipmentData}
+            options={(equipmentData?.equipment ?? []).map((equipment: Equipment) => ({
+              value: String(equipment.id),
+              searchValue: `${equipment.id} ${equipment.name} ${equipment.serialNumber ?? ''} ${equipment.model ?? ''}`,
+              label: `${equipment.name} — المتاح ${equipment.quantity}${equipment.serialNumber ? ` (S/N: ${equipment.serialNumber})` : ''}`,
+            }))}
+          />
         </Field>
       )}
     </div>
@@ -269,12 +284,24 @@ export function CustodyOutForm() {
 }
 
 function EquipmentOnlyPicker({ equipmentId, onChange }: { equipmentId: number | null; onChange: (id: number | null) => void }) {
-  const { data } = useListEquipment({ limit: 500 });
+  const { data } = useListEquipment({ limit: 5000 });
+  const [open, setOpen] = useState(false);
   return (
-    <Select value={equipmentId ? String(equipmentId) : ''} onValueChange={(value) => onChange(Number(value))}>
-      <SelectTrigger><SelectValue placeholder="اختر التجهيز..." /></SelectTrigger>
-      <SelectContent>{data?.equipment.map((equipment: Equipment) => <SelectItem key={equipment.id} value={String(equipment.id)}>{equipment.name} — الكمية {equipment.quantity}{equipment.serialNumber ? ` — S/N ${equipment.serialNumber}` : ''}</SelectItem>)}</SelectContent>
-    </Select>
+    <CatalogCombobox
+      value={equipmentId ? String(equipmentId) : ''}
+      open={open}
+      onOpenChange={setOpen}
+      onValueChange={(value) => onChange(Number(value))}
+      placeholder="اختر التجهيز..."
+      searchPlaceholder="ابحث باسم التجهيز أو الرقم التسلسلي..."
+      emptyMessage="لا يوجد تجهيز مطابق"
+      loading={!data}
+      options={(data?.equipment ?? []).map((equipment: Equipment) => ({
+        value: String(equipment.id),
+        searchValue: `${equipment.id} ${equipment.name} ${equipment.serialNumber ?? ''} ${equipment.model ?? ''}`,
+        label: `${equipment.name} — الكمية ${equipment.quantity}${equipment.serialNumber ? ` — S/N ${equipment.serialNumber}` : ''}`,
+      }))}
+    />
   );
 }
 
@@ -291,6 +318,7 @@ export function CustodyReturnForm() {
   const [inspectionNotes, setInspectionNotes] = useState('');
   const [confirming, setConfirming] = useState(false);
   const selected = openCustodies.find((custody) => custody.id === custodyId);
+  const [custodyPickerOpen, setCustodyPickerOpen] = useState(false);
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -312,12 +340,21 @@ export function CustodyReturnForm() {
     <PageFrame title="إعادة عهدة شخصية" description="إعادة كل العهدة أو جزء منها مع توثيق حالتها" icon={RotateCcw}>
       <FormCard onSubmit={submit} pending={mutation.isPending} confirming={confirming} onCancelConfirm={() => setConfirming(false)} submitLabel="تسجيل إعادة العهدة">
         <Field label="العهدة المفتوحة" required hint={isLoading ? 'جاري تحميل العهد...' : 'تظهر العهد التي ما زال لها رصيد غير معاد فقط'}>
-          <Select value={custodyId ? String(custodyId) : ''} onValueChange={(value) => { setCustodyId(Number(value)); setQuantity(1); setConfirming(false); }}>
-            <SelectTrigger><SelectValue placeholder="اختر العهدة..." /></SelectTrigger>
-            <SelectContent>
-              {openCustodies.map((custody) => <SelectItem key={custody.id} value={String(custody.id)}>{custody.equipmentName} — {custody.holderName} — المتبقي {custody.outstandingQuantity}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <CatalogCombobox
+            value={custodyId ? String(custodyId) : ''}
+            open={custodyPickerOpen}
+            onOpenChange={setCustodyPickerOpen}
+            onValueChange={(value) => { setCustodyId(Number(value)); setQuantity(1); setConfirming(false); }}
+            placeholder="اختر العهدة..."
+            searchPlaceholder="ابحث باسم التجهيز أو اسم المستلم..."
+            emptyMessage="لا توجد عهدة مفتوحة"
+            loading={isLoading}
+            options={openCustodies.map((custody) => ({
+              value: String(custody.id),
+              searchValue: `${custody.id} ${custody.equipmentName} ${custody.holderName} ${custody.deliveryNoteNumber}`,
+              label: `${custody.equipmentName} — ${custody.holderName} — المتبقي ${custody.outstandingQuantity}`,
+            }))}
+          />
         </Field>
         {selected && <div className="flex flex-wrap gap-2 rounded-lg bg-muted/40 p-3 text-sm"><Badge variant="outline">السند: {selected.deliveryNoteNumber}</Badge><Badge variant="outline">المكان: {selected.location}</Badge><Badge variant="secondary">المتبقي: {selected.outstandingQuantity}</Badge></div>}
         <div className="grid gap-4 sm:grid-cols-2">

@@ -23,6 +23,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { CatalogCombobox } from '@/components/catalog-combobox';
 import {
   Form,
   FormControl,
@@ -65,8 +66,9 @@ export function TransactionOutForm() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [pendingConfirm, setPendingConfirm] = useState(false);
+  const [itemPickerOpen, setItemPickerOpen] = useState(false);
 
-  const { data: itemsData } = useListItems({ limit: 500 });
+  const { data: itemsData } = useListItems({ limit: 5000 });
   const { data: recipients } = useListRecipients();
   const { data: exitReasons } = useListExitReasons();
   const mutation = useCreateOutTransaction();
@@ -219,30 +221,34 @@ export function TransactionOutForm() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>المادة *</FormLabel>
-                  <Select
-                    value={field.value ? field.value.toString() : ''}
-                    onValueChange={(v) => {
-                      field.onChange(parseInt(v));
-                      setPendingConfirm(false);
-                    }}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="اختر المادة من القائمة..." />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {itemsData?.items
-                        .filter((i: Item) => i.isActive)
-                        .map((item: Item) => (
-                          <SelectItem key={item.id} value={item.id.toString()}>
-                            {item.name}
-                            {item.code ? ` (${item.code})` : ''} — رصيد:{' '}
-                            {item.currentStock} {item.unit}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <CatalogCombobox
+                      value={field.value ? field.value.toString() : ''}
+                      open={itemPickerOpen}
+                      onOpenChange={setItemPickerOpen}
+                      onValueChange={(value) => {
+                        field.onChange(Number(value));
+                        setPendingConfirm(false);
+                      }}
+                      placeholder="اختر المادة من القائمة..."
+                      searchPlaceholder="ابحث باسم المادة أو رمزها..."
+                      emptyMessage="لا توجد مادة مطابقة"
+                      loading={!itemsData}
+                      options={(itemsData?.items ?? [])
+                        .filter((item: Item) => item.isActive)
+                        .map((item: Item) => ({
+                          value: item.id.toString(),
+                          searchValue: `${item.id} ${item.name} ${item.code ?? ''} ${item.batchNumber ?? ''}`,
+                          label: (
+                            <>
+                              {item.name}
+                              {item.code ? ` (${item.code})` : ''} — رصيد: {item.currentStock}{' '}
+                              {item.unit}
+                            </>
+                          ),
+                        }))}
+                    />
+                  </FormControl>
 
                   {selectedItem && (
                     <div className="mt-2 p-3 bg-muted/50 rounded-md flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">

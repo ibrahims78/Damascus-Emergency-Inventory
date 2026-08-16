@@ -88,7 +88,7 @@ export const ListCategoriesResponse = zod.array(ListCategoriesResponseItem)
 /**
  * @summary List items with optional filters
  */
-export const listItemsQueryLimitMax = 500;
+export const listItemsQueryLimitMax = 5000;
 
 
 
@@ -327,7 +327,7 @@ export const GetItemHistoryResponse = zod.object({
 /**
  * @summary List equipment with optional filters
  */
-export const listEquipmentQueryLimitMax = 500;
+export const listEquipmentQueryLimitMax = 5000;
 
 
 

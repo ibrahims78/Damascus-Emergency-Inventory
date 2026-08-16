@@ -38,10 +38,10 @@ router.get("/", requireAuth, async (req, res) => {
     } = req.query as Record<string, string>;
 
     const pageNum = Math.max(1, parseInt(page, 10));
-    // Dropdown forms request up to 500 active items in one stable, sorted list.
-    // Keep the API cap aligned with that contract so valid options are not
-    // silently omitted once the inventory grows beyond 200 records.
-    const limitNum = Math.min(500, Math.max(1, parseInt(limit, 10)));
+    // Catalog pickers request the complete active catalog in one stable,
+    // sorted list. Keep a generous safety cap without silently truncating
+    // normal inventory catalogs.
+    const limitNum = Math.min(5000, Math.max(1, parseInt(limit, 10)));
     const offset = (pageNum - 1) * limitNum;
 
     const conditions = [eq(itemsTable.isActive, true)];

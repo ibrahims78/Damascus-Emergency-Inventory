@@ -14,7 +14,7 @@ search?: string;
 page?: number;
 /**
  * @minimum 1
- * @maximum 500
+ * @maximum 5000
  */
 limit?: number;
 sortBy?: ListEquipmentSortBy;
