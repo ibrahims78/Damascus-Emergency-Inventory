@@ -33,7 +33,9 @@ router.put("/", requireAuth, requireRole("admin"), async (req, res) => {
     const { orgName, orgSubtitle, expiryAlertDays, unitsList } = req.body;
     const settings = await getOrCreateSettings();
 
-    // Validate unitsList if provided
+    let normalizedUnitsList: string | undefined;
+
+    // Validate and normalize unitsList if provided
     if (unitsList !== undefined) {
       if (typeof unitsList !== "string") {
         res.status(400).json({ error: "unitsList must be a JSON string" });
@@ -41,9 +43,19 @@ router.put("/", requireAuth, requireRole("admin"), async (req, res) => {
       }
       try {
         const parsed = JSON.parse(unitsList);
-        if (!Array.isArray(parsed)) throw new Error();
+        if (
+          !Array.isArray(parsed) ||
+          parsed.length > 100 ||
+          parsed.some((unit) => typeof unit !== "string" || unit.trim().length === 0 || unit.trim().length > 100)
+        ) {
+          throw new Error();
+        }
+        const normalized = parsed.map((unit: string) => unit.trim());
+        const unique = new Set(normalized.map((unit) => unit.toLocaleLowerCase()));
+        if (unique.size !== normalized.length) throw new Error();
+        normalizedUnitsList = JSON.stringify(normalized);
       } catch {
-        res.status(400).json({ error: "unitsList must be a valid JSON array string" });
+        res.status(400).json({ error: "يجب أن تكون وحدات القياس قائمة نصوص غير فارغة وفريدة" });
         return;
       }
     }
@@ -54,7 +66,7 @@ router.put("/", requireAuth, requireRole("admin"), async (req, res) => {
         ...(orgName !== undefined && { orgName }),
         ...(orgSubtitle !== undefined && { orgSubtitle }),
         ...(expiryAlertDays !== undefined && { expiryAlertDays: Number(expiryAlertDays) }),
-        ...(unitsList !== undefined && { unitsList }),
+        ...(normalizedUnitsList !== undefined && { unitsList: normalizedUnitsList }),
         updatedAt: new Date(),
       })
       .where(eq(systemSettingsTable.id, settings.id))

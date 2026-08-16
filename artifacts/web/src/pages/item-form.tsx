@@ -100,7 +100,7 @@ export function ItemForm({ itemId }: { itemId?: number }) {
   // ── Units from settings ──
   const [showCustomUnit, setShowCustomUnit] = useState(false);
   const { data: settingsData } = useQuery({
-    queryKey: ['settings-units'],
+    queryKey: ['settings'],
     queryFn: async () => {
       const res = await fetch('/api/settings', { credentials: 'include' });
       if (!res.ok) return null;
@@ -144,6 +144,7 @@ export function ItemForm({ itemId }: { itemId?: number }) {
     },
     onSuccess: (created) => {
       qc.invalidateQueries({ queryKey: ['listCategories'] });
+      qc.invalidateQueries({ queryKey: ['/api/categories'] });
       refetchCategories();
       // Auto-select the new category
       form.setValue('categoryId', created.id);
@@ -351,6 +352,11 @@ export function ItemForm({ itemId }: { itemId?: number }) {
                             {unitOptions.map((u) => (
                               <SelectItem key={u} value={u}>{u}</SelectItem>
                             ))}
+                            {field.value && !unitOptions.includes(field.value) && (
+                              <SelectItem value={field.value}>
+                                {field.value} (الوحدة الحالية غير موجودة في القائمة)
+                              </SelectItem>
+                            )}
                             <SelectItem value="__custom__" className="text-muted-foreground italic border-t mt-1 pt-1">
                               أخرى (إدخال يدوي)...
                             </SelectItem>

@@ -715,12 +715,16 @@ function UnitsTab() {
 
   const [units, setUnits] = useState<string[]>(DEFAULT_UNITS);
   const [newUnit, setNewUnit] = useState('');
+  const [editUnit, setEditUnit] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
 
   useEffect(() => {
     if (settings?.unitsList) {
       try {
         const parsed = JSON.parse(settings.unitsList);
-        if (Array.isArray(parsed) && parsed.length > 0) setUnits(parsed);
+        if (Array.isArray(parsed) && parsed.every((unit) => typeof unit === 'string')) {
+          setUnits(parsed);
+        }
       } catch { /* keep defaults */ }
     }
   }, [settings]);
@@ -729,25 +733,68 @@ function UnitsTab() {
     mutationFn: (u: string[]) => saveSettings({ unitsList: JSON.stringify(u) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['settings'] });
-      toast.success('تم حفظ وحدات القياس');
     },
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const persistUnits = (nextUnits: string[], successMessage: string) => {
+    mutation.mutate(nextUnits, {
+      onSuccess: () => {
+        setUnits(nextUnits);
+        setEditUnit(null);
+        setEditValue('');
+        toast.success(successMessage);
+      },
+    });
+  };
+
   const addUnit = () => {
     const trimmed = newUnit.trim();
     if (!trimmed) return;
-    if (units.includes(trimmed)) { toast.error('الوحدة موجودة مسبقاً'); return; }
+    if (units.some((unit) => unit.localeCompare(trimmed, 'ar', { sensitivity: 'base' }) === 0)) {
+      toast.error('الوحدة موجودة مسبقاً');
+      return;
+    }
     const updated = [...units, trimmed];
-    setUnits(updated);
     setNewUnit('');
-    mutation.mutate(updated);
+    persistUnits(updated, 'تمت إضافة وحدة القياس');
   };
 
   const removeUnit = (u: string) => {
+    if (units.length <= 1) {
+      toast.error('يجب الإبقاء على وحدة قياس واحدة على الأقل');
+      return;
+    }
     const updated = units.filter((x) => x !== u);
-    setUnits(updated);
-    mutation.mutate(updated);
+    persistUnits(updated, 'تم حذف وحدة القياس');
+  };
+
+  const startEdit = (unit: string) => {
+    setEditUnit(unit);
+    setEditValue(unit);
+  };
+
+  const saveEdit = () => {
+    if (!editUnit) return;
+    const trimmed = editValue.trim();
+    if (!trimmed) {
+      toast.error('اسم الوحدة مطلوب');
+      return;
+    }
+    if (
+      units.some(
+        (unit) =>
+          unit !== editUnit &&
+          unit.localeCompare(trimmed, 'ar', { sensitivity: 'base' }) === 0,
+      )
+    ) {
+      toast.error('الوحدة موجودة مسبقاً');
+      return;
+    }
+    persistUnits(
+      units.map((unit) => (unit === editUnit ? trimmed : unit)),
+      'تم تعديل وحدة القياس',
+    );
   };
 
   return (
@@ -778,22 +825,78 @@ function UnitsTab() {
         {units.map((u) => (
           <span
             key={u}
-            className="inline-flex items-center gap-1.5 bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm font-medium"
+            className="inline-flex items-center gap-1.5 bg-secondary text-secondary-foreground px-2 py-1 rounded-full text-sm font-medium"
           >
-            {u}
-            <button
-              onClick={() => removeUnit(u)}
-              className="text-muted-foreground hover:text-destructive transition-colors"
-              title={`حذف ${u}`}
-            >
-              <X className="w-3 h-3" />
-            </button>
+            {editUnit === u ? (
+              <>
+                <Input
+                  value={editValue}
+                  onChange={(event) => setEditValue(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') saveEdit();
+                    if (event.key === 'Escape') {
+                      setEditUnit(null);
+                      setEditValue('');
+                    }
+                  }}
+                  className="h-7 w-28 bg-background px-2 text-sm"
+                  autoFocus
+                  aria-label={`تعديل الوحدة ${u}`}
+                />
+                <button
+                  type="button"
+                  onClick={saveEdit}
+                  disabled={mutation.isPending}
+                  className="text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
+                  title="حفظ تعديل الوحدة"
+                  aria-label="حفظ تعديل الوحدة"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditUnit(null);
+                    setEditValue('');
+                  }}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  title="إلغاء تعديل الوحدة"
+                  aria-label="إلغاء تعديل الوحدة"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </>
+            ) : (
+              <>
+                <span>{u}</span>
+                <button
+                  type="button"
+                  onClick={() => startEdit(u)}
+                  disabled={mutation.isPending}
+                  className="text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+                  title={`تعديل ${u}`}
+                  aria-label={`تعديل ${u}`}
+                >
+                  <Pencil className="w-3 h-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeUnit(u)}
+                  disabled={mutation.isPending}
+                  className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                  title={`حذف ${u}`}
+                  aria-label={`حذف ${u}`}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </>
+            )}
           </span>
         ))}
       </div>
 
       <p className="text-xs text-muted-foreground">
-        {units.length} وحدة مسجّلة — التغييرات تُحفظ فوراً
+        {units.length} وحدة مسجّلة — التغييرات تُحفظ فوراً، ولا يؤثر حذف/تعديل الخيار على المواد المحفوظة سابقاً
       </p>
     </div>
   );
@@ -928,6 +1031,7 @@ function CategoriesTab() {
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['categories-settings'] });
     qc.invalidateQueries({ queryKey: ['listCategories'] });
+    qc.invalidateQueries({ queryKey: ['/api/categories'] });
   };
 
   const createMutation = useMutation({
@@ -1115,6 +1219,7 @@ function RecipientsTab() {
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['recipients-settings'] });
     qc.invalidateQueries({ queryKey: ['listRecipients'] });
+    qc.invalidateQueries({ queryKey: ['/api/recipients'] });
   };
 
   const saveMutation = useMutation({
@@ -1297,6 +1402,7 @@ function ExitReasonsTab() {
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['exit-reasons-settings'] });
     qc.invalidateQueries({ queryKey: ['listExitReasons'] });
+    qc.invalidateQueries({ queryKey: ['/api/exit-reasons'] });
   };
 
   const saveMutation = useMutation({
@@ -1451,16 +1557,16 @@ function ImportTab() {
   const [importMode, setImportMode] = useState<'insert' | 'upsert'>('insert');
   const queryClient = useQueryClient();
 
-  const { data: categoriesData } = useQuery<{ categories: { id: number; name: string; type: string }[] }>({
+  const { data: categoriesData } = useQuery<{ id: number; name: string; type: string }[]>({
     queryKey: ['categories'],
     queryFn: async () => {
       const res = await fetch('/api/categories', { credentials: 'include' });
       if (!res.ok) throw new Error('failed');
-      return res.json() as Promise<{ categories: { id: number; name: string; type: string }[] }>;
+      return res.json() as Promise<{ id: number; name: string; type: string }[]>;
     },
   });
 
-  const categories = categoriesData?.categories ?? [];
+  const categories = categoriesData ?? [];
 
   const handleExportTemplate = async () => {
     const XLSX = await import('xlsx');
