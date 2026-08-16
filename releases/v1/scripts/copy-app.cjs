@@ -29,7 +29,10 @@ for (const asset of ["pglite.wasm", "pglite.data"]) {
 fs.rmSync(appRoot, { recursive: true, force: true });
 fs.mkdirSync(appRoot, { recursive: true });
 fs.cpSync(webSource, path.join(appRoot, "web"), { recursive: true });
-fs.cpSync(apiSource, path.join(appRoot, "api"), { recursive: true });
+fs.mkdirSync(path.join(appRoot, "api"), { recursive: true });
+for (const asset of ["index.mjs", "index.mjs.map", "table.sql"]) {
+  fs.copyFileSync(path.join(apiSource, asset), path.join(appRoot, "api", asset));
+}
 fs.mkdirSync(path.join(appRoot, "schema"), { recursive: true });
 fs.copyFileSync(schemaSource, path.join(appRoot, "schema", "desktop-schema.sql"));
 for (const asset of ["pglite.wasm", "pglite.data"]) {

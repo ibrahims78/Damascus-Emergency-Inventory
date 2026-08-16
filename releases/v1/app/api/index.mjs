@@ -40593,6 +40593,7 @@ var init_drizzle_orm = __esm({
 // src/lib/logger.ts
 var import_pino = __toESM(require_pino(), 1);
 var isProduction = process.env.NODE_ENV === "production";
+var isDesktop = process.env.DAMASCUS_DESKTOP === "1";
 var logger = (0, import_pino.default)({
   level: process.env.LOG_LEVEL ?? "info",
   redact: [
@@ -40600,7 +40601,7 @@ var logger = (0, import_pino.default)({
     "req.headers.cookie",
     "res.headers['set-cookie']"
   ],
-  ...isProduction ? {} : {
+  ...isProduction || isDesktop ? {} : {
     transport: {
       target: "pino-pretty",
       options: { colorize: true }
