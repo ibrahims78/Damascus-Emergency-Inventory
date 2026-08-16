@@ -65806,13 +65806,14 @@ var ListCategoriesResponseItem = objectType({
   "type": stringType()
 });
 var ListCategoriesResponse = arrayType(ListCategoriesResponseItem);
+var listItemsQueryLimitMax = 5e3;
 var ListItemsQueryParams = objectType({
   "categoryId": coerce.number().int().optional(),
   "search": coerce.string().optional(),
   "belowMin": coerce.boolean().optional(),
   "nearExpiry": coerce.boolean().optional(),
   "page": coerce.number().int().optional(),
-  "limit": coerce.number().int().optional(),
+  "limit": coerce.number().int().min(1).max(listItemsQueryLimitMax).optional(),
   "sortBy": enumType(["name", "currentStock", "minStock", "expiryDate", "createdAt"]).optional(),
   "sortDir": enumType(["asc", "desc"]).optional()
 });
@@ -66000,11 +66001,12 @@ var GetItemHistoryResponse = objectType({
   "page": numberType().int(),
   "limit": numberType().int()
 });
+var listEquipmentQueryLimitMax = 5e3;
 var ListEquipmentQueryParams = objectType({
   "condition": coerce.string().optional(),
   "search": coerce.string().optional(),
   "page": coerce.number().int().optional(),
-  "limit": coerce.number().int().optional(),
+  "limit": coerce.number().int().min(1).max(listEquipmentQueryLimitMax).optional(),
   "sortBy": enumType(["name", "condition", "quantity", "manufactureYear", "createdAt"]).optional(),
   "sortDir": enumType(["asc", "desc"]).optional()
 });
@@ -66638,10 +66640,15 @@ var GetTransactionPrintResponse = objectType({
   "organizationName": stringType(),
   "printedAt": stringType()
 });
+var listRecipientsQueryIncludeInactiveDefault = false;
+var ListRecipientsQueryParams = objectType({
+  "includeInactive": coerce.boolean().default(listRecipientsQueryIncludeInactiveDefault)
+});
 var ListRecipientsResponseItem = objectType({
   "id": numberType().int(),
   "name": stringType(),
-  "notes": stringType().nullish()
+  "notes": stringType().nullish(),
+  "isActive": booleanType().optional()
 });
 var ListRecipientsResponse = arrayType(ListRecipientsResponseItem);
 var CreateRecipientBody = objectType({
@@ -66651,11 +66658,18 @@ var CreateRecipientBody = objectType({
 var CreateRecipientResponse = objectType({
   "id": numberType().int(),
   "name": stringType(),
-  "notes": stringType().nullish()
+  "notes": stringType().nullish(),
+  "isActive": booleanType().optional()
+});
+var listExitReasonsQueryIncludeInactiveDefault = false;
+var ListExitReasonsQueryParams = objectType({
+  "includeInactive": coerce.boolean().default(listExitReasonsQueryIncludeInactiveDefault)
 });
 var ListExitReasonsResponseItem = objectType({
   "id": numberType().int(),
-  "name": stringType()
+  "name": stringType(),
+  "isSystem": booleanType().optional(),
+  "isActive": booleanType().optional()
 });
 var ListExitReasonsResponse = arrayType(ListExitReasonsResponseItem);
 var CreateExitReasonBody = objectType({
@@ -66663,7 +66677,9 @@ var CreateExitReasonBody = objectType({
 });
 var CreateExitReasonResponse = objectType({
   "id": numberType().int(),
-  "name": stringType()
+  "name": stringType(),
+  "isSystem": booleanType().optional(),
+  "isActive": booleanType().optional()
 });
 var GetDashboardStatsResponse = objectType({
   "totalItems": numberType().int().describe("Active items in the warehouse"),
@@ -66997,7 +67013,8 @@ var UpdateRecipientBody = objectType({
 var UpdateRecipientResponse = objectType({
   "id": numberType().int(),
   "name": stringType(),
-  "notes": stringType().nullish()
+  "notes": stringType().nullish(),
+  "isActive": booleanType().optional()
 });
 var ToggleRecipientParams = objectType({
   "id": coerce.number().int()
@@ -67005,14 +67022,29 @@ var ToggleRecipientParams = objectType({
 var ToggleRecipientResponse = objectType({
   "id": numberType().int(),
   "name": stringType(),
-  "notes": stringType().nullish()
+  "notes": stringType().nullish(),
+  "isActive": booleanType().optional()
 });
 var ToggleExitReasonParams = objectType({
   "id": coerce.number().int()
 });
 var ToggleExitReasonResponse = objectType({
   "id": numberType().int(),
+  "name": stringType(),
+  "isSystem": booleanType().optional(),
+  "isActive": booleanType().optional()
+});
+var UpdateExitReasonParams = objectType({
+  "id": coerce.number().int()
+});
+var UpdateExitReasonBody = objectType({
   "name": stringType()
+});
+var UpdateExitReasonResponse = objectType({
+  "id": numberType().int(),
+  "name": stringType(),
+  "isSystem": booleanType().optional(),
+  "isActive": booleanType().optional()
 });
 var UpdateUserParams = objectType({
   "id": coerce.number().int()
@@ -69574,7 +69606,7 @@ router4.get("/", requireAuth, async (req, res) => {
       sortDir = "asc"
     } = req.query;
     const pageNum = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10)));
+    const limitNum = Math.min(5e3, Math.max(1, parseInt(limit, 10)));
     const offset = (pageNum - 1) * limitNum;
     const conditions = [eq(itemsTable.isActive, true)];
     if (categoryId) conditions.push(eq(itemsTable.categoryId, parseInt(categoryId, 10)));
@@ -70087,7 +70119,7 @@ router5.get("/", requireAuth, async (req, res) => {
       sortDir = "desc"
     } = req.query;
     const pageNum = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10)));
+    const limitNum = Math.min(5e3, Math.max(1, parseInt(limit, 10)));
     const offset = (pageNum - 1) * limitNum;
     const SORT_COLS = {
       name: equipmentTable.name,
@@ -71419,7 +71451,9 @@ init_drizzle_orm();
 var router7 = (0, import_express7.Router)();
 router7.get("/", requireAuth, async (_req, res) => {
   try {
+    const includeInactive = _req.query.includeInactive === "true" && res.locals.user?.role === "admin";
     const recipients = await db.query.recipientsTable.findMany({
+      where: includeInactive ? void 0 : eq(recipientsTable.isActive, true),
       orderBy: (r, { asc: asc2 }) => [asc2(r.name)]
     });
     res.json(recipients);
@@ -71431,11 +71465,18 @@ router7.get("/", requireAuth, async (_req, res) => {
 router7.post("/", requireAuth, requireRole("admin", "warehouse_manager"), async (req, res) => {
   try {
     const { name: name3, notes } = req.body;
-    if (!name3) {
-      res.status(400).json({ error: "name is required" });
+    if (!name3?.trim()) {
+      res.status(400).json({ error: "\u0627\u0633\u0645 \u0627\u0644\u062C\u0647\u0629 \u0645\u0637\u0644\u0648\u0628" });
       return;
     }
-    const [recipient] = await db.insert(recipientsTable).values({ name: name3, notes: notes || null }).returning();
+    const [recipient] = await db.insert(recipientsTable).values({ name: name3.trim(), notes: notes?.trim() || null }).returning();
+    await auditLog({
+      req,
+      action: "create",
+      entityType: "recipient",
+      entityId: recipient.id,
+      details: { name: recipient.name }
+    });
     res.status(201).json(recipient);
   } catch (err2) {
     if (err2?.code === "23505") {
@@ -71450,15 +71491,26 @@ router7.put("/:id", requireAuth, requireRole("admin"), async (req, res) => {
   try {
     const id = parseInt(String(req.params.id), 10);
     const { name: name3, notes } = req.body;
-    if (!name3) {
-      res.status(400).json({ error: "name is required" });
+    if (isNaN(id)) {
+      res.status(400).json({ error: "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u062C\u0647\u0629 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D" });
       return;
     }
-    const [updated] = await db.update(recipientsTable).set({ name: name3, notes: notes || null }).where(eq(recipientsTable.id, id)).returning();
+    if (!name3?.trim()) {
+      res.status(400).json({ error: "\u0627\u0633\u0645 \u0627\u0644\u062C\u0647\u0629 \u0645\u0637\u0644\u0648\u0628" });
+      return;
+    }
+    const [updated] = await db.update(recipientsTable).set({ name: name3.trim(), notes: notes?.trim() || null }).where(eq(recipientsTable.id, id)).returning();
     if (!updated) {
-      res.status(404).json({ error: "Not found" });
+      res.status(404).json({ error: "\u0627\u0644\u062C\u0647\u0629 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629" });
       return;
     }
+    await auditLog({
+      req,
+      action: "update",
+      entityType: "recipient",
+      entityId: updated.id,
+      details: { name: updated.name }
+    });
     res.json(updated);
   } catch (err2) {
     if (err2?.code === "23505") {
@@ -71472,12 +71524,23 @@ router7.put("/:id", requireAuth, requireRole("admin"), async (req, res) => {
 router7.patch("/:id/toggle", requireAuth, requireRole("admin"), async (req, res) => {
   try {
     const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u062C\u0647\u0629 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D" });
+      return;
+    }
     const current = await db.query.recipientsTable.findFirst({ where: eq(recipientsTable.id, id) });
     if (!current) {
-      res.status(404).json({ error: "Not found" });
+      res.status(404).json({ error: "\u0627\u0644\u062C\u0647\u0629 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629" });
       return;
     }
     const [updated] = await db.update(recipientsTable).set({ isActive: !current.isActive }).where(eq(recipientsTable.id, id)).returning();
+    await auditLog({
+      req,
+      action: "update",
+      entityType: "recipient",
+      entityId: updated.id,
+      details: { name: updated.name, isActive: updated.isActive }
+    });
     res.json(updated);
   } catch (err2) {
     console.error(err2);
@@ -71490,9 +71553,11 @@ var recipients_default = router7;
 var import_express8 = __toESM(require_express2(), 1);
 init_drizzle_orm();
 var router8 = (0, import_express8.Router)();
-router8.get("/", requireAuth, async (_req, res) => {
+router8.get("/", requireAuth, async (req, res) => {
   try {
+    const includeInactive = req.query.includeInactive === "true" && res.locals.user?.role === "admin";
     const reasons = await db.query.exitReasonsTable.findMany({
+      where: includeInactive ? void 0 : eq(exitReasonsTable.isActive, true),
       orderBy: (r, { asc: asc2 }) => [asc2(r.name)]
     });
     res.json(reasons);
@@ -71504,11 +71569,18 @@ router8.get("/", requireAuth, async (_req, res) => {
 router8.post("/", requireAuth, requireRole("admin"), async (req, res) => {
   try {
     const { name: name3 } = req.body;
-    if (!name3) {
-      res.status(400).json({ error: "name is required" });
+    if (!name3?.trim()) {
+      res.status(400).json({ error: "\u0627\u0633\u0645 \u0633\u0628\u0628 \u0627\u0644\u0625\u062E\u0631\u0627\u062C \u0645\u0637\u0644\u0648\u0628" });
       return;
     }
-    const [reason] = await db.insert(exitReasonsTable).values({ name: name3, isSystem: false, isActive: true }).returning();
+    const [reason] = await db.insert(exitReasonsTable).values({ name: name3.trim(), isSystem: false, isActive: true }).returning();
+    await auditLog({
+      req,
+      action: "create",
+      entityType: "exit_reason",
+      entityId: reason.id,
+      details: { name: reason.name }
+    });
     res.status(201).json(reason);
   } catch (err2) {
     if (err2?.code === "23505") {
@@ -71519,12 +71591,55 @@ router8.post("/", requireAuth, requireRole("admin"), async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+router8.put("/:id", requireAuth, requireRole("admin"), async (req, res) => {
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    const { name: name3 } = req.body;
+    if (isNaN(id)) {
+      res.status(400).json({ error: "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u0633\u0628\u0628 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D" });
+      return;
+    }
+    if (!name3?.trim()) {
+      res.status(400).json({ error: "\u0627\u0633\u0645 \u0633\u0628\u0628 \u0627\u0644\u0625\u062E\u0631\u0627\u062C \u0645\u0637\u0644\u0648\u0628" });
+      return;
+    }
+    const current = await db.query.exitReasonsTable.findFirst({ where: eq(exitReasonsTable.id, id) });
+    if (!current) {
+      res.status(404).json({ error: "\u0633\u0628\u0628 \u0627\u0644\u0625\u062E\u0631\u0627\u062C \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F" });
+      return;
+    }
+    if (current.isSystem) {
+      res.status(400).json({ error: "\u0644\u0627 \u064A\u0645\u0643\u0646 \u062A\u0639\u062F\u064A\u0644 \u0627\u0644\u0623\u0633\u0628\u0627\u0628 \u0627\u0644\u0627\u0641\u062A\u0631\u0627\u0636\u064A\u0629 \u0644\u0644\u0646\u0638\u0627\u0645" });
+      return;
+    }
+    const [updated] = await db.update(exitReasonsTable).set({ name: name3.trim() }).where(eq(exitReasonsTable.id, id)).returning();
+    await auditLog({
+      req,
+      action: "update",
+      entityType: "exit_reason",
+      entityId: updated.id,
+      details: { name: updated.name }
+    });
+    res.json(updated);
+  } catch (err2) {
+    if (err2?.code === "23505") {
+      res.status(409).json({ error: "\u0633\u0628\u0628 \u0627\u0644\u0625\u062E\u0631\u0627\u062C \u0645\u0633\u062A\u062E\u062F\u0645 \u0645\u0633\u0628\u0642\u0627\u064B" });
+      return;
+    }
+    console.error(err2);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 router8.patch("/:id/toggle", requireAuth, requireRole("admin"), async (req, res) => {
   try {
     const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u0633\u0628\u0628 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D" });
+      return;
+    }
     const current = await db.query.exitReasonsTable.findFirst({ where: eq(exitReasonsTable.id, id) });
     if (!current) {
-      res.status(404).json({ error: "Not found" });
+      res.status(404).json({ error: "\u0633\u0628\u0628 \u0627\u0644\u0625\u062E\u0631\u0627\u062C \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F" });
       return;
     }
     if (current.isSystem) {
@@ -71532,6 +71647,13 @@ router8.patch("/:id/toggle", requireAuth, requireRole("admin"), async (req, res)
       return;
     }
     const [updated] = await db.update(exitReasonsTable).set({ isActive: !current.isActive }).where(eq(exitReasonsTable.id, id)).returning();
+    await auditLog({
+      req,
+      action: "update",
+      entityType: "exit_reason",
+      entityId: updated.id,
+      details: { name: updated.name, isActive: updated.isActive }
+    });
     res.json(updated);
   } catch (err2) {
     console.error(err2);
@@ -72313,6 +72435,23 @@ var users_default = router12;
 var import_express13 = __toESM(require_express2(), 1);
 init_drizzle_orm();
 var router13 = (0, import_express13.Router)();
+var DEFAULT_UNITS = [
+  "\u0642\u0637\u0639\u0629",
+  "\u0639\u0644\u0628\u0629",
+  "\u0644\u062A\u0631",
+  "\u0645\u0644",
+  "\u0643\u064A\u0633",
+  "\u0632\u062C\u0627\u062C\u0629",
+  "\u0628\u0631\u0645\u064A\u0644",
+  "\u0631\u0648\u0644",
+  "\u0643\u0631\u062A\u0648\u0646",
+  "\u0637\u0631\u062F",
+  "\u062D\u0628\u0629",
+  "\u0632\u0648\u062C",
+  "\u0645\u062C\u0645\u0648\u0639\u0629",
+  "\u062C\u0631\u0627\u0645",
+  "\u0643\u064A\u0644\u0648\u063A\u0631\u0627\u0645"
+];
 async function getOrCreateSettings() {
   let settings = await db.query.systemSettingsTable.findFirst();
   if (!settings) {
@@ -72324,7 +72463,10 @@ async function getOrCreateSettings() {
 router13.get("/", requireAuth, async (_req, res) => {
   try {
     const settings = await getOrCreateSettings();
-    res.json(settings);
+    res.json({
+      ...settings,
+      unitsList: settings.unitsList ?? JSON.stringify(DEFAULT_UNITS)
+    });
   } catch (err2) {
     console.error(err2);
     res.status(500).json({ error: "Internal server error" });
@@ -72334,6 +72476,7 @@ router13.put("/", requireAuth, requireRole("admin"), async (req, res) => {
   try {
     const { orgName, orgSubtitle, expiryAlertDays, unitsList } = req.body;
     const settings = await getOrCreateSettings();
+    let normalizedUnitsList;
     if (unitsList !== void 0) {
       if (typeof unitsList !== "string") {
         res.status(400).json({ error: "unitsList must be a JSON string" });
@@ -72341,9 +72484,15 @@ router13.put("/", requireAuth, requireRole("admin"), async (req, res) => {
       }
       try {
         const parsed = JSON.parse(unitsList);
-        if (!Array.isArray(parsed)) throw new Error();
+        if (!Array.isArray(parsed) || parsed.length > 100 || parsed.some((unit) => typeof unit !== "string" || unit.trim().length === 0 || unit.trim().length > 100)) {
+          throw new Error();
+        }
+        const normalized = parsed.map((unit) => unit.trim());
+        const unique2 = new Set(normalized.map((unit) => unit.toLocaleLowerCase()));
+        if (unique2.size !== normalized.length) throw new Error();
+        normalizedUnitsList = JSON.stringify(normalized);
       } catch {
-        res.status(400).json({ error: "unitsList must be a valid JSON array string" });
+        res.status(400).json({ error: "\u064A\u062C\u0628 \u0623\u0646 \u062A\u0643\u0648\u0646 \u0648\u062D\u062F\u0627\u062A \u0627\u0644\u0642\u064A\u0627\u0633 \u0642\u0627\u0626\u0645\u0629 \u0646\u0635\u0648\u0635 \u063A\u064A\u0631 \u0641\u0627\u0631\u063A\u0629 \u0648\u0641\u0631\u064A\u062F\u0629" });
         return;
       }
     }
@@ -72351,7 +72500,7 @@ router13.put("/", requireAuth, requireRole("admin"), async (req, res) => {
       ...orgName !== void 0 && { orgName },
       ...orgSubtitle !== void 0 && { orgSubtitle },
       ...expiryAlertDays !== void 0 && { expiryAlertDays: Number(expiryAlertDays) },
-      ...unitsList !== void 0 && { unitsList },
+      ...normalizedUnitsList !== void 0 && { unitsList: normalizedUnitsList },
       updatedAt: /* @__PURE__ */ new Date()
     }).where(eq(systemSettingsTable.id, settings.id)).returning();
     res.json(updated);

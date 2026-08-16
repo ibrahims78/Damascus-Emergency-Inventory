@@ -30,7 +30,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
-const APP_VERSION = 'v1.0.0';
+const APP_VERSION = 'v1.0.3';
 const DESIGNER_NAME = 'إبراهيم الصيداوي';
 const DESIGNER_PHONE = '0933706403';
 
