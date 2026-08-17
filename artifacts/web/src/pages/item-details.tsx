@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation } from 'wouter';
+import { Link, useLocation, useRoute } from 'wouter';
 import {
   ArrowDownToLine,
   ArrowLeft,
@@ -114,8 +114,10 @@ function movementBadge(type: MovementType) {
   );
 }
 
-export function ItemDetailsPage({ itemId }: { itemId: number }) {
+export function ItemDetailsPage({ itemId: providedItemId }: { itemId?: number } = {}) {
   const [, setLocation] = useLocation();
+  const [, routeParams] = useRoute('/items/:id');
+  const itemId = providedItemId ?? Number(routeParams?.id);
   const [type, setType] = useState<MovementType | 'all'>('all');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -130,6 +132,12 @@ export function ItemDetailsPage({ itemId }: { itemId: number }) {
   }, [type, from, to, document]);
 
   useEffect(() => {
+    if (!Number.isSafeInteger(itemId) || itemId <= 0) {
+      setIsLoading(false);
+      setError('معرّف المادة غير صالح');
+      return;
+    }
+
     const controller = new AbortController();
     const params = new URLSearchParams({
       page: String(page),
