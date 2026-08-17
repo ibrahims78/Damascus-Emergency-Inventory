@@ -41,12 +41,10 @@ async function main() {
     WHERE notes LIKE ${`${DEMO_MARKER}%`}
     ORDER BY id
   `;
-  const hasItemMovements = existing.some((movement) => movement.item_id !== null);
-  const hasEquipmentMovements = existing.some((movement) => movement.equipment_id !== null);
-  if (hasItemMovements && hasEquipmentMovements) {
-    console.log("Demo movements already exist; no duplicate movements were created.");
-    return;
-  }
+  const hasItemType = (type: string) =>
+    existing.some((movement) => movement.item_id !== null && movement.type === type);
+  const hasEquipmentType = (type: string) =>
+    existing.some((movement) => movement.equipment_id !== null && movement.type === type);
 
   const [item] = await sql`
     INSERT INTO items (
@@ -116,7 +114,7 @@ async function main() {
 
   let inbound: { documentNumber: string } | null = null;
   let outbound: { documentNumber: string } | null = null;
-  if (!hasItemMovements) {
+  if (!hasItemType("in")) {
     inbound = await createInventoryMovement(
       {
         kind: "in",
@@ -155,7 +153,10 @@ async function main() {
 
   let equipmentInbound: { documentNumber: string } | null = null;
   let equipmentCustody: { documentNumber: string } | null = null;
-  if (!hasEquipmentMovements) {
+  let equipmentCustodyReturn: { documentNumber: string } | null = null;
+  let equipmentDamage: { documentNumber: string } | null = null;
+  let equipmentCentralReturn: { documentNumber: string } | null = null;
+  if (!hasEquipmentType("in")) {
     equipmentInbound = await createInventoryMovement(
       {
         kind: "in",
@@ -170,7 +171,9 @@ async function main() {
       },
       context,
     );
+  }
 
+  if (!hasEquipmentType("custody_out")) {
     equipmentCustody = await createInventoryMovement(
       {
         kind: "custody_out",
@@ -183,6 +186,77 @@ async function main() {
         custodyDate: today,
         custodyLocation: "نقطة إسعاف تجريبية",
         notes: `${DEMO_MARKER} — تسليم تجهيز للاختبار`,
+      },
+      context,
+    );
+  }
+
+  if (!hasEquipmentType("custody_return")) {
+    const [demoCustody] = await sql`
+      SELECT id
+      FROM personal_custodies
+      WHERE equipment_id = ${equipment.id}
+      ORDER BY id
+      LIMIT 1
+    `;
+    if (!demoCustody) {
+      throw new Error("لا توجد عهدة تجريبية لإضافة حركة الإعادة");
+    }
+    equipmentCustodyReturn = await createInventoryMovement(
+      {
+        kind: "custody_return",
+        custodyId: Number(demoCustody.id),
+        quantity: 1,
+        returnCondition: "good",
+        returnedToLocation: "رف التجارب",
+        documentDate: today,
+        inspectionNotes: `${DEMO_MARKER} — فحص إعادة العهدة`,
+        notes: `${DEMO_MARKER} — إعادة عهدة للاختبار`,
+      },
+      context,
+    );
+  }
+
+  if (!hasEquipmentType("damage")) {
+    equipmentDamage = await createInventoryMovement(
+      {
+        kind: "damage",
+        itemType: "equipment",
+        equipmentId: Number(equipment.id),
+        quantity: 1,
+        reason: "تلف تجهيز تجريبي أثناء الاختبار",
+        damageDate: today,
+        notes: `${DEMO_MARKER} — تسجيل تلف تجهيز`,
+      },
+      context,
+    );
+  }
+
+  if (!hasEquipmentType("central_return")) {
+    equipmentCentralReturn = await createInventoryMovement(
+      {
+        kind: "central_return",
+        itemType: "equipment",
+        equipmentId: Number(equipment.id),
+        quantity: 1,
+        returnCondition: "damaged",
+        reason: "إرجاع تجهيز تجريبي إلى المستودع المركزي",
+        documentDate: today,
+        notes: `${DEMO_MARKER} — مرتجع مركزي لتجهيز`,
+      },
+      context,
+    );
+  }
+
+  let itemAdjustment: { documentNumber: string } | null = null;
+  if (!hasItemType("adjust")) {
+    itemAdjustment = await createInventoryMovement(
+      {
+        kind: "adjust",
+        itemId: Number(item.id),
+        newStock: 20,
+        reason: "مطابقة جرد تجريبي",
+        notes: `${DEMO_MARKER} — تسوية جرد للمادة`,
       },
       context,
     );
@@ -209,6 +283,18 @@ async function main() {
     console.log(`Equipment custody: ${equipmentCustody.documentNumber} — وحدة واحدة`);
   } else {
     console.log("Equipment movements already existed; no duplicate equipment movements were created.");
+  }
+  if (equipmentCustodyReturn) {
+    console.log(`Equipment custody return: ${equipmentCustodyReturn.documentNumber} — وحدة واحدة`);
+  }
+  if (equipmentDamage) {
+    console.log(`Equipment damage: ${equipmentDamage.documentNumber} — وحدة واحدة`);
+  }
+  if (equipmentCentralReturn) {
+    console.log(`Equipment central return: ${equipmentCentralReturn.documentNumber} — وحدة واحدة`);
+  }
+  if (itemAdjustment) {
+    console.log(`Item adjustment: ${itemAdjustment.documentNumber} — الرصيد الجديد 20 علبة`);
   }
 }
 
