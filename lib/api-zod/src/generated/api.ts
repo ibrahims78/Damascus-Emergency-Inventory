@@ -259,7 +259,7 @@ export const getItemHistoryQueryLimitMax = 200;
 
 export const GetItemHistoryQueryParams = zod.object({
   "itemId": zod.coerce.number().int(),
-  "type": zod.enum(['in', 'out', 'adjust', 'custody_out', 'custody_return', 'damage', 'central_return']).optional(),
+  "type": zod.enum(['in', 'init', 'out', 'adjust', 'custody_out', 'custody_return', 'damage', 'central_return']).optional(),
   "from": zod.date().optional(),
   "to": zod.date().optional(),
   "document": zod.coerce.string().optional(),
@@ -510,7 +510,7 @@ export const GetEquipmentCardHistoryParams = zod.object({
 })
 
 export const GetEquipmentCardHistoryQueryParams = zod.object({
-  "type": zod.enum(['in', 'out', 'adjust', 'custody_out', 'custody_return', 'damage', 'central_return']).optional(),
+  "type": zod.enum(['in', 'init', 'out', 'adjust', 'custody_out', 'custody_return', 'damage', 'central_return']).optional(),
   "from": zod.date().optional(),
   "to": zod.date().optional(),
   "document": zod.coerce.string().optional()

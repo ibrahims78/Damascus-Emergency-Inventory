@@ -1151,6 +1151,7 @@ export type GetItemHistoryType = typeof GetItemHistoryType[keyof typeof GetItemH
 
 export const GetItemHistoryType = {
   in: 'in',
+  init: 'init',
   out: 'out',
   adjust: 'adjust',
   custody_out: 'custody_out',
@@ -1203,6 +1204,7 @@ export type GetEquipmentCardHistoryType = typeof GetEquipmentCardHistoryType[key
 
 export const GetEquipmentCardHistoryType = {
   in: 'in',
+  init: 'init',
   out: 'out',
   adjust: 'adjust',
   custody_out: 'custody_out',

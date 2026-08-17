@@ -78,6 +78,37 @@ export function CustodyDetailsPage({ custodyId: providedId }: { custodyId?: numb
         <Info label="رقم مذكرة التسليم" value={custody.deliveryNoteNumber} /><Info label="تاريخ التسليم" value={dateOnly(custody.deliveryDate)} /><Info label="تاريخ الإعادة الأخير" value={dateOnly(data.returns.at(-1)?.returnDate)} /><Info label="الحالة" value={status.label} />
       </CardContent></Card>
 
+      <Card className="print:hidden">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-base"><ClipboardCheck className="h-4 w-4 text-primary" /> تفاصيل الإعادات والفحص</CardTitle>
+          <CardDescription>تفاصيل كل إعادة مسجلة، بما فيها الكمية والحالة وملاحظات الفحص والجهة المنفذ إليها.</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {data.returns.length === 0 ? (
+            <div className="px-6 py-10 text-center text-sm text-muted-foreground">لم تسجل إعادة لهذه العهدة بعد.</div>
+          ) : (
+            <div className="divide-y">
+              {data.returns.map((returned) => (
+                <div key={returned.id} className="grid gap-3 px-4 py-4 text-sm sm:grid-cols-[1fr_auto_auto] sm:items-start sm:px-6">
+                  <div>
+                    <p className="font-semibold">{returned.documentNumber}</p>
+                    <div className="mt-1 grid gap-x-4 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">
+                      <span>تاريخ الإعادة: {dateOnly(returned.returnDate)}</span>
+                      <span>المكان: {returned.returnedToLocation || 'غير محدد'}</span>
+                      <span>الفحص: {CONDITION_LABELS[returned.condition] ?? returned.condition}</span>
+                      <span>المنفذ: {returned.operatorName || 'غير متوفر'}</span>
+                    </div>
+                    {returned.inspectionNotes && <p className="mt-2 text-xs text-muted-foreground">{returned.inspectionNotes}</p>}
+                  </div>
+                  <Badge variant="outline" className="h-fit border-cyan-200 bg-cyan-100 text-cyan-700">{returned.condition === 'damaged' ? 'تالف' : 'معاد'}</Badge>
+                  <div className="text-left sm:text-right"><p className="text-lg font-bold tabular-nums">{formatNumber(returned.quantity)}</p><p className="text-[11px] text-muted-foreground">الكمية</p></div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <Card className="print:shadow-none">
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-2 text-base"><History className="h-4 w-4 text-primary" /> سجل دورة الحياة</CardTitle>

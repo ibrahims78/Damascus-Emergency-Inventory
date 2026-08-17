@@ -7,7 +7,7 @@ import {
   transactionsTable,
   usersTable,
 } from "@workspace/db";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 
 function asDate(value: Date | string | null | undefined) {
   if (!value) return null;
@@ -28,7 +28,7 @@ export async function getCustodyHistory(custodyId: number) {
         recipientName: recipientsTable.name,
         quantity: personalCustodiesTable.quantity,
         returnedQuantity: personalCustodiesTable.returnedQuantity,
-        outstandingQuantity: personalCustodiesTable.quantity,
+        outstandingQuantity: sql<number>`${personalCustodiesTable.quantity} - ${personalCustodiesTable.returnedQuantity}`,
         deliveryNoteNumber: personalCustodiesTable.deliveryNoteNumber,
         deliveryDate: personalCustodiesTable.deliveryDate,
         location: personalCustodiesTable.location,

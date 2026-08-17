@@ -333,7 +333,7 @@ function MovementsTab() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="h-32 text-center text-muted-foreground">جاري التحميل...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="h-32 text-center text-muted-foreground">جاري التحميل...</TableCell></TableRow>
             ) : txs.length === 0 ? (
               <EmptyState message={hasFilters ? 'لا توجد عمليات بهذه الفلاتر' : 'لا توجد عمليات مسجّلة بعد'} />
             ) : (
@@ -631,7 +631,7 @@ function EquipmentTab() {
                 const cond = conditionMap[eq.condition] ?? { label: eq.condition, variant: 'default' as const };
                 return (
                   <TableRow key={eq.id}>
-                    <TableCell className="font-medium">{eq.name}</TableCell>
+                    <TableCell className="font-medium"><Link href={`/equipment/${eq.id}`} className="text-primary underline-offset-4 hover:underline">{eq.name}</Link></TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">{eq.serialNumber ?? '—'}</TableCell>
                     <TableCell className="text-sm text-muted-foreground print:hidden">{eq.model ?? '—'}</TableCell>
                     <TableCell className="text-center">
@@ -734,7 +734,7 @@ function StockPositionTab() {
               ) : (
                 items.map((item: StockPositionItem) => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableCell className="font-medium"><Link href={`/items/${item.id}`} className="text-primary underline-offset-4 hover:underline">{item.name}</Link></TableCell>
                     <TableCell className="text-center">{item.currentStock.toLocaleString('ar')}</TableCell>
                     <TableCell className="text-center font-semibold text-success">{item.availableQuantity.toLocaleString('ar')}</TableCell>
                     <TableCell className="text-center">{item.custodyQuantity.toLocaleString('ar')}</TableCell>
@@ -766,7 +766,7 @@ function StockPositionTab() {
               ) : (
                 equipment.map((item: StockPositionEquipment) => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableCell className="font-medium"><Link href={`/equipment/${item.id}`} className="text-primary underline-offset-4 hover:underline">{item.name}</Link></TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">{item.serialNumber ?? '—'}</TableCell>
                     <TableCell className="text-center">{item.quantity.toLocaleString('ar')}</TableCell>
                     <TableCell className="text-center font-semibold text-success">{item.availableQuantity.toLocaleString('ar')}</TableCell>

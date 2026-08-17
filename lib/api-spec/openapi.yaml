@@ -256,7 +256,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [in, out, adjust, custody_out, custody_return, damage, central_return]
+            enum: [in, init, out, adjust, custody_out, custody_return, damage, central_return]
         - name: from
           in: query
           schema: { type: string, format: date }
@@ -407,7 +407,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [in, out, adjust, custody_out, custody_return, damage, central_return]
+            enum: [in, init, out, adjust, custody_out, custody_return, damage, central_return]
         - name: from
           in: query
           schema: { type: string, format: date }
