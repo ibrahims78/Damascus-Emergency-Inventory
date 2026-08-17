@@ -393,6 +393,40 @@ paths:
         "404":
           description: Not found
 
+  /equipment/{id}/history:
+    get:
+      operationId: getEquipmentCardHistory
+      tags: [equipment]
+      summary: Get an equipment card with linked custodies and movement history
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [in, out, adjust, custody_out, custody_return, damage, central_return]
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+        - name: document
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Equipment card, related custodies, and chronological history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EquipmentHistoryResponse"
+        "404":
+          description: Not found
+
   /items/fefo-preview:
     get:
       operationId: getItemFefoPreview
@@ -612,6 +646,26 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/CustodySummary"
+
+  /custodies/{id}:
+    get:
+      operationId: getCustodyHistory
+      tags: [transactions]
+      summary: Get an independent custody card and lifecycle history
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Custody card with delivery, return, inspection, and damage history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustodyHistoryResponse"
+        "404":
+          description: Not found
 
   /transactions/{id}:
     get:
@@ -1478,6 +1532,105 @@ components:
           type: string
         updatedAt:
           type: string
+
+    EquipmentMovement:
+      type: object
+      required: [id, type, documentNumber]
+      properties:
+        id: { type: integer }
+        type:
+          type: string
+          enum: [in, out, adjust, custody_out, custody_return, damage, central_return]
+        quantity: { type: ["integer", "null"] }
+        partyName: { type: ["string", "null"] }
+        holderName: { type: ["string", "null"] }
+        documentNumber: { type: string }
+        documentDate: { type: ["string", "null"], format: date }
+        custodyNoteNumber: { type: ["string", "null"] }
+        custodyDate: { type: ["string", "null"], format: date }
+        custodyLocation: { type: ["string", "null"] }
+        reason: { type: ["string", "null"] }
+        notes: { type: ["string", "null"] }
+        createdAt: { type: ["string", "null"], format: date-time }
+        operatorName: { type: ["string", "null"] }
+
+    EquipmentHistoryResponse:
+      type: object
+      required: [equipment, custodies, movements, total]
+      properties:
+        equipment:
+          allOf:
+            - $ref: "#/components/schemas/Equipment"
+            - type: object
+              required: [custodyQuantity, availableQuantity]
+              properties:
+                custodyQuantity: { type: integer }
+                availableQuantity: { type: integer }
+        custodies:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustodySummary"
+        movements:
+          type: array
+          items:
+            $ref: "#/components/schemas/EquipmentMovement"
+        total: { type: integer }
+
+    CustodyEvent:
+      type: object
+      required: [id, kind, label, date, quantity, documentNumber, location]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [created, returned, damaged] }
+        label: { type: string }
+        date: { type: string, format: date }
+        quantity: { type: integer }
+        documentNumber: { type: string }
+        location: { type: string }
+        condition: { type: ["string", "null"] }
+        notes: { type: ["string", "null"] }
+        operatorName: { type: ["string", "null"] }
+
+    CustodyHistoryResponse:
+      type: object
+      required: [custody, equipment, returns, events]
+      properties:
+        custody:
+          allOf:
+            - $ref: "#/components/schemas/CustodySummary"
+            - type: object
+              required: [daysHeld, isOverdue]
+              properties:
+                daysHeld: { type: integer }
+                isOverdue: { type: boolean }
+                sourceTransactionId: { type: ["integer", "null"] }
+        equipment:
+          type: object
+          required: [id, name]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            equipmentType: { type: ["string", "null"] }
+            model: { type: ["string", "null"] }
+            serialNumber: { type: ["string", "null"] }
+        returns:
+          type: array
+          items:
+            type: object
+            required: [id, quantity, returnDate, documentNumber, condition, returnedToLocation]
+            properties:
+              id: { type: integer }
+              quantity: { type: integer }
+              returnDate: { type: string, format: date }
+              documentNumber: { type: string }
+              condition: { type: string }
+              returnedToLocation: { type: string }
+              inspectionNotes: { type: ["string", "null"] }
+              operatorName: { type: ["string", "null"] }
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustodyEvent"
 
     EquipmentInput:
       type: object

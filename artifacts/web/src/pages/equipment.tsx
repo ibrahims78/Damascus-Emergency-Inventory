@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useRoute, useLocation } from 'wouter';
+import { Link, useRoute, useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   useListEquipment,
@@ -68,6 +68,7 @@ import {
 } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import { EquipmentForm } from './equipment-form';
+import { EquipmentDetailsPage } from './equipment-details';
 
 /* ─────────────────────────── Condition config ───────────────────────────── */
 
@@ -86,9 +87,11 @@ const conditionConfig: Record<ConditionKey, { label: string; className: string }
 export function EquipmentPage() {
   const [matchNew] = useRoute('/equipment/new');
   const [matchEdit, params] = useRoute('/equipment/:id/edit');
+  const [matchDetails, detailsParams] = useRoute('/equipment/:id');
 
   if (matchNew) return <EquipmentForm />;
   if (matchEdit && params?.id) return <EquipmentForm equipmentId={parseInt(params.id)} />;
+  if (matchDetails && detailsParams?.id) return <EquipmentDetailsPage equipmentId={parseInt(detailsParams.id)} />;
 
   return <EquipmentList />;
 }
@@ -651,7 +654,13 @@ function EquipmentList() {
 
                         {/* Name + model */}
                         <TableCell>
-                          <p className="font-medium leading-snug">{eq.name}</p>
+                           <Link
+                             href={`/equipment/${eq.id}`}
+                             className="font-medium leading-snug text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                             aria-label={`فتح بطاقة التجهيز ${eq.name}`}
+                           >
+                             {eq.name}
+                           </Link>
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {[eq.model, eq.equipmentType].filter(Boolean).join(' • ') || 'بدون موديل'}
                           </p>

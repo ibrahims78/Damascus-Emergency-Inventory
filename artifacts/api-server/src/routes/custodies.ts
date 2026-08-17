@@ -7,6 +7,7 @@ import {
   recipientsTable,
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
+import { getCustodyHistory } from "../lib/custody-history-service";
 
 const router = Router();
 
@@ -59,6 +60,26 @@ router.get("/", requireAuth, async (req, res) => {
     })));
   } catch (error) {
     console.error("[custodies]", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /api/custodies/:id — independent custody card and lifecycle history.
+router.get("/:id", requireAuth, async (req, res) => {
+  try {
+    const id = Number.parseInt(String(req.params.id), 10);
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      res.status(400).json({ error: "Invalid custody id" });
+      return;
+    }
+    const data = await getCustodyHistory(id);
+    if (!data) {
+      res.status(404).json({ error: "Custody not found" });
+      return;
+    }
+    res.json(data);
+  } catch (error) {
+    console.error("[custody-history]", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });

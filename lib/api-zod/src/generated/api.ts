@@ -503,6 +503,81 @@ export const DeleteEquipmentResponse = zod.void()
 
 
 /**
+ * @summary Get an equipment card with linked custodies and movement history
+ */
+export const GetEquipmentCardHistoryParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetEquipmentCardHistoryQueryParams = zod.object({
+  "type": zod.enum(['in', 'out', 'adjust', 'custody_out', 'custody_return', 'damage', 'central_return']).optional(),
+  "from": zod.date().optional(),
+  "to": zod.date().optional(),
+  "document": zod.coerce.string().optional()
+})
+
+export const getEquipmentCardHistoryResponseEquipmentOneQuantityDefault = 1;
+export const getEquipmentCardHistoryResponseEquipmentOneMinQuantityDefault = 0;
+
+export const GetEquipmentCardHistoryResponse = zod.object({
+  "equipment": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "equipmentType": zod.string().nullish(),
+  "model": zod.string().nullish(),
+  "serialNumber": zod.string().nullish(),
+  "condition": zod.enum(['good', 'maintenance', 'broken', 'consumed', 'needs_inspection']),
+  "manufactureYear": zod.number().int().nullish(),
+  "originCountry": zod.string().nullish(),
+  "currentHolder": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "quantity": zod.number().int().default(getEquipmentCardHistoryResponseEquipmentOneQuantityDefault),
+  "minQuantity": zod.number().int().default(getEquipmentCardHistoryResponseEquipmentOneMinQuantityDefault),
+  "maintenanceSentAt": zod.string().nullish(),
+  "maintenanceReturnedAt": zod.string().nullish(),
+  "maintenanceNotes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string().optional()
+}).and(zod.object({
+  "custodyQuantity": zod.number().int(),
+  "availableQuantity": zod.number().int()
+})),
+  "custodies": zod.array(zod.object({
+  "id": zod.number().int(),
+  "equipmentId": zod.number().int(),
+  "equipmentName": zod.string(),
+  "serialNumber": zod.string().nullish(),
+  "quantity": zod.number().int(),
+  "returnedQuantity": zod.number().int(),
+  "outstandingQuantity": zod.number().int(),
+  "recipientId": zod.number().int().nullish(),
+  "holderName": zod.string(),
+  "deliveryNoteNumber": zod.string(),
+  "deliveryDate": zod.coerce.date(),
+  "location": zod.string(),
+  "status": zod.enum(['open', 'partially_returned', 'returned', 'damaged', 'closed'])
+})),
+  "movements": zod.array(zod.object({
+  "id": zod.number().int(),
+  "type": zod.enum(['in', 'out', 'adjust', 'custody_out', 'custody_return', 'damage', 'central_return']),
+  "quantity": zod.number().int().nullish(),
+  "partyName": zod.string().nullish(),
+  "holderName": zod.string().nullish(),
+  "documentNumber": zod.string(),
+  "documentDate": zod.coerce.date().nullish(),
+  "custodyNoteNumber": zod.string().nullish(),
+  "custodyDate": zod.coerce.date().nullish(),
+  "custodyLocation": zod.string().nullish(),
+  "reason": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date().nullish(),
+  "operatorName": zod.string().nullish()
+})),
+  "total": zod.number().int()
+})
+
+
+/**
  * @summary Preview FEFO allocations for a consumable item
  */
 
@@ -1002,6 +1077,65 @@ export const ListCustodiesResponseItem = zod.object({
   "status": zod.enum(['open', 'partially_returned', 'returned', 'damaged', 'closed'])
 })
 export const ListCustodiesResponse = zod.array(ListCustodiesResponseItem)
+
+
+/**
+ * @summary Get an independent custody card and lifecycle history
+ */
+export const GetCustodyHistoryParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetCustodyHistoryResponse = zod.object({
+  "custody": zod.object({
+  "id": zod.number().int(),
+  "equipmentId": zod.number().int(),
+  "equipmentName": zod.string(),
+  "serialNumber": zod.string().nullish(),
+  "quantity": zod.number().int(),
+  "returnedQuantity": zod.number().int(),
+  "outstandingQuantity": zod.number().int(),
+  "recipientId": zod.number().int().nullish(),
+  "holderName": zod.string(),
+  "deliveryNoteNumber": zod.string(),
+  "deliveryDate": zod.coerce.date(),
+  "location": zod.string(),
+  "status": zod.enum(['open', 'partially_returned', 'returned', 'damaged', 'closed'])
+}).and(zod.object({
+  "daysHeld": zod.number().int(),
+  "isOverdue": zod.boolean(),
+  "sourceTransactionId": zod.number().int().nullish()
+})),
+  "equipment": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "equipmentType": zod.string().nullish(),
+  "model": zod.string().nullish(),
+  "serialNumber": zod.string().nullish()
+}),
+  "returns": zod.array(zod.object({
+  "id": zod.number().int(),
+  "quantity": zod.number().int(),
+  "returnDate": zod.coerce.date(),
+  "documentNumber": zod.string(),
+  "condition": zod.string(),
+  "returnedToLocation": zod.string(),
+  "inspectionNotes": zod.string().nullish(),
+  "operatorName": zod.string().nullish()
+})),
+  "events": zod.array(zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['created', 'returned', 'damaged']),
+  "label": zod.string(),
+  "date": zod.coerce.date(),
+  "quantity": zod.number().int(),
+  "documentNumber": zod.string(),
+  "location": zod.string(),
+  "condition": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "operatorName": zod.string().nullish()
+}))
+})
 
 
 /**

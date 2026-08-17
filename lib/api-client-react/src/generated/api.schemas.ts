@@ -278,6 +278,151 @@ export interface Equipment {
   updatedAt?: string;
 }
 
+export type EquipmentMovementType = typeof EquipmentMovementType[keyof typeof EquipmentMovementType];
+
+
+export const EquipmentMovementType = {
+  in: 'in',
+  out: 'out',
+  adjust: 'adjust',
+  custody_out: 'custody_out',
+  custody_return: 'custody_return',
+  damage: 'damage',
+  central_return: 'central_return',
+} as const;
+
+export interface EquipmentMovement {
+  id: number;
+  type: EquipmentMovementType;
+  /** @nullable */
+  quantity?: number | null;
+  /** @nullable */
+  partyName?: string | null;
+  /** @nullable */
+  holderName?: string | null;
+  documentNumber: string;
+  /** @nullable */
+  documentDate?: string | null;
+  /** @nullable */
+  custodyNoteNumber?: string | null;
+  /** @nullable */
+  custodyDate?: string | null;
+  /** @nullable */
+  custodyLocation?: string | null;
+  /** @nullable */
+  reason?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  createdAt?: string | null;
+  /** @nullable */
+  operatorName?: string | null;
+}
+
+export type EquipmentHistoryResponseEquipment = Equipment & {
+  custodyQuantity: number;
+  availableQuantity: number;
+};
+
+export type CustodySummaryStatus = typeof CustodySummaryStatus[keyof typeof CustodySummaryStatus];
+
+
+export const CustodySummaryStatus = {
+  open: 'open',
+  partially_returned: 'partially_returned',
+  returned: 'returned',
+  damaged: 'damaged',
+  closed: 'closed',
+} as const;
+
+export interface CustodySummary {
+  id: number;
+  equipmentId: number;
+  equipmentName: string;
+  /** @nullable */
+  serialNumber?: string | null;
+  quantity: number;
+  returnedQuantity: number;
+  outstandingQuantity: number;
+  /** @nullable */
+  recipientId?: number | null;
+  holderName: string;
+  deliveryNoteNumber: string;
+  deliveryDate: string;
+  location: string;
+  status: CustodySummaryStatus;
+}
+
+export interface EquipmentHistoryResponse {
+  equipment: EquipmentHistoryResponseEquipment;
+  custodies: CustodySummary[];
+  movements: EquipmentMovement[];
+  total: number;
+}
+
+export type CustodyEventKind = typeof CustodyEventKind[keyof typeof CustodyEventKind];
+
+
+export const CustodyEventKind = {
+  created: 'created',
+  returned: 'returned',
+  damaged: 'damaged',
+} as const;
+
+export interface CustodyEvent {
+  id: string;
+  kind: CustodyEventKind;
+  label: string;
+  date: string;
+  quantity: number;
+  documentNumber: string;
+  location: string;
+  /** @nullable */
+  condition?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  operatorName?: string | null;
+}
+
+export type CustodyHistoryResponseCustody = CustodySummary & ({
+  daysHeld: number;
+  isOverdue: boolean;
+  /** @nullable */
+  sourceTransactionId?: number | null;
+});
+
+export type CustodyHistoryResponseEquipment = {
+  id: number;
+  name: string;
+  /** @nullable */
+  equipmentType?: string | null;
+  /** @nullable */
+  model?: string | null;
+  /** @nullable */
+  serialNumber?: string | null;
+};
+
+export type CustodyHistoryResponseReturnsItem = {
+  id: number;
+  quantity: number;
+  returnDate: string;
+  documentNumber: string;
+  condition: string;
+  returnedToLocation: string;
+  /** @nullable */
+  inspectionNotes?: string | null;
+  /** @nullable */
+  operatorName?: string | null;
+};
+
+export interface CustodyHistoryResponse {
+  custody: CustodyHistoryResponseCustody;
+  equipment: CustodyHistoryResponseEquipment;
+  returns: CustodyHistoryResponseReturnsItem[];
+  events: CustodyEvent[];
+}
+
 export interface EquipmentInput {
   name: string;
   /** @nullable */
@@ -680,35 +825,6 @@ export interface CentralReturnInput {
   notes?: string | null;
 }
 
-export type CustodySummaryStatus = typeof CustodySummaryStatus[keyof typeof CustodySummaryStatus];
-
-
-export const CustodySummaryStatus = {
-  open: 'open',
-  partially_returned: 'partially_returned',
-  returned: 'returned',
-  damaged: 'damaged',
-  closed: 'closed',
-} as const;
-
-export interface CustodySummary {
-  id: number;
-  equipmentId: number;
-  equipmentName: string;
-  /** @nullable */
-  serialNumber?: string | null;
-  quantity: number;
-  returnedQuantity: number;
-  outstandingQuantity: number;
-  /** @nullable */
-  recipientId?: number | null;
-  holderName: string;
-  deliveryNoteNumber: string;
-  deliveryDate: string;
-  location: string;
-  status: CustodySummaryStatus;
-}
-
 export interface StockPositionBatch {
   id: number;
   itemId: number;
@@ -1073,6 +1189,26 @@ export type ListEquipmentSortDir = typeof ListEquipmentSortDir[keyof typeof List
 export const ListEquipmentSortDir = {
   asc: 'asc',
   desc: 'desc',
+} as const;
+
+export type GetEquipmentCardHistoryParams = {
+type?: GetEquipmentCardHistoryType;
+from?: string;
+to?: string;
+document?: string;
+};
+
+export type GetEquipmentCardHistoryType = typeof GetEquipmentCardHistoryType[keyof typeof GetEquipmentCardHistoryType];
+
+
+export const GetEquipmentCardHistoryType = {
+  in: 'in',
+  out: 'out',
+  adjust: 'adjust',
+  custody_out: 'custody_out',
+  custody_return: 'custody_return',
+  damage: 'damage',
+  central_return: 'central_return',
 } as const;
 
 export type GetItemFefoPreviewParams = {

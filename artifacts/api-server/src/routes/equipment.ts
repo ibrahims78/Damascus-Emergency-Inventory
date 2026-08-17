@@ -3,6 +3,7 @@ import { db, equipmentTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
 import { auditLog } from "../middlewares/audit";
 import { runAlertWorker } from "../lib/alert-worker";
+import { getEquipmentHistory } from "../lib/equipment-history-service";
 import { eq, and, ilike, or, sql, isNotNull } from "drizzle-orm";
 
 const router = Router();
@@ -323,6 +324,32 @@ router.get("/:id", requireAuth, async (req, res) => {
     res.json(item);
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /api/equipment/:id/history — equipment card, linked custodies, and movement history.
+router.get("/:id/history", requireAuth, async (req, res) => {
+  try {
+    const id = Number.parseInt(String(req.params.id), 10);
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      res.status(400).json({ error: "Invalid equipment id" });
+      return;
+    }
+
+    const data = await getEquipmentHistory(id, {
+      type: typeof req.query.type === "string" ? req.query.type : undefined,
+      from: typeof req.query.from === "string" ? req.query.from : undefined,
+      to: typeof req.query.to === "string" ? req.query.to : undefined,
+      document: typeof req.query.document === "string" ? req.query.document : undefined,
+    });
+    if (!data) {
+      res.status(404).json({ error: "Equipment not found" });
+      return;
+    }
+    res.json(data);
+  } catch (err) {
+    console.error("[equipment-history]", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });

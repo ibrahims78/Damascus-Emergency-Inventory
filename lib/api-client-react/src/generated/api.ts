@@ -27,6 +27,7 @@ import type {
   CentralReturnInput,
   ChangePassword200,
   ChangePasswordInput,
+  CustodyHistoryResponse,
   CustodyOutInput,
   CustodyReport,
   CustodyReturnInput,
@@ -35,6 +36,7 @@ import type {
   DashboardCharts,
   DashboardStats,
   Equipment,
+  EquipmentHistoryResponse,
   EquipmentInput,
   EquipmentListResponse,
   EquipmentUpdate,
@@ -42,6 +44,7 @@ import type {
   ExitReasonInput,
   FefoPreview,
   GetCustodiesReportParams,
+  GetEquipmentCardHistoryParams,
   GetItemFefoPreviewParams,
   GetItemHistoryParams,
   GetMovementsReportParams,
@@ -1458,6 +1461,95 @@ export const useDeleteEquipment = <TError = ErrorType<void>,
       return useMutation(getDeleteEquipmentMutationOptions(options));
     }
 
+export const getGetEquipmentCardHistoryUrl = (id: number,
+    params?: GetEquipmentCardHistoryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/equipment/${id}/history?${stringifiedParams}` : `/api/equipment/${id}/history`
+}
+
+/**
+ * @summary Get an equipment card with linked custodies and movement history
+ */
+export const getEquipmentCardHistory = async (id: number,
+    params?: GetEquipmentCardHistoryParams, options?: Parameters<typeof customFetch>[1]): Promise<EquipmentHistoryResponse> => {
+
+  return customFetch<EquipmentHistoryResponse>(getGetEquipmentCardHistoryUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEquipmentCardHistoryQueryKey = (id: number,
+    params?: GetEquipmentCardHistoryParams,) => {
+    return [
+    `/api/equipment/${id}/history`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetEquipmentCardHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getEquipmentCardHistory>>, TError = ErrorType<void>>(id: number,
+    params?: GetEquipmentCardHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEquipmentCardHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEquipmentCardHistoryQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEquipmentCardHistory>>> = ({ signal }) => getEquipmentCardHistory(id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEquipmentCardHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEquipmentCardHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getEquipmentCardHistory>>>
+export type GetEquipmentCardHistoryQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get an equipment card with linked custodies and movement history
+ */
+
+export function useGetEquipmentCardHistory<TData = Awaited<ReturnType<typeof getEquipmentCardHistory>>, TError = ErrorType<void>>(
+ id: number,
+    params?: GetEquipmentCardHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEquipmentCardHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEquipmentCardHistoryQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetItemFefoPreviewUrl = (params: GetItemFefoPreviewParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -2195,6 +2287,83 @@ export function useListCustodies<TData = Awaited<ReturnType<typeof listCustodies
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListCustodiesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetCustodyHistoryUrl = (id: number,) => {
+
+
+
+
+  return `/api/custodies/${id}`
+}
+
+/**
+ * @summary Get an independent custody card and lifecycle history
+ */
+export const getCustodyHistory = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<CustodyHistoryResponse> => {
+
+  return customFetch<CustodyHistoryResponse>(getGetCustodyHistoryUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCustodyHistoryQueryKey = (id: number,) => {
+    return [
+    `/api/custodies/${id}`
+    ] as const;
+    }
+
+
+export const getGetCustodyHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getCustodyHistory>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCustodyHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCustodyHistoryQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCustodyHistory>>> = ({ signal }) => getCustodyHistory(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCustodyHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCustodyHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getCustodyHistory>>>
+export type GetCustodyHistoryQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get an independent custody card and lifecycle history
+ */
+
+export function useGetCustodyHistory<TData = Awaited<ReturnType<typeof getCustodyHistory>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCustodyHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCustodyHistoryQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

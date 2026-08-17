@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import {
   useGetStockReport,
   useGetMovementsReport,
@@ -870,7 +870,7 @@ function CustodiesTab() {
               records.map((record: CustodyReportRecord) => (
                 <TableRow key={record.id} className={record.overdue ? 'bg-destructive/5' : ''}>
                   <TableCell className="font-medium">
-                    {record.equipmentName}
+                    <Link href={`/custodies/${record.id}`} className="text-primary underline-offset-4 hover:underline">{record.equipmentName}</Link>
                     {record.serialNumber && <div className="font-mono text-xs text-muted-foreground">{record.serialNumber}</div>}
                   </TableCell>
                   <TableCell>{record.holderName}</TableCell>

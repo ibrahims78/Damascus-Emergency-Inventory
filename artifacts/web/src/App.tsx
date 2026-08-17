@@ -24,6 +24,7 @@ import { AuditPage } from '@/pages/audit';
 import { PrintTransactionPage } from '@/pages/print-transaction';
 import { AdjustmentForm } from '@/pages/adjustment-form';
 import { ItemDetailsPage } from '@/pages/item-details';
+import { CustodyDetailsPage } from '@/pages/custody-details';
 import {
   CentralReturnForm,
   CustodyOutForm,
@@ -100,6 +101,8 @@ function Router() {
       <Route path="/equipment"><ProtectedRoute component={EquipmentPage} /></Route>
       <Route path="/equipment/new"><ProtectedRoute component={EquipmentPage} /></Route>
       <Route path="/equipment/:id/edit"><ProtectedRoute component={EquipmentPage} /></Route>
+      <Route path="/equipment/:id"><ProtectedRoute component={EquipmentPage} /></Route>
+      <Route path="/custodies/:id"><ProtectedRoute component={CustodyDetailsPage} /></Route>
 
       <Route path="/transactions"><ProtectedRoute component={TransactionsPage} /></Route>
       <Route path="/transactions/in/new"><ProtectedRoute component={TransactionsPage} /></Route>
