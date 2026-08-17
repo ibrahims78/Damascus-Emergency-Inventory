@@ -366,6 +366,21 @@ async function main() {
     },
     context,
   );
+  await createScenario(
+    "item inbound — no expiry batch",
+    {
+      kind: "in",
+      itemType: "item",
+      itemId: fixture.itemId,
+      quantity: 6,
+      deliveryNoteNumber: "DEMO-FINAL-IN-NOEXP-001",
+      deliveryNoteDate: today,
+      documentDate: today,
+      supplySource: "central_warehouses",
+      batchNumber: "DEMO-FINAL-BATCH-NOEXP",
+    },
+    context,
+  );
 
   const itemOut = await createScenario(
     "item outbound — FEFO across batches",
@@ -394,6 +409,23 @@ async function main() {
     allocations.length >= 1 &&
       allocations.every((row) => row.batchNumberSnap !== "DEMO-FINAL-BATCH-EXPIRED"),
     "FEFO يجب ألا يخصص الدفعة المنتهية",
+  );
+  await createScenario(
+    "item outbound — administrative delivery across batches",
+    {
+      kind: "out",
+      itemType: "item",
+      itemId: fixture.itemId,
+      quantity: 4,
+      recipientId: fixture.recipientId,
+      recipientPerson: "موظف تجريبي — تسليم إداري",
+      exitReasonId: fixture.exitReasonId,
+      internalDeliveryNoteNumber: "DEMO-FINAL-OUT-ADMIN-001",
+      internalDeliveryNoteDate: today,
+      documentDate: today,
+      deliveryDestination: "administrative_building",
+    },
+    context,
   );
 
   await createScenario(
@@ -697,21 +729,116 @@ async function verifyFixture(fixture: Fixture) {
         WHERE t.notes LIKE ${marker}
       )::int AS custody_returns
   `;
+  const demoBatches = await sql`
+    SELECT batch_number AS "batchNumber", remaining_quantity AS "remainingQuantity"
+    FROM inventory_batches
+    WHERE item_id = ${fixture.itemId}
+      AND (
+        batch_number LIKE 'DEMO-FINAL-BATCH-%'
+      )
+    ORDER BY id
+  `;
+  const outboundAllocations = await sql`
+    SELECT
+      substring(t.notes from char_length(${DEMO_MARKER}) + 4) AS scenario,
+      a.quantity,
+      a.batch_number_snap AS "batchNumberSnap",
+      a.expiry_date_snap AS "expiryDateSnap"
+    FROM transaction_batch_allocations a
+    INNER JOIN transactions t ON t.id = a.transaction_id
+    WHERE t.notes LIKE ${marker}
+      AND t.type = 'out'
+    ORDER BY t.id, a.id
+  `;
+  const custodyStatuses = await sql`
+    SELECT
+      delivery_note_number AS "deliveryNoteNumber",
+      status,
+      returned_quantity AS "returnedQuantity"
+    FROM personal_custodies
+    WHERE equipment_id = ${fixture.equipmentId}
+      AND delivery_note_number LIKE 'DEMO-FINAL-CUST-%'
+    ORDER BY id
+  `;
+  const [serialEquipment] = await sql`
+    SELECT quantity, condition
+    FROM equipment
+    WHERE id = ${fixture.serialEquipmentId}
+  `;
 
   assert(Number(item.currentStock) >= 0, "رصيد المادة التجريبية لا يمكن أن يكون سالبًا");
   assert(Number(equipment.quantity) >= 0, "رصيد التجهيز التجريبي لا يمكن أن يكون سالبًا");
+  assert.equal(Number(item.currentStock), 26, "رصيد المادة النهائي يجب أن يطابق دفتر الحركات");
+  assert.equal(Number(equipment.quantity), 3, "رصيد التجهيز النهائي يجب أن يطابق دفتر الحركات");
   assert.equal(Number(openCustody.outstanding), 0, "يجب إغلاق كل العهد التجريبية");
   assert.equal(String(partialCustody.status), "returned", "يجب إغلاق العهدة ذات الإعادة الجزئية");
-  assert(Number(eventCounts.damages) >= 2, "يجب وجود تلف مادة وتلف تجهيز");
-  assert(Number(eventCounts.central_returns) >= 2, "يجب وجود مرتجع مادة ومرتجع تجهيز");
-  assert(Number(eventCounts.custody_returns) >= 5, "يجب وجود إعادة جزئية وحالات عهد متعددة");
+  assert.deepEqual(
+    Object.fromEntries(movementCounts.map((row) => [String(row.type), Number(row.count)])),
+    {
+      adjust: 2,
+      central_return: 2,
+      custody_out: 5,
+      custody_return: 6,
+      damage: 2,
+      in: 6,
+      init: 1,
+      out: 2,
+    },
+    "يجب أن يطابق عدد كل نوع من الحركات fixture المتوقع",
+  );
+  assert.deepEqual(
+    demoBatches.map((row) => [row.batchNumber, Number(row.remainingQuantity)]),
+    [
+      ["DEMO-FINAL-BATCH-NEAR", 0],
+      ["DEMO-FINAL-BATCH-FAR", 14],
+      ["DEMO-FINAL-BATCH-EXPIRED", 4],
+      ["DEMO-FINAL-BATCH-NOEXP", 6],
+    ],
+    "أرصدة الدفعات يجب أن تطابق FEFO والتلف والمرتجع والتسليم الإداري",
+  );
+  assert.deepEqual(
+    outboundAllocations.map((row) => [
+      row.scenario,
+      Number(row.quantity),
+      row.batchNumberSnap,
+      row.expiryDateSnap ? new Date(row.expiryDateSnap).toISOString().slice(0, 10) : null,
+    ]),
+    [
+      ["item outbound — FEFO across batches", 12, "DEMO-FINAL-BATCH-NEAR", isoDate(30)],
+      ["item outbound — administrative delivery across batches", 3, "DEMO-FINAL-BATCH-NEAR", isoDate(30)],
+      ["item outbound — administrative delivery across batches", 1, "DEMO-FINAL-BATCH-FAR", isoDate(180)],
+    ],
+    "تخصيصات الخروج يجب أن تكون FEFO وألا تستخدم الدفعة المنتهية",
+  );
+  assert.deepEqual(
+    custodyStatuses.map((row) => [
+      row.deliveryNoteNumber,
+      row.status,
+      Number(row.returnedQuantity),
+    ]),
+    [
+      ["DEMO-FINAL-CUST-PARTIAL-001", "returned", 2],
+      ["DEMO-FINAL-CUST-DAMAGED-001", "damaged", 1],
+      ["DEMO-FINAL-CUST-MAINTENANCE-001", "closed", 1],
+      ["DEMO-FINAL-CUST-MISSING-001", "closed", 1],
+    ],
+    "حالات العهد يجب أن تعكس الاستلام الجيد والتالف والصيانة والمفقود",
+  );
+  assert.deepEqual(
+    [Number(serialEquipment.quantity), String(serialEquipment.condition)],
+    [1, "good"],
+    "الجهاز المرقم يجب أن يعود كاملاً وبحالة سليمة",
+  );
+  assert.equal(Number(eventCounts.damages), 2, "يجب وجود تلف مادة وتلف تجهيز");
+  assert.equal(Number(eventCounts.central_returns), 2, "يجب وجود مرتجع مادة ومرتجع تجهيز");
+  assert.equal(Number(eventCounts.custody_returns), 6, "يجب وجود كل عمليات استلام العهد");
 
   console.log("\nFINAL DEMO FIXTURE VERIFIED");
   console.log(`Movement counts: ${JSON.stringify(Object.fromEntries(counts))}`);
   console.log(`Demo item stock: ${item.currentStock}`);
   console.log(`Demo bulk equipment quantity: ${equipment.quantity} (${equipment.condition})`);
   console.log(`Open demo custody quantity: ${openCustody.outstanding}`);
-  console.log("Coverage: init, in, out/FEFO, adjust up/down, custody partial/full, damage, central return");
+  console.log("Coverage: init, in/no-expiry, out/FEFO, admin delivery, adjust up/down, custody partial/full, damage, central return");
 }
 
 try {

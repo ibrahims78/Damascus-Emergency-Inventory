@@ -7,3 +7,4 @@
 - [Desktop release builds](desktop-release-builds.md) — nested Electron releases need isolated installs; portable Windows builds work when NSIS cannot run under Replit Wine
 - [API schema codegen exports](api-schema-codegen-exports.md) — Orval can append duplicate root exports; normalize the Zod package entrypoint after regeneration
 - [Workspace bootstrap](workspace-bootstrap.md) — fresh GitHub syncs need locked dependencies and the development schema before workflow health checks
+- [Demo movement fixtures](demo-movement-fixture.md) — persistent movement seeds must be idempotent and assert exact ledger balances
