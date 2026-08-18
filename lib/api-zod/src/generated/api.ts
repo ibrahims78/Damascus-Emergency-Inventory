@@ -1228,6 +1228,7 @@ export const GetTransactionPrintResponse = zod.object({
   "createdAt": zod.string()
 }),
   "organizationName": zod.string(),
+  "orgSubtitle": zod.string().nullable(),
   "printedAt": zod.string()
 })
 
@@ -1680,13 +1681,19 @@ export const CreateUserResponse = zod.object({
 /**
  * @summary Get system settings
  */
+export const getSettingsResponseOrgNameMin = 2;
+
+export const getSettingsResponseExpiryAlertDaysMax = 365;
+
+
+
 export const GetSettingsResponse = zod.object({
   "id": zod.number().int(),
   "setupCompleted": zod.boolean(),
   "setupAt": zod.string().nullish(),
-  "orgName": zod.string(),
+  "orgName": zod.string().min(getSettingsResponseOrgNameMin),
   "orgSubtitle": zod.string().nullish(),
-  "expiryAlertDays": zod.number().int(),
+  "expiryAlertDays": zod.number().int().min(1).max(getSettingsResponseExpiryAlertDaysMax),
   "unitsList": zod.string().nullish(),
   "updatedAt": zod.string().optional()
 })
@@ -1702,13 +1709,19 @@ export const UpdateSettingsBody = zod.object({
   "unitsList": zod.string().nullish()
 })
 
+export const updateSettingsResponseOrgNameMin = 2;
+
+export const updateSettingsResponseExpiryAlertDaysMax = 365;
+
+
+
 export const UpdateSettingsResponse = zod.object({
   "id": zod.number().int(),
   "setupCompleted": zod.boolean(),
   "setupAt": zod.string().nullish(),
-  "orgName": zod.string(),
+  "orgName": zod.string().min(updateSettingsResponseOrgNameMin),
   "orgSubtitle": zod.string().nullish(),
-  "expiryAlertDays": zod.number().int(),
+  "expiryAlertDays": zod.number().int().min(1).max(updateSettingsResponseExpiryAlertDaysMax),
   "unitsList": zod.string().nullish(),
   "updatedAt": zod.string().optional()
 })

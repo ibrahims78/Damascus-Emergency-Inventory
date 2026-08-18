@@ -375,9 +375,9 @@ function ProfileTab({
 function calcStrength(pwd: string): { score: number; label: string; color: string } {
   if (!pwd) return { score: 0, label: '', color: '' };
   let score = 0;
-  if (pwd.length >= 8)  score++;
   if (pwd.length >= 12) score++;
   if (/[A-Z]/.test(pwd)) score++;
+  if (/[a-z]/.test(pwd)) score++;
   if (/[0-9]/.test(pwd)) score++;
   if (/[^A-Za-z0-9]/.test(pwd)) score++;
   if (score <= 1) return { score: 1, label: 'ضعيفة جداً',  color: 'bg-destructive' };
@@ -411,7 +411,16 @@ function PasswordTab() {
 
   const handleSave = () => {
     if (!current || !next || !confirm) { toast.error('يرجى تعبئة جميع الحقول'); return; }
-    if (next.length < 8)  { toast.error('كلمة المرور يجب أن تكون 8 أحرف على الأقل'); return; }
+    if (
+      next.length < 12 ||
+      !/[A-Z]/.test(next) ||
+      !/[a-z]/.test(next) ||
+      !/[0-9]/.test(next) ||
+      !/[^A-Za-z0-9]/.test(next)
+    ) {
+      toast.error('يجب أن تحتوي كلمة المرور على 12 حرفاً، وحرف كبير وصغير ورقم ورمز');
+      return;
+    }
     if (next !== confirm)  { toast.error('كلمتا المرور غير متطابقتين'); return; }
     mutation.mutate({ currentPassword: current, newPassword: next });
   };
@@ -420,7 +429,7 @@ function PasswordTab() {
     <div className="bg-card border rounded-xl p-6 space-y-5 max-w-sm">
       <div>
         <h2 className="font-semibold text-lg">تغيير كلمة المرور</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">اختر كلمة مرور قوية تحتوي على أحرف وأرقام ورموز</p>
+        <p className="text-xs text-muted-foreground mt-0.5">12 حرفاً على الأقل، مع حرف كبير وصغير ورقم ورمز</p>
       </div>
 
       {/* Current password */}
@@ -486,6 +495,7 @@ function PasswordTab() {
                 — أضف {[
                   next.length < 12 && 'المزيد من الأحرف',
                   !/[A-Z]/.test(next) && 'حرف كبير',
+                  !/[a-z]/.test(next) && 'حرف صغير',
                   !/[0-9]/.test(next) && 'رقم',
                   !/[^A-Za-z0-9]/.test(next) && 'رمز (!@#...)',
                 ].filter(Boolean).join('، ')}
@@ -521,7 +531,7 @@ function PasswordTab() {
 
       <Button
         onClick={handleSave}
-        disabled={mutation.isPending || !current || !next || !confirm || mismatch}
+        disabled={mutation.isPending || !current || !next || !confirm || mismatch || strength.score < 5}
         className="gap-2 w-full"
       >
         <Save className="h-4 w-4" />

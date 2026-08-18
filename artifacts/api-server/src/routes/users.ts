@@ -4,6 +4,7 @@ import { db, usersTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
 import { auditLog } from "../middlewares/audit";
 import { eq } from "drizzle-orm";
+import { getPasswordPolicyError } from "../lib/password-policy";
 
 const router = Router();
 
@@ -36,8 +37,9 @@ router.post("/", requireAuth, requireRole("admin"), async (req, res) => {
       res.status(400).json({ error: "username, password, fullName, and role are required" });
       return;
     }
-    if (typeof password !== "string" || password.length < 8) {
-      res.status(400).json({ error: "Password must be at least 8 characters" });
+    const passwordError = getPasswordPolicyError(password);
+    if (passwordError) {
+      res.status(400).json({ error: passwordError });
       return;
     }
     const validRoles = ["admin", "warehouse_manager", "viewer"];
@@ -88,8 +90,9 @@ router.put("/:id", requireAuth, requireRole("admin"), async (req, res) => {
     }
     if (isActive !== undefined) updates.isActive = isActive;
     if (password) {
-      if (typeof password !== "string" || password.length < 8) {
-        res.status(400).json({ error: "Password must be at least 8 characters" }); return;
+      const passwordError = getPasswordPolicyError(password);
+      if (passwordError) {
+        res.status(400).json({ error: passwordError }); return;
       }
       updates.passwordHash = await bcrypt.hash(password, 10);
     }

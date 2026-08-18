@@ -2341,12 +2341,14 @@ components:
 
     TransactionPrint:
       type: object
-      required: [transaction, organizationName, printedAt]
+      required: [transaction, organizationName, orgSubtitle, printedAt]
       properties:
         transaction:
           $ref: "#/components/schemas/Transaction"
         organizationName:
           type: string
+        orgSubtitle:
+          type: ["string", "null"]
         printedAt:
           type: string
 
@@ -2956,10 +2958,13 @@ components:
           type: ["string", "null"]
         orgName:
           type: string
+          minLength: 2
         orgSubtitle:
           type: ["string", "null"]
         expiryAlertDays:
           type: integer
+          minimum: 1
+          maximum: 365
         unitsList:
           type: ["string", "null"]
         updatedAt:

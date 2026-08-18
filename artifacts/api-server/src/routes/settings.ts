@@ -4,6 +4,8 @@ import { db, systemSettingsTable, usersTable, auditLogTable } from "@workspace/d
 import { requireAuth, requireRole } from "../middlewares/auth";
 import { auditLog } from "../middlewares/audit";
 import { eq, desc } from "drizzle-orm";
+import { runAlertWorker } from "../lib/alert-worker";
+import { getPasswordPolicyError } from "../lib/password-policy";
 
 const router = Router();
 
@@ -51,10 +53,69 @@ router.get("/", requireAuth, async (_req, res) => {
   }
 });
 
+function validateSystemSettingsInput(input: {
+  orgName?: unknown;
+  orgSubtitle?: unknown;
+  expiryAlertDays?: unknown;
+}) {
+  const normalized: {
+    orgName?: string;
+    orgSubtitle?: string | null;
+    expiryAlertDays?: number;
+  } = {};
+
+  if (input.orgName !== undefined) {
+    if (typeof input.orgName !== "string") {
+      return { error: "اسم المنظومة يجب أن يكون نصاً" };
+    }
+    const orgName = input.orgName.trim();
+    if (orgName.length < 2) {
+      return { error: "اسم المنظومة مطلوب ولا يمكن أن يكون فارغاً" };
+    }
+    if (orgName.length > 200) {
+      return { error: "اسم المنظومة طويل جداً" };
+    }
+    normalized.orgName = orgName;
+  }
+
+  if (input.orgSubtitle !== undefined) {
+    if (input.orgSubtitle === null) {
+      normalized.orgSubtitle = null;
+    } else if (typeof input.orgSubtitle === "string") {
+      const orgSubtitle = input.orgSubtitle.trim();
+      if (orgSubtitle.length > 200) {
+        return { error: "العنوان الفرعي طويل جداً" };
+      }
+      normalized.orgSubtitle = orgSubtitle || null;
+    } else {
+      return { error: "العنوان الفرعي يجب أن يكون نصاً" };
+    }
+  }
+
+  if (input.expiryAlertDays !== undefined) {
+    if (
+      typeof input.expiryAlertDays !== "number" ||
+      !Number.isInteger(input.expiryAlertDays) ||
+      input.expiryAlertDays < 1 ||
+      input.expiryAlertDays > 365
+    ) {
+      return { error: "أيام التنبيه يجب أن تكون رقماً صحيحاً بين 1 و365" };
+    }
+    normalized.expiryAlertDays = input.expiryAlertDays;
+  }
+
+  return { normalized };
+}
+
 // PUT /api/settings
 router.put("/", requireAuth, requireRole("admin"), async (req, res) => {
   try {
     const { orgName, orgSubtitle, expiryAlertDays, unitsList } = req.body;
+    const validated = validateSystemSettingsInput({ orgName, orgSubtitle, expiryAlertDays });
+    if ("error" in validated) {
+      res.status(400).json({ error: validated.error });
+      return;
+    }
     const settings = await getOrCreateSettings();
 
     let normalizedUnitsList: string | undefined;
@@ -87,14 +148,23 @@ router.put("/", requireAuth, requireRole("admin"), async (req, res) => {
     const [updated] = await db
       .update(systemSettingsTable)
       .set({
-        ...(orgName !== undefined && { orgName }),
-        ...(orgSubtitle !== undefined && { orgSubtitle }),
-        ...(expiryAlertDays !== undefined && { expiryAlertDays: Number(expiryAlertDays) }),
+        ...(validated.normalized.orgName !== undefined && { orgName: validated.normalized.orgName }),
+        ...(validated.normalized.orgSubtitle !== undefined && { orgSubtitle: validated.normalized.orgSubtitle }),
+        ...(validated.normalized.expiryAlertDays !== undefined && {
+          expiryAlertDays: validated.normalized.expiryAlertDays,
+        }),
         ...(normalizedUnitsList !== undefined && { unitsList: normalizedUnitsList }),
         updatedAt: new Date(),
       })
       .where(eq(systemSettingsTable.id, settings.id))
       .returning();
+
+    // Recompute alerts before responding so a changed expiry window is visible
+    // immediately through the API and SSE, rather than waiting for the 2-hour job.
+    if (validated.normalized.expiryAlertDays !== undefined) {
+      await runAlertWorker();
+    }
+
     res.json(updated);
   } catch (err) {
     console.error(err);
@@ -107,12 +177,13 @@ router.post("/change-password", requireAuth, async (req, res) => {
   try {
     const user = res.locals.user;
     const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword) {
+    if (typeof currentPassword !== "string" || typeof newPassword !== "string" || !currentPassword || !newPassword) {
       res.status(400).json({ error: "currentPassword and newPassword are required" });
       return;
     }
-    if (newPassword.length < 8) {
-      res.status(400).json({ error: "كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل" });
+    const passwordError = getPasswordPolicyError(newPassword);
+    if (passwordError) {
+      res.status(400).json({ error: passwordError });
       return;
     }
     const fullUser = await db.query.usersTable.findFirst({

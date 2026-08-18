@@ -11,9 +11,14 @@ export interface SystemSettings {
   setupCompleted: boolean;
   /** @nullable */
   setupAt?: string | null;
+  /** @minLength 2 */
   orgName: string;
   /** @nullable */
   orgSubtitle?: string | null;
+  /**
+     * @minimum 1
+     * @maximum 365
+     */
   expiryAlertDays: number;
   /** @nullable */
   unitsList?: string | null;

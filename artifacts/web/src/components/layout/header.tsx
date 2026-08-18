@@ -278,6 +278,15 @@ export function Header() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const markAllRead = useMarkAllAlertsRead();
+  const { data: systemSettings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const response = await fetch('/api/settings', { credentials: 'include' });
+      if (!response.ok) throw new Error('فشل جلب إعدادات المنظومة');
+      return response.json() as Promise<{ orgName: string; orgSubtitle?: string | null }>;
+    },
+    refetchOnWindowFocus: true,
+  });
 
   // Fetch alerts — no polling interval; SSE pushes updates instead
   const { data: alerts } = useQuery({
@@ -329,7 +338,16 @@ export function Header() {
 
   return (
     <header className="h-16 border-b bg-card flex items-center justify-between px-4 md:px-6 sticky top-0 z-30">
-      <div className="flex items-center gap-4" />
+      <div className="min-w-0 max-w-[55%] hidden sm:block text-right" dir="rtl">
+        <p className="truncate text-sm font-semibold text-foreground">
+          {systemSettings?.orgName ?? 'منظومة الإسعاف والطوارئ'}
+        </p>
+        {systemSettings?.orgSubtitle && (
+          <p className="truncate text-[11px] text-muted-foreground mt-0.5">
+            {systemSettings.orgSubtitle}
+          </p>
+        )}
+      </div>
 
       <div className="flex items-center gap-3">
         {/* ── Alerts bell ── */}

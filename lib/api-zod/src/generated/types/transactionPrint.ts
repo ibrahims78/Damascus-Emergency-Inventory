@@ -10,5 +10,7 @@ import type { Transaction } from './transaction';
 export interface TransactionPrint {
   transaction: Transaction;
   organizationName: string;
+  /** @nullable */
+  orgSubtitle: string | null;
   printedAt: string;
 }

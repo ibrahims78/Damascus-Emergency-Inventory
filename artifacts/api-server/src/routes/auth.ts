@@ -4,6 +4,7 @@ import { db, usersTable, systemSettingsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { auditLog } from "../middlewares/audit";
 import { eq } from "drizzle-orm";
+import { getPasswordPolicyError } from "../lib/password-policy";
 
 const router = Router();
 
@@ -71,8 +72,9 @@ router.post("/setup", loginRateLimiter, async (req, res) => {
       res.status(400).json({ error: "username, password, and fullName are required" });
       return;
     }
-    if (password.length < 8) {
-      res.status(400).json({ error: "Password must be at least 8 characters" });
+    const passwordError = getPasswordPolicyError(password);
+    if (passwordError) {
+      res.status(400).json({ error: passwordError });
       return;
     }
     const passwordHash = await bcrypt.hash(password, 10);

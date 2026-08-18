@@ -203,7 +203,18 @@ function UsersList({ currentUserId }: { currentUserId?: number }) {
     if (!form.fullName.trim()) errs.fullName = 'الاسم الكامل مطلوب';
     if (!editingUser && !form.username.trim()) errs.username = 'اسم المستخدم مطلوب';
     if (!editingUser && !form.password.trim()) errs.password = 'كلمة المرور مطلوبة';
-    if (form.password && form.password.length < 6) errs.password = 'كلمة المرور 6 أحرف على الأقل';
+    if (
+      form.password &&
+      (
+        form.password.length < 12 ||
+        !/[A-Z]/.test(form.password) ||
+        !/[a-z]/.test(form.password) ||
+        !/[0-9]/.test(form.password) ||
+        !/[^A-Za-z0-9]/.test(form.password)
+      )
+    ) {
+      errs.password = 'كلمة المرور: 12 حرفاً مع حرف كبير وصغير ورقم ورمز';
+    }
     setFormErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -405,7 +416,7 @@ function UsersList({ currentUserId }: { currentUserId?: number }) {
                 type="password"
                 value={form.password}
                 onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                placeholder={editingUser ? '••••••••' : 'كلمة مرور قوية'}
+                placeholder={editingUser ? '••••••••' : '12 حرفاً: كبير وصغير ورقم ورمز'}
                 dir="ltr"
               />
               {formErrors.password && (

@@ -25,7 +25,13 @@ const setupSchema = z
       .string()
       .min(3, 'اسم المستخدم يجب أن يكون 3 أحرف على الأقل')
       .regex(/^[a-zA-Z0-9_]+$/, 'يُسمح فقط بالحروف الإنجليزية والأرقام والشرطة السفلية'),
-    password: z.string().min(8, 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'),
+    password: z
+      .string()
+      .min(12, 'كلمة المرور يجب أن تكون 12 حرفاً على الأقل')
+      .regex(/[A-Z]/, 'يجب أن تحتوي على حرف كبير')
+      .regex(/[a-z]/, 'يجب أن تحتوي على حرف صغير')
+      .regex(/[0-9]/, 'يجب أن تحتوي على رقم')
+      .regex(/[^A-Za-z0-9]/, 'يجب أن تحتوي على رمز'),
     confirmPassword: z.string(),
   })
   .refine((d) => d.password === d.confirmPassword, {
@@ -155,7 +161,7 @@ export function SetupPage() {
                     <FormControl>
                       <Input
                         type="password"
-                        placeholder="8 أحرف على الأقل"
+                        placeholder="12 حرفاً: كبير وصغير ورقم ورمز"
                         {...field}
                         dir="ltr"
                         className="text-right"

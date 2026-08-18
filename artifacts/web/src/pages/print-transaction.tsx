@@ -35,7 +35,7 @@ export function PrintTransactionPage() {
     );
   }
 
-  const { transaction: tx, organizationName, printedAt } = data;
+  const { transaction: tx, organizationName, orgSubtitle, printedAt } = data;
   const isIn = tx.type === 'in';
   const isOut = tx.type === 'out';
   const isCustodyOut = tx.type === 'custody_out';
@@ -107,6 +107,11 @@ export function PrintTransactionPage() {
                 <div style={{ fontSize: '16px', fontWeight: 800, color: '#1e3a5f' }}>
                   {organizationName}
                 </div>
+                {orgSubtitle && (
+                  <div style={{ fontSize: '11px', color: '#4b5563', marginTop: '2px' }}>
+                    {orgSubtitle}
+                  </div>
+                )}
               </div>
 
               {/* Center: Logo */}

@@ -106,7 +106,8 @@ export function ItemForm({ itemId }: { itemId?: number }) {
       if (!res.ok) return null;
       return res.json() as Promise<{ unitsList?: string | null }>;
     },
-    staleTime: 60_000,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
   const unitOptions: string[] = (() => {
     try {
