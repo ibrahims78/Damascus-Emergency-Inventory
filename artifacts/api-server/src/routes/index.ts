@@ -16,6 +16,7 @@ import auditRouter from "./audit";
 import backupRouter from "./backup";
 import custodiesRouter from "./custodies";
 import backupsRouter from "./backups";
+import syncRouter from "./sync";
 
 const router = Router();
 
@@ -36,5 +37,6 @@ router.use("/audit", auditRouter);
 router.use("/backup", backupRouter);
 router.use("/custodies", custodiesRouter);
 router.use("/backups", backupsRouter);
+router.use("/sync", syncRouter);
 
 export default router;

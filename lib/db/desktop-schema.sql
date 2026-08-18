@@ -119,6 +119,41 @@ CREATE TABLE "sync_tombstones" (
 CONSTRAINT "sync_tombstones_entity_unique" UNIQUE("entity_type", "entity_global_id")
 );
 --> statement-breakpoint
+CREATE TABLE "sync_sessions" (
+  "session_id" text PRIMARY KEY NOT NULL,
+  "source_node_id" text NOT NULL,
+  "target_node_id" text NOT NULL,
+  "status" text DEFAULT 'created' NOT NULL,
+  "source_vector" jsonb DEFAULT '{}'::jsonb NOT NULL,
+  "target_vector" jsonb DEFAULT '{}'::jsonb NOT NULL,
+  "source_last_vector" jsonb DEFAULT '{}'::jsonb NOT NULL,
+  "target_last_vector" jsonb DEFAULT '{}'::jsonb NOT NULL,
+  "last_error" text,
+  "created_at" timestamptz DEFAULT now() NOT NULL,
+  "updated_at" timestamptz DEFAULT now() NOT NULL,
+  "expires_at" timestamptz
+);
+--> statement-breakpoint
+CREATE TABLE "sync_session_packages" (
+  "package_id" text PRIMARY KEY NOT NULL,
+  "session_id" text NOT NULL,
+  "direction" text NOT NULL,
+  "source_node_id" text NOT NULL,
+  "target_node_id" text NOT NULL,
+  "base_vector" jsonb DEFAULT '{}'::jsonb NOT NULL,
+  "last_vector" jsonb DEFAULT '{}'::jsonb NOT NULL,
+  "changes" jsonb DEFAULT '[]'::jsonb NOT NULL,
+  "content_hash" text NOT NULL,
+  "status" text DEFAULT 'prepared' NOT NULL,
+  "report" jsonb,
+  "created_at" timestamptz DEFAULT now() NOT NULL,
+  "updated_at" timestamptz DEFAULT now() NOT NULL,
+  "acknowledged_at" timestamptz,
+  CONSTRAINT "sync_session_packages_session_fk" FOREIGN KEY ("session_id")
+    REFERENCES "sync_sessions" ("session_id") ON DELETE cascade,
+  CONSTRAINT "sync_session_packages_hash_unique" UNIQUE ("session_id", "content_hash")
+);
+--> statement-breakpoint
 CREATE TABLE "categories" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,

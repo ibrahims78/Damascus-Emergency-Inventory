@@ -28,6 +28,24 @@ export type SyncChangeStatus =
   | "conflict"
   | "superseded";
 
+export type SyncSessionStatus =
+  | "created"
+  | "handshake"
+  | "prepared"
+  | "transferring"
+  | "partially-applied"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
+export type SyncPackageDirection = "source-to-target" | "target-to-source";
+export type SyncPackageStatus =
+  | "prepared"
+  | "received"
+  | "applied"
+  | "acknowledged"
+  | "failed";
+
 /**
  * One durable identity per installation/database. The sequence is reserved
  * inside the same transaction that records a local change.
@@ -157,5 +175,65 @@ export const syncTombstoneTable = pgTable(
   (table) => [
     unique("sync_tombstones_entity_unique").on(table.entityType, table.entityGlobalId),
     index("sync_tombstones_propagated_idx").on(table.propagated),
+  ],
+);
+
+/**
+ * A durable two-node exchange. The vectors are snapshots, not mutable
+ * guesses: every package records the exact base and resulting vector used to
+ * build it so an interrupted session can be resumed safely.
+ */
+export const syncSessionTable = pgTable(
+  "sync_sessions",
+  {
+    sessionId: text("session_id").primaryKey(),
+    sourceNodeId: text("source_node_id").notNull(),
+    targetNodeId: text("target_node_id").notNull(),
+    status: text("status").notNull().$type<SyncSessionStatus>().default("created"),
+    sourceVector: jsonb("source_vector").notNull().default({}),
+    targetVector: jsonb("target_vector").notNull().default({}),
+    sourceLastVector: jsonb("source_last_vector").notNull().default({}),
+    targetLastVector: jsonb("target_last_vector").notNull().default({}),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("sync_sessions_source_idx").on(table.sourceNodeId),
+    index("sync_sessions_target_idx").on(table.targetNodeId),
+    index("sync_sessions_status_idx").on(table.status),
+  ],
+);
+
+/**
+ * Durable package metadata and payload. Phase 7 deliberately keeps the
+ * package as JSONB; streaming/chunk storage belongs to the relay work in
+ * phase 8.
+ */
+export const syncSessionPackageTable = pgTable(
+  "sync_session_packages",
+  {
+    packageId: text("package_id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => syncSessionTable.sessionId, { onDelete: "cascade" }),
+    direction: text("direction").notNull().$type<SyncPackageDirection>(),
+    sourceNodeId: text("source_node_id").notNull(),
+    targetNodeId: text("target_node_id").notNull(),
+    baseVector: jsonb("base_vector").notNull().default({}),
+    lastVector: jsonb("last_vector").notNull().default({}),
+    changes: jsonb("changes").notNull().default([]),
+    contentHash: text("content_hash").notNull(),
+    status: text("status").notNull().$type<SyncPackageStatus>().default("prepared"),
+    report: jsonb("report"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true }),
+  },
+  (table) => [
+    unique("sync_session_packages_hash_unique").on(table.sessionId, table.contentHash),
+    index("sync_session_packages_session_idx").on(table.sessionId),
+    index("sync_session_packages_status_idx").on(table.status),
   ],
 );
