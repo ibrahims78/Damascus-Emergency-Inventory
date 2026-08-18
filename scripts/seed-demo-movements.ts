@@ -1,16 +1,31 @@
 import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import postgres from "postgres";
-import {
-  createInventoryMovement,
-  type MovementContext,
-  type MovementInput,
+import { read, utils } from "xlsx";
+import type {
+  MovementContext,
+  MovementInput,
 } from "../artifacts/api-server/src/lib/inventory-movement-service";
 
-if (!process.env.DATABASE_URL) {
+const DRY_RUN = process.argv.includes("--dry-run");
+const DATABASE_URL = process.env.DATABASE_URL;
+
+if (!DATABASE_URL && !DRY_RUN) {
   throw new Error("DATABASE_URL is required to seed demo movements");
 }
 
-const sql = postgres(process.env.DATABASE_URL, { max: 4 });
+const sql = postgres(DATABASE_URL ?? "postgres://localhost/unused", { max: 4 });
+
+const SCRIPT_DIRECTORY = dirname(fileURLToPath(import.meta.url));
+const PROJECT_ROOT = resolve(SCRIPT_DIRECTORY, "..");
+const ITEMS_WORKBOOK = "بيانات_اختبار_100_مادة.xlsx";
+const EQUIPMENT_WORKBOOK = "بيانات_اختبار_60_تجهيزة.xlsx";
+const EXCEL_ITEM_MARKER = "بيانات Excel تجريبية — مواد الاختبار الشامل";
+const EXCEL_EQUIPMENT_MARKER = "بيانات Excel تجريبية — تجهيزات الاختبار الشامل";
+type CreateInventoryMovement = typeof import("../artifacts/api-server/src/lib/inventory-movement-service").createInventoryMovement;
+let createInventoryMovement: CreateInventoryMovement | undefined;
 
 /**
  * This seed is intentionally persistent and deterministic. It creates a
@@ -46,18 +61,269 @@ type Fixture = {
   context: MovementContext;
 };
 
+type ExcelRow = Record<string, unknown>;
+
+type ExcelItemSeed = {
+  rowNumber: number;
+  code: string;
+  name: string;
+  quantity: number;
+  minStock: number;
+  unit: string;
+  category: string | null;
+  expiryDate: string | null;
+  batchNumber: string;
+  location: string | null;
+  supplier: string | null;
+  notes: string | null;
+};
+
+type ExcelEquipmentSeed = {
+  rowNumber: number;
+  name: string;
+  equipmentType: string | null;
+  model: string | null;
+  serialNumber: string | null;
+  condition: "good" | "maintenance" | "broken" | "consumed" | "needs_inspection";
+  quantity: number;
+  minQuantity: number;
+  manufactureYear: number | null;
+  originCountry: string | null;
+  currentHolder: string | null;
+  notes: string | null;
+};
+
 function isoDate(offsetDays = 0) {
   const date = new Date();
   date.setUTCDate(date.getUTCDate() + offsetDays);
   return date.toISOString().slice(0, 10);
 }
 
-function scenarioNote(scenario: string) {
-  return `${DEMO_MARKER} — ${scenario}`;
+function resolveWorkbook(fileName: string) {
+  const candidates = [
+    resolve(PROJECT_ROOT, fileName),
+    resolve(PROJECT_ROOT, "attached_assets", fileName),
+  ];
+  const path = candidates.find((candidate) => existsSync(candidate));
+  if (!path) {
+    throw new Error(
+      `لم يتم العثور على ملف البيانات الوهمية "${fileName}". ` +
+        `المسارات المفحوصة: ${candidates.join(" | ")}`,
+    );
+  }
+  return path;
 }
 
-async function findScenario(scenario: string): Promise<MovementRow | null> {
-  const marker = `%${DEMO_MARKER}%`;
+function normalizeHeader(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .replace(/\s*\*+\s*$/, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function pickColumn(headers: string[], candidates: string[]) {
+  const normalized = new Map(headers.map((header) => [normalizeHeader(header), header]));
+  for (const candidate of candidates) {
+    const match = normalized.get(normalizeHeader(candidate));
+    if (match) return match;
+  }
+  return null;
+}
+
+function textValue(row: ExcelRow, column: string | null) {
+  if (!column) return null;
+  const value = String(row[column] ?? "").trim();
+  return value && value !== "-" && value !== "—" ? value : null;
+}
+
+function numberValue(row: ExcelRow, column: string | null, fallback = 0) {
+  if (!column) return fallback;
+  const raw = String(row[column] ?? "").replace(/[,،]/g, "").trim();
+  if (!raw) return fallback;
+  const value = Number(raw);
+  return Number.isFinite(value) ? Math.max(0, Math.round(value)) : fallback;
+}
+
+function dateValue(row: ExcelRow, column: string | null) {
+  if (!column || row[column] == null || row[column] === "") return null;
+  const raw = row[column];
+  if (raw instanceof Date && !Number.isNaN(raw.getTime())) {
+    return raw.toISOString().slice(0, 10);
+  }
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+    const excelDate = new Date(excelEpoch.getTime() + raw * 86400000);
+    return Number.isNaN(excelDate.getTime()) ? null : excelDate.toISOString().slice(0, 10);
+  }
+  const parsed = new Date(String(raw).trim());
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10);
+}
+
+function readWorkbookRows(fileName: string, sheetName: string) {
+  const path = resolveWorkbook(fileName);
+  const workbook = read(readFileSync(path), { type: "buffer", cellDates: true });
+  const sheet = workbook.Sheets[sheetName];
+  if (!sheet) {
+    throw new Error(`الملف "${fileName}" لا يحتوي على الورقة المطلوبة "${sheetName}"`);
+  }
+
+  const rawRows = utils.sheet_to_json(sheet, { header: 1, defval: null }) as unknown[][];
+  const headerRowIndex = rawRows.findIndex(
+    (row) =>
+      Array.isArray(row) &&
+      row.filter((value) => value != null && String(value).trim()).length > 1,
+  );
+  if (headerRowIndex < 0) {
+    throw new Error(`لم يتم العثور على صف عناوين في "${fileName}" / "${sheetName}"`);
+  }
+
+  const headers = rawRows[headerRowIndex].map((value) => String(value ?? "").trim());
+  const rows = rawRows
+    .slice(headerRowIndex + 1)
+    .filter(
+      (row) =>
+        Array.isArray(row) &&
+        row.some((value) => value != null && String(value).trim()),
+    )
+    .map((row) => {
+      const result: ExcelRow = {};
+      headers.forEach((header, index) => {
+        if (header) result[header] = row[index] ?? null;
+      });
+      return result;
+    });
+
+  return { path, headers, rows };
+}
+
+function parseExcelItems(): ExcelItemSeed[] {
+  const { headers, rows } = readWorkbookRows(ITEMS_WORKBOOK, "البيانات");
+  const nameColumn = pickColumn(headers, ["الاسم", "اسم المادة", "الصنف", "البيان"]);
+  const codeColumn = pickColumn(headers, ["الرمز", "الكود", "الرقم", "رقم المادة"]);
+  const quantityColumn = pickColumn(headers, ["الكمية الحالية", "الكمية", "الرصيد"]);
+  const minStockColumn = pickColumn(headers, ["الحد الأدنى", "الحد الادنى"]);
+  const unitColumn = pickColumn(headers, ["الوحدة", "وحدة القياس"]);
+  const categoryColumn = pickColumn(headers, ["التصنيف", "الفئة", "القسم"]);
+  const expiryColumn = pickColumn(headers, ["تاريخ الانتهاء", "تاريخ انتهاء الصلاحية"]);
+  const batchColumn = pickColumn(headers, ["رقم الدفعة", "الدفعة"]);
+  const locationColumn = pickColumn(headers, ["الموقع", "مكان التخزين"]);
+  const supplierColumn = pickColumn(headers, ["المورد", "اسم المورد"]);
+  const notesColumn = pickColumn(headers, ["ملاحظات", "ملاحظة", "تفاصيل"]);
+
+  if (!nameColumn) throw new Error(`ملف ${ITEMS_WORKBOOK} لا يحتوي على عمود اسم المادة`);
+
+  const items = rows.flatMap((row, index) => {
+    const name = textValue(row, nameColumn);
+    if (!name) return [];
+    const code = textValue(row, codeColumn) ?? `EXCEL-ITEM-${String(index + 1).padStart(3, "0")}`;
+    return [
+      {
+        rowNumber: index + 2,
+        code,
+        name,
+        quantity: numberValue(row, quantityColumn),
+        minStock: numberValue(row, minStockColumn),
+        unit: textValue(row, unitColumn) ?? "وحدة",
+        category: textValue(row, categoryColumn),
+        expiryDate: dateValue(row, expiryColumn),
+        batchNumber:
+          textValue(row, batchColumn) ??
+          `EXCEL-BATCH-${code.replace(/[^A-Za-z0-9_-]/g, "-")}`,
+        location: textValue(row, locationColumn),
+        supplier: textValue(row, supplierColumn),
+        notes: textValue(row, notesColumn),
+      },
+    ];
+  });
+
+  const codes = new Set<string>();
+  for (const item of items) {
+    assert(!codes.has(item.code), `رمز مادة مكرر في ملف Excel: ${item.code}`);
+    assert(item.quantity >= 0, `كمية مادة غير صالحة في الصف ${item.rowNumber}`);
+    codes.add(item.code);
+  }
+  return items;
+}
+
+function mapEquipmentCondition(value: string | null): ExcelEquipmentSeed["condition"] {
+  const normalized = value?.trim() ?? "";
+  const map: Record<string, ExcelEquipmentSeed["condition"]> = {
+    جيدة: "good",
+    جيد: "good",
+    "تحت الصيانة": "maintenance",
+    صيانة: "maintenance",
+    "في الصيانة": "maintenance",
+    "بحاجة للصيانة": "maintenance",
+    معطل: "broken",
+    معطلة: "broken",
+    مستهلك: "consumed",
+    مستهلكة: "consumed",
+    "يحتاج فحص": "needs_inspection",
+    "تحتاج فحص": "needs_inspection",
+  };
+  return map[normalized] ?? "good";
+}
+
+function parseExcelEquipment(): ExcelEquipmentSeed[] {
+  const { headers, rows } = readWorkbookRows(EQUIPMENT_WORKBOOK, "البيانات");
+  const nameColumn = pickColumn(headers, ["الاسم", "اسم التجهيز", "التجهيز", "الجهاز"]);
+  const typeColumn = pickColumn(headers, ["نوع التجهيز", "النوع", "الفئة", "التصنيف"]);
+  const modelColumn = pickColumn(headers, ["الموديل", "الموديل / الطراز", "الطراز"]);
+  const serialColumn = pickColumn(headers, ["الرقم التسلسلي", "الرقم التسلسلي (فريد)", "رقم السيريال", "Serial"]);
+  const conditionColumn = pickColumn(headers, ["الحالة", "حالة التجهيز", "الوضع"]);
+  const quantityColumn = pickColumn(headers, ["الكمية", "العدد"]);
+  const minQuantityColumn = pickColumn(headers, ["الحد الأدنى للكمية", "الحد الأدنى", "الحد الادنى"]);
+  const yearColumn = pickColumn(headers, ["سنة الصنع", "سنة التصنيع", "سنة الإنتاج"]);
+  const countryColumn = pickColumn(headers, ["بلد المنشأ", "البلد", "المنشأ"]);
+  const holderColumn = pickColumn(headers, ["الحائز الحالي", "الحائز", "المستخدم", "المسؤول"]);
+  const notesColumn = pickColumn(headers, ["ملاحظات", "ملاحظة", "تفاصيل"]);
+
+  if (!nameColumn) throw new Error(`ملف ${EQUIPMENT_WORKBOOK} لا يحتوي على عمود اسم التجهيز`);
+
+  const equipment = rows.flatMap((row, index) => {
+    const name = textValue(row, nameColumn);
+    if (!name) return [];
+    const quantity = numberValue(row, quantityColumn, 1);
+    let serialNumber = textValue(row, serialColumn);
+    if (serialNumber && quantity > 1) serialNumber = null;
+    return [
+      {
+        rowNumber: index + 2,
+        name,
+        equipmentType: textValue(row, typeColumn),
+        model: textValue(row, modelColumn),
+        serialNumber,
+        condition: mapEquipmentCondition(textValue(row, conditionColumn)),
+        quantity,
+        minQuantity: numberValue(row, minQuantityColumn),
+        manufactureYear: numberValue(row, yearColumn, 0) || null,
+        originCountry: textValue(row, countryColumn),
+        currentHolder: textValue(row, holderColumn),
+        notes: textValue(row, notesColumn),
+      },
+    ];
+  });
+
+  const serials = new Set<string>();
+  for (const item of equipment) {
+    if (!item.serialNumber) continue;
+    assert(!serials.has(item.serialNumber), `رقم تسلسلي مكرر في ملف Excel: ${item.serialNumber}`);
+    serials.add(item.serialNumber);
+  }
+  return equipment;
+}
+
+function scenarioNote(scenario: string, marker = DEMO_MARKER) {
+  return `${marker} — ${scenario}`;
+}
+
+async function findScenario(
+  scenario: string,
+  scenarioMarker = DEMO_MARKER,
+): Promise<MovementRow | null> {
+  const marker = `%${scenarioMarker}%`;
   const scenarioPart = `%${scenario}%`;
   const [movement] = await sql<MovementRow[]>`
     SELECT id, document_number AS "documentNumber", type,
@@ -74,20 +340,186 @@ async function createScenario(
   scenario: string,
   input: MovementInput,
   context: MovementContext,
+  scenarioMarker = DEMO_MARKER,
 ): Promise<MovementRow> {
-  const existing = await findScenario(scenario);
+  const existing = await findScenario(scenario, scenarioMarker);
   if (existing) {
     console.log(`SKIP ${scenario}: ${existing.documentNumber}`);
     return existing;
   }
 
+  createInventoryMovement ??= (
+    await import("../artifacts/api-server/src/lib/inventory-movement-service")
+  ).createInventoryMovement;
   const movement = await createInventoryMovement(
-    { ...input, notes: scenarioNote(scenario) },
+    { ...input, notes: scenarioNote(scenario, scenarioMarker) },
     context,
   );
   const created = movement as MovementRow;
   console.log(`CREATE ${scenario}: ${created.documentNumber}`);
   return created;
+}
+
+async function ensureExcelItem(item: ExcelItemSeed) {
+  const itemMarker = `${EXCEL_ITEM_MARKER} — ${item.code}`;
+  const [existing] = await sql`
+    SELECT id, notes
+    FROM items
+    WHERE code = ${item.code}
+    LIMIT 1
+  `;
+  if (existing && !String(existing.notes ?? "").includes(EXCEL_ITEM_MARKER)) {
+    throw new Error(
+      `رمز المادة ${item.code} موجود مسبقاً خارج بيانات الاختبار. ` +
+        "لن يتم تعديل سجل غير تجريبي تلقائياً.",
+    );
+  }
+
+  let categoryId: number | null = null;
+  if (item.category) {
+    const [category] = await sql`
+      INSERT INTO categories (name, type)
+      VALUES (${item.category}, 'consumable')
+      ON CONFLICT (name) DO UPDATE SET type = EXCLUDED.type
+      RETURNING id
+    `;
+    categoryId = category ? Number(category.id) : null;
+  }
+
+  if (existing) {
+    await sql`
+      UPDATE items
+      SET name = ${item.name},
+          category_id = ${categoryId},
+          item_type = 'consumable',
+          unit = ${item.unit},
+          min_stock = ${item.minStock},
+          location = ${item.location},
+          supplier = ${item.supplier},
+          notes = ${itemMarker}${item.notes ? ` — ${item.notes}` : ""},
+          is_active = true,
+          updated_at = now()
+      WHERE id = ${existing.id}
+    `;
+    return Number(existing.id);
+  }
+
+  const [created] = await sql`
+    INSERT INTO items (
+      code, name, category_id, item_type, unit, current_stock, min_stock,
+      expiry_date, batch_number, location, supplier, notes, is_active
+    )
+    VALUES (
+      ${item.code}, ${item.name}, ${categoryId}, 'consumable', ${item.unit}, 0,
+      ${item.minStock}, ${item.expiryDate}, ${item.batchNumber}, ${item.location},
+      ${item.supplier}, ${itemMarker}${item.notes ? ` — ${item.notes}` : ""}, true
+    )
+    RETURNING id
+  `;
+  return Number(created.id);
+}
+
+async function seedExcelItems(context: MovementContext) {
+  const items = parseExcelItems();
+  let initialMovements = 0;
+
+  for (const item of items) {
+    const itemId = await ensureExcelItem(item);
+    if (item.quantity <= 0) continue;
+
+    await createScenario(
+      `excel item inbound — ${item.code}`,
+      {
+        kind: "in",
+        itemType: "item",
+        itemId,
+        quantity: item.quantity,
+        deliveryNoteNumber: `EXCEL-IN-${item.code}`,
+        deliveryNoteDate: isoDate(),
+        documentDate: isoDate(),
+        supplySource: "central_warehouses",
+        batchNumber: item.batchNumber,
+        expiryDate: item.expiryDate ?? undefined,
+      },
+      context,
+      EXCEL_ITEM_MARKER,
+    );
+    initialMovements++;
+  }
+
+  console.log(
+    `Excel items seeded: ${items.length} materials, ${initialMovements} opening movements`,
+  );
+  return items.length;
+}
+
+function excelEquipmentMarker(item: ExcelEquipmentSeed, index: number) {
+  const identity =
+    item.serialNumber ??
+    `${String(index + 1).padStart(3, "0")}-${item.name}-${item.model ?? "no-model"}`;
+  return `${EXCEL_EQUIPMENT_MARKER} — ${identity}`;
+}
+
+async function seedExcelEquipment() {
+  const equipment = parseExcelEquipment();
+
+  for (const [index, item] of equipment.entries()) {
+    const marker = excelEquipmentMarker(item, index);
+    const [existingByMarker] = await sql`
+      SELECT id
+      FROM equipment
+      WHERE notes LIKE ${`${marker}%`}
+      LIMIT 1
+    `;
+    const [existingBySerial] = item.serialNumber
+      ? await sql`
+          SELECT id, notes
+          FROM equipment
+          WHERE serial_number = ${item.serialNumber}
+          LIMIT 1
+        `
+      : [];
+
+    if (
+      existingBySerial &&
+      !String(existingBySerial.notes ?? "").includes(EXCEL_EQUIPMENT_MARKER)
+    ) {
+      throw new Error(
+        `الرقم التسلسلي ${item.serialNumber} موجود خارج بيانات الاختبار. ` +
+          "لن يتم تعديل سجل غير تجريبي تلقائياً.",
+      );
+    }
+    if (existingByMarker || existingBySerial) continue;
+
+    await sql`
+      INSERT INTO equipment (
+        name, equipment_type, model, serial_number, condition,
+        manufacture_year, origin_country, current_holder, notes,
+        quantity, min_quantity
+      )
+      VALUES (
+        ${item.name}, ${item.equipmentType}, ${item.model}, ${item.serialNumber},
+        ${item.condition}, ${item.manufactureYear}, ${item.originCountry},
+        ${item.currentHolder}, ${marker}${item.notes ? ` — ${item.notes}` : ""},
+        ${item.quantity}, ${item.minQuantity}
+      )
+    `;
+  }
+
+  console.log(`Excel equipment seeded: ${equipment.length} equipment rows`);
+  return equipment.length;
+}
+
+function dryRunExcelCatalog() {
+  const items = parseExcelItems();
+  const equipment = parseExcelEquipment();
+  const serialEquipment = equipment.filter((item) => item.serialNumber).length;
+  const itemBatches = items.filter((item) => item.batchNumber).length;
+  console.log("Excel demo catalog dry run passed.");
+  console.log(`Items: ${items.length} (with batches: ${itemBatches})`);
+  console.log(
+    `Equipment: ${equipment.length} (serial-numbered: ${serialEquipment})`,
+  );
 }
 
 async function ensureItem() {
@@ -305,6 +737,9 @@ async function main() {
     userName: String(contextUser[0].fullName),
     ipAddress: "127.0.0.1",
   };
+  await seedExcelItems(context);
+  await seedExcelEquipment();
+
   const fixture: Fixture = {
     itemId: await ensureItem(),
     equipmentId: await ensureBulkEquipment(),
@@ -841,8 +1276,16 @@ async function verifyFixture(fixture: Fixture) {
   console.log("Coverage: init, in/no-expiry, out/FEFO, admin delivery, adjust up/down, custody partial/full, damage, central return");
 }
 
-try {
-  await main();
-} finally {
-  await sql.end({ timeout: 5 });
+if (DRY_RUN) {
+  try {
+    dryRunExcelCatalog();
+  } finally {
+    await sql.end({ timeout: 5 });
+  }
+} else {
+  try {
+    await main();
+  } finally {
+    await sql.end({ timeout: 5 });
+  }
 }
