@@ -8,3 +8,4 @@
 - [API schema codegen exports](api-schema-codegen-exports.md) — Orval can append duplicate root exports; normalize the Zod package entrypoint after regeneration
 - [Workspace bootstrap](workspace-bootstrap.md) — fresh GitHub syncs need locked dependencies and the development schema before workflow health checks
 - [Demo movement fixtures](demo-movement-fixture.md) — persistent movement seeds must be idempotent and assert exact ledger balances
+- [Independent nodes and peer sync](independent-nodes-peer-sync.md) — Windows, Android, and web each keep separate databases and exchange signed, idempotent changes on demand
