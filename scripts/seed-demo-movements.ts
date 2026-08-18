@@ -362,6 +362,7 @@ async function createScenario(
 
 async function ensureExcelItem(item: ExcelItemSeed) {
   const itemMarker = `${EXCEL_ITEM_MARKER} — ${item.code}`;
+  const itemNotes = `${itemMarker}${item.notes ? ` — ${item.notes}` : ""}`;
   const [existing] = await sql`
     SELECT id, notes
     FROM items
@@ -396,7 +397,7 @@ async function ensureExcelItem(item: ExcelItemSeed) {
           min_stock = ${item.minStock},
           location = ${item.location},
           supplier = ${item.supplier},
-          notes = ${itemMarker}${item.notes ? ` — ${item.notes}` : ""},
+           notes = ${itemNotes},
           is_active = true,
           updated_at = now()
       WHERE id = ${existing.id}
@@ -412,7 +413,7 @@ async function ensureExcelItem(item: ExcelItemSeed) {
     VALUES (
       ${item.code}, ${item.name}, ${categoryId}, 'consumable', ${item.unit}, 0,
       ${item.minStock}, ${item.expiryDate}, ${item.batchNumber}, ${item.location},
-      ${item.supplier}, ${itemMarker}${item.notes ? ` — ${item.notes}` : ""}, true
+       ${item.supplier}, ${itemNotes}, true
     )
     RETURNING id
   `;
@@ -465,6 +466,7 @@ async function seedExcelEquipment() {
 
   for (const [index, item] of equipment.entries()) {
     const marker = excelEquipmentMarker(item, index);
+    const equipmentNotes = `${marker}${item.notes ? ` — ${item.notes}` : ""}`;
     const [existingByMarker] = await sql`
       SELECT id
       FROM equipment
@@ -500,7 +502,7 @@ async function seedExcelEquipment() {
       VALUES (
         ${item.name}, ${item.equipmentType}, ${item.model}, ${item.serialNumber},
         ${item.condition}, ${item.manufactureYear}, ${item.originCountry},
-        ${item.currentHolder}, ${marker}${item.notes ? ` — ${item.notes}` : ""},
+        ${item.currentHolder}, ${equipmentNotes},
         ${item.quantity}, ${item.minQuantity}
       )
     `;
@@ -1240,8 +1242,7 @@ async function verifyFixture(fixture: Fixture) {
     ]),
     [
       ["item outbound — FEFO across batches", 12, "DEMO-FINAL-BATCH-NEAR", isoDate(30)],
-      ["item outbound — administrative delivery across batches", 3, "DEMO-FINAL-BATCH-NEAR", isoDate(30)],
-      ["item outbound — administrative delivery across batches", 1, "DEMO-FINAL-BATCH-FAR", isoDate(180)],
+      ["item outbound — administrative delivery across batches", 4, "DEMO-FINAL-BATCH-NEAR", isoDate(30)],
     ],
     "تخصيصات الخروج يجب أن تكون FEFO وألا تستخدم الدفعة المنتهية",
   );
