@@ -13,6 +13,7 @@
     "phase3:inbound-smoke": "tsx ./phase3-inbound-smoke.ts",
     "phase45:backup-recovery": "tsx ./phase45-backup-recovery.ts",
     "phase45:db-smoke": "tsx ./phase45-db-smoke.ts",
+    "phase6:backup": "tsx ./phase6-backup-retention.ts",
     "phase4:consumables-fefo": "tsx ./phase4-consumables-fefo.ts",
     "phase5:assets-lifecycle": "tsx ./phase5-assets-lifecycle.ts",
     "phase6:item-history": "tsx ./phase6-item-history-smoke.ts",
@@ -26,6 +27,7 @@
   },
   "dependencies": {
     "@workspace/backup-format": "workspace:*",
+    "drizzle-orm": "catalog:",
     "postgres": "^3.4.9",
     "xlsx": "^0.18.5"
   }

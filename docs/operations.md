@@ -54,6 +54,16 @@ pnpm --filter @workspace/web run dev
 - `GET /api/backups/:restorePointId/report` يعرض تقرير الاستعادة.
 - `POST /api/backups/:restorePointId/rollback` مع `confirm=true` يعيد نقطة ما قبل
   الاستعادة داخل معاملة كاملة.
+- `GET /api/backups` يعرض كتالوج النسخ المتاحة وبيانات سياسة الاحتفاظ دون كشف
+  محتوى الحزم المشفرة.
+- `POST /api/backups` ينشئ نسخة `full-backup` أو `delta-sync` ويحفظ بياناتها
+  المشفرة في الكتالوج، مع `retentionClass` اختيارية (`manual` أو `daily` أو
+  `weekly` أو `monthly`).
+- `GET /api/backups/:backupId/package` ينزّل حزمة من الكتالوج، و
+  `POST /api/backups/:backupId/verify` يفحص كلمة المرور والبصمة دون تعديل
+  البيانات التشغيلية.
+- `GET/PUT /api/backups/policy` لإدارة حدود الاحتفاظ، و
+  `POST /api/backups/retention/enforce` لتطبيقها يدوياً.
 
 تستبعد الحزمة كلمات مرور المستخدمين والجلسات والأسرار، ولا تستعيد حسابات المستخدمين؛
 تبقى حسابات البيئة الحالية. استخدم كلمة مرور حزمة مستقلة، واحفظها خارج الملف.
@@ -88,3 +98,28 @@ pnpm --filter @workspace/scripts run phase45:db-smoke
 تختبر الأوامر دورة الحزمة، التحقق من العبث وكلمة المرور الخاطئة والحزمة الناقصة
 والحقول الحساسة، ثم الدمج idempotently ورفض الرصيد السالب والتنظيف التلقائي لبيانات
 الاختبار.
+
+## تشغيل المرحلة 6 — النسخ الكامل والتفاضلي
+
+الجدولة في خادم الويب اختيارية ومغلقة افتراضياً. لتفعيلها في بيئة التشغيل، احفظ
+`BACKUP_SCHEDULER_PASSWORD` في Secrets (لا تضعها في الملفات)، ثم اضبط:
+
+```text
+BACKUP_SCHEDULER_ENABLED=1
+BACKUP_SCHEDULE_INTERVAL_MS=86400000
+```
+
+ينشئ التشغيل الأول Full Backup، ثم ينشئ Delta Backup من `lastVector` لآخر نسخة
+متاحة. لا يحتفظ الخادم بكلمة المرور داخل الكتالوج؛ يخزن الحزمة المشفرة فقط.
+عند فشل النسخة أو امتلاء التخزين تبقى النسخ السابقة ولا تعتبر العملية ناجحة.
+
+اختبار المرحلة:
+
+```bash
+pnpm --filter @workspace/scripts run phase6:backup
+```
+
+يغطي الاختبار وجود تغييرات معلقة، Full ثم Delta، تطبيق Delta بعد خط الأساس،
+فحص البصمة، وسياسة الاحتفاظ مع حماية آخر Full Backup سليم. تصدير الحزمة إلى
+مسار يختاره المستخدم في Windows أو Android يبقى مسؤولية محول المنصة الذي يستهلك
+ملف `.dme-sync`؛ واجهة Web تعيد الملف كـdownload ولا تكتب إلى جهاز العميل.

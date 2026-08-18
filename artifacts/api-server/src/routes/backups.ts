@@ -4,15 +4,24 @@ import { requireAuth, requireRole } from "../middlewares/auth";
 import {
   applyRestore,
   consumePreview,
+  createDeltaBackup,
   createFullBackup,
   createPreview,
   createRestorePoint,
   decodePackage,
+  enforceRetentionPolicy,
   getRestorePoint,
+  getLatestBackup,
+  getRetentionPolicy,
+  listBackupCatalog,
   packageBufferToBase64,
   packageSummary,
+  readCatalogPackage,
   rollbackRestorePoint,
   serverRestorePointPassword,
+  storeBackupPackage,
+  updateRetentionPolicy,
+  verifyCatalogBackup,
   type RestoreMode,
 } from "../lib/backup-service";
 
@@ -26,6 +35,78 @@ function modeOf(value: unknown): RestoreMode {
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "تعذر معالجة حزمة النسخ";
 }
+
+// GET /api/backups — catalog metadata only; encrypted package contents stay hidden.
+router.get("/", requireAuth, requireRole("admin"), async (_req, res) => {
+  res.json({ backups: await listBackupCatalog(), policy: await getRetentionPolicy() });
+});
+
+// POST /api/backups — creates and catalogs a full or delta backup.
+router.post("/", requireAuth, requireRole("admin"), async (req, res) => {
+  try {
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+    if (password.length < 8) {
+      res.status(400).json({ error: "كلمة مرور الحزمة مطلوبة (8 أحرف على الأقل)" });
+      return;
+    }
+    const requestedType = req.body?.packageType === "delta-sync" ? "delta-sync" : "full-backup";
+    const latest = await getLatestBackup();
+    const baseVector =
+      req.body?.baseVector && typeof req.body.baseVector === "object" ? req.body.baseVector : latest?.lastVector ?? {};
+    const buffer =
+      requestedType === "delta-sync" && latest
+        ? await createDeltaBackup(password, baseVector as Record<string, number>)
+        : await createFullBackup(password);
+    const stored = await storeBackupPackage(buffer, password, {
+      retentionClass:
+        req.body?.retentionClass === "daily" ||
+        req.body?.retentionClass === "weekly" ||
+        req.body?.retentionClass === "monthly"
+          ? req.body.retentionClass
+          : "manual",
+    });
+    await auditLog({
+      req,
+      action: "backup_catalog_create",
+      entityType: "backup",
+      details: { backupId: stored.id, packageType: stored.packageType, bytes: stored.byteSize },
+    });
+    res.status(201).json({
+      id: stored.id,
+      packageHash: stored.packageHash,
+      packageType: stored.packageType,
+      recordCount: stored.recordCount,
+      changeCount: stored.changeCount,
+      byteSize: stored.byteSize,
+      baseVector: stored.baseVector,
+      lastVector: stored.lastVector,
+      retentionClass: stored.retentionClass,
+      summary: stored.summary,
+    });
+  } catch (error) {
+    res.status(400).json({ error: errorMessage(error) });
+  }
+});
+
+router.get("/policy", requireAuth, requireRole("admin"), async (_req, res) => {
+  res.json(await getRetentionPolicy());
+});
+
+router.put("/policy", requireAuth, requireRole("admin"), async (req, res) => {
+  try {
+    res.json(await updateRetentionPolicy(req.body ?? {}));
+  } catch (error) {
+    res.status(400).json({ error: errorMessage(error) });
+  }
+});
+
+router.post("/retention/enforce", requireAuth, requireRole("admin"), async (_req, res) => {
+  try {
+    res.json(await enforceRetentionPolicy());
+  } catch (error) {
+    res.status(400).json({ error: errorMessage(error) });
+  }
+});
 
 // POST /api/backups/export — creates the canonical encrypted .dme-sync package.
 router.post("/export", requireAuth, requireRole("admin"), async (req, res) => {
@@ -41,6 +122,26 @@ router.post("/export", requireAuth, requireRole("admin"), async (req, res) => {
     res.setHeader("Content-Disposition", `attachment; filename="damascus-${date}.dme-sync"`);
     res.send(buffer);
     await auditLog({ req, action: "backup_package_export", entityType: "backup", details: { bytes: buffer.length } });
+  } catch (error) {
+    res.status(400).json({ error: errorMessage(error) });
+  }
+});
+
+router.get("/:backupId/package", requireAuth, requireRole("admin"), async (req, res) => {
+  try {
+    const buffer = await readCatalogPackage(String(req.params.backupId));
+    res.setHeader("Content-Type", "application/octet-stream");
+    res.setHeader("Content-Disposition", `attachment; filename="${String(req.params.backupId)}.dme-sync"`);
+    res.send(buffer);
+  } catch (error) {
+    res.status(404).json({ error: errorMessage(error) });
+  }
+});
+
+router.post("/:backupId/verify", requireAuth, requireRole("admin"), async (req, res) => {
+  try {
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+    res.json(await verifyCatalogBackup(String(req.params.backupId), password));
   } catch (error) {
     res.status(400).json({ error: errorMessage(error) });
   }

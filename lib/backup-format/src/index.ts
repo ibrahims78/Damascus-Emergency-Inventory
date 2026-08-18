@@ -30,6 +30,7 @@ export type SyncChange = {
   operationId: string;
   entityType: string;
   entityGlobalId: string;
+  localEntityId?: number | null;
   changeType: string;
   payload: Record<string, unknown>;
   originNodeId: string;
@@ -54,6 +55,8 @@ export type SyncManifest = {
   kdf: "scrypt";
   checksumAlgorithm: "SHA-256";
   macAlgorithm: "HMAC-SHA-256";
+  baseVector?: Record<string, number>;
+  lastVector?: Record<string, number>;
 };
 
 export type SyncPackage = {
@@ -184,6 +187,8 @@ export function createSyncPackage(input: {
   sourceNodeId: string;
   records: SyncRecord[];
   changes?: SyncChange[];
+  baseVector?: Record<string, number>;
+  lastVector?: Record<string, number>;
   createdAt?: string;
 }): Buffer {
   const changes = input.changes ?? [];
@@ -203,6 +208,8 @@ export function createSyncPackage(input: {
     kdf: "scrypt",
     checksumAlgorithm: "SHA-256",
     macAlgorithm: "HMAC-SHA-256",
+    baseVector: input.baseVector,
+    lastVector: input.lastVector,
   };
   inspectKeys({ manifest, records: input.records, changes });
   const salt = randomBytes(16);

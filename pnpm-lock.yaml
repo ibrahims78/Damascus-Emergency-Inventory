@@ -688,6 +688,9 @@ importers:
       '@workspace/backup-format':
         specifier: workspace:*
         version: link:../lib/backup-format
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.2(@electric-sql/pglite@0.3.16)(@types/pg@8.20.0)(pg@8.22.0)(postgres@3.4.9)
       postgres:
         specifier: ^3.4.9
         version: 3.4.9
