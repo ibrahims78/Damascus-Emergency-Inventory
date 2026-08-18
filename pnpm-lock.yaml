@@ -185,6 +185,9 @@ importers:
       '@workspace/api-zod':
         specifier: workspace:*
         version: link:../../lib/api-zod
+      '@workspace/backup-format':
+        specifier: workspace:*
+        version: link:../../lib/backup-format
       '@workspace/db':
         specifier: workspace:*
         version: link:../../lib/db
@@ -646,6 +649,12 @@ importers:
         specifier: 'catalog:'
         version: 3.25.76
 
+  lib/backup-format:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.9.5
+
   lib/db:
     dependencies:
       '@electric-sql/pglite':
@@ -676,6 +685,9 @@ importers:
 
   scripts:
     dependencies:
+      '@workspace/backup-format':
+        specifier: workspace:*
+        version: link:../lib/backup-format
       postgres:
         specifier: ^3.4.9
         version: 3.4.9

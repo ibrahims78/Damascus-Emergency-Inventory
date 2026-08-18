@@ -41,16 +41,26 @@ pnpm --filter @workspace/web run dev
 
 ## النسخ الاحتياطي والاستعادة
 
-النسخ الاحتياطي الكامل محمي بدور `admin`:
+النسخ الاحتياطي والاستعادة المعياريان محميان بدور `admin`:
 
 - `GET /api/backup/info` يعرض أعداد السجلات.
-- `GET /api/backup/export` ينزّل JSON يحتوي على نسخة البيانات.
-- `POST /api/backup/restore` يستعيد البيانات بشكل ذري عند إرسال
-  `{"version":"2.0","confirm":true,"data":{...}}`.
+- `POST /api/backups/export` مع `{"password":"..."}` ينزّل ملف
+  `.dme-sync` مضغوطاً ومشفراً بـ`AES-256-GCM` ومحمياً بـ`HMAC-SHA-256`.
+- `POST /api/backups/inspect` يفك الحزمة للتحقق ويعرض الـManifest دون تعديل القاعدة.
+- `POST /api/backups/dry-run` مع `mode` يطبق الفحص البنيوي والمنطقي ويصدر
+  `previewToken` صالحاً 15 دقيقة.
+- `POST /api/backups/restore` يتطلب نفس الحزمة وكلمة المرور و`previewToken` و
+  `confirm=true`؛ يدعم `mode: "merge"` و`mode: "full"`.
+- `GET /api/backups/:restorePointId/report` يعرض تقرير الاستعادة.
+- `POST /api/backups/:restorePointId/rollback` مع `confirm=true` يعيد نقطة ما قبل
+  الاستعادة داخل معاملة كاملة.
 
-تُستبعد كلمات مرور المستخدمين من النسخة الاحتياطية؛ لذلك لا تستعيد العملية
-حسابات المستخدمين، بل تبقي حسابات البيئة الحالية. احتفظ بالنسخة خارج مساحة
-العمل، واختبر استعادتها في قاعدة اختبار قبل استخدامها على الإنتاج.
+تستبعد الحزمة كلمات مرور المستخدمين والجلسات والأسرار، ولا تستعيد حسابات المستخدمين؛
+تبقى حسابات البيئة الحالية. استخدم كلمة مرور حزمة مستقلة، واحفظها خارج الملف.
+لا تعتمد `full` على الإنتاج قبل مراجعة المعاينة واختبار الحزمة في قاعدة اختبار.
+
+يبقى `GET /api/backup/export` و`POST /api/backup/restore` للتوافق مع الصيغة القديمة
+فقط؛ لا تستخدمهما لإنشاء حزم جديدة. الصيغة الجديدة هي المرجع التشغيلي.
 
 ## التراجع
 
@@ -65,3 +75,16 @@ pnpm --filter @workspace/web run dev
 - نجاح الحركة يسجل `movement_created`.
 - تصدير واستعادة النسخة يسجلان `backup_export` و`backup_restore`.
 - سجل التدقيق للمدير فقط، وهو للقراءة والتصدير ولا يعدل السجلات السابقة.
+- تسجل العمليات الجديدة `backup_package_export` و`backup_package_restore` و
+  `backup_restore_rollback` مع بصمة الحزمة والنتيجة دون حفظ كلمة المرور.
+
+## اختبار المرحلة 4–5
+
+```bash
+pnpm --filter @workspace/scripts run phase45:backup-recovery
+pnpm --filter @workspace/scripts run phase45:db-smoke
+```
+
+تختبر الأوامر دورة الحزمة، التحقق من العبث وكلمة المرور الخاطئة والحزمة الناقصة
+والحقول الحساسة، ثم الدمج idempotently ورفض الرصيد السالب والتنظيف التلقائي لبيانات
+الاختبار.

@@ -13,6 +13,7 @@
   "dependencies": {
     "@electric-sql/pglite": "^0.3.16",
     "@workspace/api-zod": "workspace:*",
+    "@workspace/backup-format": "workspace:*",
     "@workspace/db": "workspace:*",
     "bcryptjs": "^3.0.3",
     "connect-pg-simple": "^10.0.0",

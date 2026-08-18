@@ -14,3 +14,4 @@ export * from "./inventory-events";
 export * from "./audit-log";
 export * from "./alerts";
 export * from "./sync";
+export * from "./backup";

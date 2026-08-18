@@ -906,6 +906,26 @@ function UnitsTab() {
 
 function BackupTab() {
   const [downloading, setDownloading] = useState(false);
+  const [exportPassword, setExportPassword] = useState('');
+  const [restorePassword, setRestorePassword] = useState('');
+  const [restoreMode, setRestoreMode] = useState<'full' | 'merge'>('merge');
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [packageBase64, setPackageBase64] = useState('');
+  const [packageSummary, setPackageSummary] = useState<{
+    manifest?: { packageType?: string; createdAt?: string; sourceNodeId?: string };
+    recordCount?: number;
+    changeCount?: number;
+    entityTypes?: string[];
+  } | null>(null);
+  const [preview, setPreview] = useState<{
+    token: string;
+    report: {
+      counts: Record<string, number>;
+      records: Array<{ entityType: string; status: string; code?: string }>;
+    };
+  } | null>(null);
+  const [restoring, setRestoring] = useState(false);
+  const [restorePointId, setRestorePointId] = useState<string | null>(null);
 
   const { data: info, isLoading: infoLoading, refetch } = useQuery({
     queryKey: ['backup-info'],
@@ -917,23 +937,121 @@ function BackupTab() {
   });
 
   const handleExport = async () => {
+    if (exportPassword.length < 8) {
+      toast.error('أدخل كلمة مرور للحزمة من 8 أحرف على الأقل');
+      return;
+    }
     setDownloading(true);
     try {
-      const res = await fetch('/api/backup/export', { credentials: 'include' });
+      const res = await fetch('/api/backups/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ password: exportPassword }),
+      });
       if (!res.ok) throw new Error('فشل تصدير البيانات');
       const blob = await res.blob();
       const dateStr = new Date().toISOString().split('T')[0];
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `ems-warehouse-backup-${dateStr}.json`;
+      a.download = `damascus-${dateStr}.dme-sync`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success('تم تصدير النسخة الاحتياطية بنجاح');
+      setExportPassword('');
+      toast.success('تم تصدير الحزمة المشفرة بنجاح');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'حدث خطأ');
     } finally {
       setDownloading(false);
+    }
+  };
+
+  const fileToBase64 = async (file: File) => {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+    }
+    return btoa(binary);
+  };
+
+  const inspectAndPreview = async () => {
+    if (!restoreFile) {
+      toast.error('اختر ملف .dme-sync أولاً');
+      return;
+    }
+    if (restorePassword.length < 8) {
+      toast.error('أدخل كلمة مرور الحزمة');
+      return;
+    }
+    setRestoring(true);
+    setPreview(null);
+    try {
+      const encoded = await fileToBase64(restoreFile);
+      setPackageBase64(encoded);
+      const inspectResponse = await fetch('/api/backups/inspect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ packageBase64: encoded, password: restorePassword }),
+      });
+      const inspected = (await inspectResponse.json()) as typeof packageSummary & { error?: string };
+      if (!inspectResponse.ok) throw new Error(inspected.error || 'تعذر فحص الحزمة');
+      setPackageSummary(inspected);
+
+      const previewResponse = await fetch('/api/backups/dry-run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          packageBase64: encoded,
+          password: restorePassword,
+          mode: restoreMode,
+        }),
+      });
+      const previewData = (await previewResponse.json()) as typeof preview & { error?: string };
+      if (!previewResponse.ok) throw new Error(previewData.error || 'تعذر تنفيذ المعاينة');
+      setPreview(previewData as NonNullable<typeof preview>);
+      toast.success('تم الفحص والمعاينة؛ لا تزال الاستعادة بحاجة إلى تأكيد صريح');
+    } catch (err) {
+      setPackageBase64('');
+      toast.error(err instanceof Error ? err.message : 'تعذر فحص الحزمة');
+    } finally {
+      setRestoring(false);
+    }
+  };
+
+  const applyRestore = async () => {
+    if (!preview || !packageBase64) return;
+    if (!window.confirm('سيتم تطبيق الاستعادة بعد المعاينة. هل تريد المتابعة؟')) return;
+    setRestoring(true);
+    try {
+      const response = await fetch('/api/backups/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          packageBase64,
+          password: restorePassword,
+          mode: restoreMode,
+          previewToken: preview.token,
+          confirm: true,
+        }),
+      });
+      const result = (await response.json()) as { error?: string; restorePointId?: string };
+      if (!response.ok) throw new Error(result.error || 'فشلت الاستعادة');
+      setRestorePointId(result.restorePointId ?? null);
+      setPreview(null);
+      setPackageBase64('');
+      setRestoreFile(null);
+      toast.success('تمت الاستعادة ذرياً وحُفظت نقطة تراجع تلقائية');
+      await refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'فشلت الاستعادة');
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -976,15 +1094,106 @@ function BackupTab() {
           <div>
             <h3 className="font-semibold">تصدير نسخة احتياطية</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              يُصدَّر ملف JSON يحتوي على جميع بيانات المستودع (المواد، التجهيزات، العمليات، المستخدمون).
-              احفظه في مكان آمن وقم بتحديثه بانتظام.
+              تُصدَّر حزمة <code>.dme-sync</code> معيارية مضغوطة ومشفرة AES-256-GCM وتستبعد كلمات
+              المرور والجلسات. احتفظ بكلمة المرور خارج ملف الحزمة.
             </p>
           </div>
         </div>
-        <Button onClick={handleExport} disabled={downloading} className="gap-2">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Input
+            type="password"
+            value={exportPassword}
+            onChange={(event) => setExportPassword(event.target.value)}
+            placeholder="كلمة مرور الحزمة (8 أحرف على الأقل)"
+            aria-label="كلمة مرور تصدير الحزمة"
+            className="sm:max-w-sm"
+          />
+          <Button onClick={handleExport} disabled={downloading} className="gap-2">
           <Download className="h-4 w-4" />
-          {downloading ? 'جاري التصدير...' : 'تصدير نسخة احتياطية الآن'}
-        </Button>
+            {downloading ? 'جاري التصدير...' : 'تصدير حزمة مشفرة'}
+          </Button>
+        </div>
+      </div>
+
+      {/* Restore card */}
+      <div className="bg-card border rounded-lg p-6 space-y-4">
+        <div className="flex items-start gap-4">
+          <div className="p-3 bg-amber-500/10 rounded-lg flex-shrink-0">
+            <Upload className="w-6 h-6 text-amber-600" />
+          </div>
+          <div>
+            <h3 className="font-semibold">فحص واستعادة حزمة</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              لا يمكن اعتماد الاستعادة مباشرة: ارفع الحزمة، أدخل كلمة المرور، نفّذ Dry Run، ثم راجع
+              النتائج قبل التأكيد. النمط الكامل يستبدل بيانات المستودع بعد حفظ نقطة تراجع.
+            </p>
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Input
+            type="file"
+            accept=".dme-sync,application/octet-stream"
+            onChange={(event) => {
+              setRestoreFile(event.target.files?.[0] ?? null);
+              setPackageSummary(null);
+              setPreview(null);
+            }}
+            aria-label="اختيار حزمة dme-sync"
+          />
+          <Input
+            type="password"
+            value={restorePassword}
+            onChange={(event) => setRestorePassword(event.target.value)}
+            placeholder="كلمة مرور الحزمة"
+            aria-label="كلمة مرور الاستعادة"
+          />
+        </div>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <Select value={restoreMode} onValueChange={(value) => setRestoreMode(value as 'full' | 'merge')}>
+            <SelectTrigger className="sm:w-56" aria-label="نمط الاستعادة">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="merge">دمج آمن — لا يحذف الحالي</SelectItem>
+              <SelectItem value="full">استعادة كاملة — استبدال البيانات</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" onClick={inspectAndPreview} disabled={restoring} className="gap-2">
+            {restoring ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+            فحص وتنفيذ Dry Run
+          </Button>
+        </div>
+        {packageSummary && (
+          <div className="rounded-lg bg-muted/40 border p-4 text-sm space-y-1">
+            <p className="font-medium">ملخص الحزمة</p>
+            <p>النوع: {packageSummary.manifest?.packageType ?? '—'} — السجلات: {packageSummary.recordCount ?? 0} — التغييرات: {packageSummary.changeCount ?? 0}</p>
+            <p className="text-muted-foreground">العقدة المصدر: {packageSummary.manifest?.sourceNodeId ?? '—'}</p>
+          </div>
+        )}
+        {preview && (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 space-y-3">
+            <p className="font-medium">نتيجة المعاينة قبل التطبيق</p>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
+              {(['applied', 'duplicate', 'rejected', 'conflict', 'skipped'] as const).map((key) => (
+                <div key={key} className="rounded bg-background border p-2">
+                  <div className="font-bold text-base">{preview.report.counts[key] ?? 0}</div>
+                  <div className="text-muted-foreground">{key}</div>
+                </div>
+              ))}
+            </div>
+            {preview.report.records.some((record) => record.status === 'rejected' || record.status === 'conflict') && (
+              <p className="text-sm text-destructive">توجد سجلات مرفوضة أو متعارضة؛ لن يسمح الخادم بالتطبيق حتى تصحح الحزمة.</p>
+            )}
+            <Button onClick={applyRestore} disabled={restoring || (preview.report.counts.rejected ?? 0) > 0} className="gap-2">
+              <CheckCircle2 className="h-4 w-4" /> تأكيد وتطبيق الاستعادة
+            </Button>
+          </div>
+        )}
+        {restorePointId && (
+          <p className="text-sm text-emerald-700 dark:text-emerald-400">
+            تم حفظ نقطة التراجع تلقائياً: <code>{restorePointId}</code>
+          </p>
+        )}
       </div>
 
       {/* Info card */}
@@ -996,8 +1205,9 @@ function BackupTab() {
         <ul className="text-sm text-muted-foreground space-y-1.5 pr-6 list-disc">
           <li>قم بتصدير نسخة احتياطية أسبوعياً على الأقل</li>
           <li>احفظ الملف على قرص خارجي أو مشاركة شبكية</li>
-          <li>للاستعادة من نسخة احتياطية، تواصل مع مسؤول النظام التقني</li>
-          <li>الملف المُصدَّر بصيغة JSON — لا يحتوي على كلمات مرور</li>
+           <li>اختبر الحزمة في بيئة اختبار قبل استخدامها على الإنتاج</li>
+           <li>احتفظ بكلمة المرور في مدير أسرار منفصل، ولا ترسلها مع الملف</li>
+           <li>كل استعادة تنشئ نقطة تراجع وتقريراً قابلاً للمراجعة</li>
         </ul>
       </div>
     </div>
