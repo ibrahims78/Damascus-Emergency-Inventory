@@ -6,9 +6,24 @@ type PublicUser = {
 };
 
 type OfflineState = {
-  version: 1;
+  version: 2;
   nextId: number;
   currentUserId: number | null;
+  nodeIdentity: {
+    nodeId: string;
+    installationId: string;
+    nodeType: 'android' | 'windows';
+    keyId: string | null;
+    originSequence: number;
+    createdAt: string;
+  };
+  entityIds: Array<{ entityType: string; localId: number; globalId: string; createdAt: string }>;
+  changeLog: Array<Record<string, unknown>>;
+  outbox: Array<Record<string, unknown>>;
+  inbox: Array<Record<string, unknown>>;
+  syncCursors: Array<Record<string, unknown>>;
+  conflictQueue: Array<Record<string, unknown>>;
+  tombstones: Array<Record<string, unknown>>;
   users: Array<PublicUser & { passwordHash: string; passwordSalt: string; isActive: boolean; createdAt: string }>;
   settings: {
     id: number;
@@ -31,7 +46,7 @@ type OfflineState = {
 };
 
 const DB_NAME = 'damascus-emergency-inventory-offline';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'state';
 const STATE_KEY = 'current';
 const OFFLINE_HEADER = 'X-Damascus-Offline';
@@ -55,9 +70,24 @@ function publicUser(user: OfflineState['users'][number]): PublicUser {
 function initialState(): OfflineState {
   const timestamp = now();
   return {
-    version: 1,
+    version: 2,
     nextId: 1,
     currentUserId: null,
+    nodeIdentity: {
+      nodeId: crypto.randomUUID(),
+      installationId: crypto.randomUUID(),
+      nodeType: 'android',
+      keyId: null,
+      originSequence: 0,
+      createdAt: timestamp,
+    },
+    entityIds: [],
+    changeLog: [],
+    outbox: [],
+    inbox: [],
+    syncCursors: [],
+    conflictQueue: [],
+    tombstones: [],
     users: [],
     settings: {
       id: 1,
@@ -91,7 +121,9 @@ function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = () => {
-      request.result.createObjectStore(STORE_NAME);
+      if (!request.result.objectStoreNames.contains(STORE_NAME)) {
+        request.result.createObjectStore(STORE_NAME);
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error ?? new Error('تعذر فتح قاعدة البيانات المحلية'));
@@ -107,7 +139,22 @@ async function loadState(): Promise<OfflineState> {
     request.onerror = () => reject(request.error);
   });
   db.close();
-  if (existing) return existing;
+  if (existing) {
+    const fresh = initialState();
+    return {
+      ...fresh,
+      ...existing,
+      version: 2,
+      nodeIdentity: existing.nodeIdentity ?? fresh.nodeIdentity,
+      entityIds: existing.entityIds ?? [],
+      changeLog: existing.changeLog ?? [],
+      outbox: existing.outbox ?? [],
+      inbox: existing.inbox ?? [],
+      syncCursors: existing.syncCursors ?? [],
+      conflictQueue: existing.conflictQueue ?? [],
+      tombstones: existing.tombstones ?? [],
+    };
+  }
   const fresh = initialState();
   await saveState(fresh);
   return fresh;
@@ -167,6 +214,66 @@ function nextId(state: OfflineState) {
   const id = state.nextId;
   state.nextId += 1;
   return id;
+}
+
+function recordOfflineChange(
+  state: OfflineState,
+  entityType: string,
+  localId: number | null,
+  changeType: 'create' | 'update' | 'delete',
+  payload: Record<string, unknown>,
+) {
+  const existing = localId == null
+    ? undefined
+    : state.entityIds.find((entry) => entry.entityType === entityType && entry.localId === localId);
+  const globalId = existing?.globalId ?? crypto.randomUUID();
+  if (!existing && localId != null) {
+    state.entityIds.push({
+      entityType,
+      localId,
+      globalId,
+      createdAt: now(),
+    });
+  }
+
+  state.nodeIdentity.originSequence += 1;
+  const operationId = crypto.randomUUID();
+  const changeId = crypto.randomUUID();
+  const change = {
+    changeId,
+    operationId,
+    entityType,
+    entityGlobalId: globalId,
+    localEntityId: localId,
+    changeType,
+    payload,
+    originNodeId: state.nodeIdentity.nodeId,
+    originSequence: state.nodeIdentity.originSequence,
+    createdAt: now(),
+    receivedAt: null,
+    appliedAt: now(),
+    status: 'local-pending',
+    rejectionCode: null,
+  };
+  state.changeLog.push(change);
+  state.outbox.push({
+    changeId,
+    status: 'pending',
+    createdAt: change.createdAt,
+    exportedAt: null,
+    acknowledgedAt: null,
+  });
+  if (changeType === 'delete') {
+    state.tombstones.push({
+      entityType,
+      entityGlobalId: globalId,
+      deletedByChangeId: changeId,
+      originNodeId: state.nodeIdentity.nodeId,
+      createdAt: change.createdAt,
+      propagated: false,
+    });
+  }
+  return { changeId, operationId, globalId };
 }
 
 function readBody(init?: RequestInit) {
@@ -362,6 +469,7 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
       const name = text(body.name);
       const category = { id: nextId(state), name, type: text(body.type, 'consumable'), createdAt: now() };
       state.categories.push(category);
+      recordOfflineChange(state, 'category', category.id, 'create', { name: category.name, type: category.type });
       addAudit(state, currentUser, 'create', 'category', category.id);
       return json(category);
     });
@@ -375,6 +483,7 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
       const body = readBody(init);
       category.name = text(body.name, category.name);
       category.type = text(body.type, category.type);
+      recordOfflineChange(state, 'category', category.id, 'update', { name: category.name, type: category.type });
       addAudit(state, currentUser, 'update', 'category', category.id);
       return json(category);
     });
@@ -383,6 +492,7 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
     if (!roleAllowed(currentUser, ['admin'])) return failure(403, 'ليس لديك صلاحية');
     return mutate((state) => {
       state.categories = state.categories.filter((entry) => entry.id !== categoryId);
+      recordOfflineChange(state, 'category', categoryId, 'delete', {});
       addAudit(state, currentUser, 'delete', 'category', categoryId);
       return json({ ok: true });
     });
@@ -403,6 +513,11 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
     return mutate((state) => {
       const item = itemFromInput(state, readBody(init));
       state.items.push(item);
+      recordOfflineChange(state, 'item', Number(item.id), 'create', {
+        name: item.name,
+        itemType: item.itemType,
+        quantity: item.currentStock,
+      });
       addAudit(state, currentUser, 'create', 'item', Number(item.id));
       return json(item, 201);
     });
@@ -469,6 +584,11 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
     return mutate((state) => {
       const equipment = equipmentFromInput(state, readBody(init));
       state.equipment.push(equipment);
+      recordOfflineChange(state, 'equipment', Number(equipment.id), 'create', {
+        name: equipment.name,
+        serialNumber: equipment.serialNumber,
+        quantity: equipment.quantity,
+      });
       addAudit(state, currentUser, 'create', 'equipment', Number(equipment.id));
       return json(equipment, 201);
     });
@@ -602,6 +722,26 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
       if (target && ['in', 'central-return', 'central_return'].includes(type)) target.currentStock = numberValue(target.currentStock) + numberValue(body.quantity);
       if (target && ['out', 'custody-out', 'custody_out', 'damage'].includes(type)) target.currentStock = Math.max(0, numberValue(target.currentStock) - numberValue(body.quantity));
       state.transactions.unshift(transaction);
+      const transactionIdentity = recordOfflineChange(
+        state,
+        'transaction',
+        Number(transaction.id),
+        'create',
+        {
+          type: transaction.type,
+          documentNumber: transaction.documentNumber,
+          itemId: transaction.itemId,
+          equipmentId: transaction.equipmentId,
+          quantity: transaction.quantity,
+        },
+      );
+      Object.assign(transaction, {
+        operationId: transactionIdentity.operationId,
+        globalId: transactionIdentity.globalId,
+        originNodeId: state.nodeIdentity.nodeId,
+        originSequence: state.nodeIdentity.originSequence,
+        documentNumberScope: `offline:${type}`,
+      });
       addAudit(state, currentUser, 'create', 'transaction', transaction.id);
       return json(transaction, 201);
     });

@@ -1,9 +1,11 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { databaseReady } from "@workspace/db";
+import { ensureNodeIdentity } from "./lib/sync-service";
 
 export async function startServer(port: number): Promise<ReturnType<typeof app.listen>> {
   await databaseReady;
+  await ensureNodeIdentity("web");
 
   return new Promise((resolve, reject) => {
     const server = app.listen(port, (err?: Error) => {

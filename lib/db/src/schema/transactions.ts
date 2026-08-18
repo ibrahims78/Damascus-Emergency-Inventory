@@ -32,6 +32,10 @@ export const transactionsTable = pgTable(
   "transactions",
   {
     id: serial("id").primaryKey(),
+    operationId: text("operation_id").unique(),
+    originNodeId: text("origin_node_id"),
+    originSequence: integer("origin_sequence"),
+    documentNumberScope: text("document_number_scope"),
     type: text("type")
       .notNull()
       .$type<TransactionType>(),

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   auditLogTable,
   centralReturnsTable,
@@ -27,6 +28,12 @@ import {
   InventoryMovementError,
   type FefoBatch,
 } from "./inventory-movement-core";
+import {
+  ensureEntityIdentity,
+  ensureNodeIdentity,
+  recordLocalChange,
+  reserveOriginSequence,
+} from "./sync-service";
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -986,7 +993,10 @@ export async function createInventoryMovement(
   context: MovementContext,
 ) {
   try {
+    const node = await ensureNodeIdentity("web");
+    const operationId = randomUUID();
     return await db.transaction(async (tx) => {
+      const originSequence = await reserveOriginSequence(tx, node.nodeId);
       const type = input.kind as TransactionType;
       const documentNumber = await lockDocumentNumber(tx, type);
 
@@ -1023,6 +1033,44 @@ export async function createInventoryMovement(
         default:
           throw new InventoryMovementError("INVALID_MOVEMENT_TYPE", "نوع الحركة غير مدعوم");
       }
+
+      const transactionGlobalId = await ensureEntityIdentity(
+        tx,
+        "transaction",
+        transaction.id,
+      );
+      await tx
+        .update(transactionsTable)
+        .set({
+          operationId,
+          originNodeId: node.nodeId,
+          originSequence,
+          documentNumberScope: `web:${type}`,
+        })
+        .where(eq(transactionsTable.id, transaction.id));
+      Object.assign(transaction, {
+        operationId,
+        originNodeId: node.nodeId,
+        originSequence,
+        documentNumberScope: `web:${type}`,
+      });
+      await recordLocalChange(tx, {
+        nodeId: node.nodeId,
+        operationId,
+        originSequence,
+        entityType: "transaction",
+        localEntityId: transaction.id,
+        globalId: transactionGlobalId,
+        changeType: "create",
+        payload: {
+          type: transaction.type,
+          documentNumber: transaction.documentNumber,
+          itemType: transaction.itemType,
+          itemId: transaction.itemId,
+          equipmentId: transaction.equipmentId,
+          quantity: transaction.quantity,
+        },
+      });
 
       await writeAudit(tx, context, "movement_created", transaction.id, {
         movementType: transaction.type,

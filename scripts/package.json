@@ -7,6 +7,7 @@
     "hello": "tsx ./src/hello.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "phase1:schema-smoke": "node ./phase1-schema-smoke.mjs",
+    "phase123:sync-smoke": "tsx ./phase123-sync-smoke.ts",
     "phase2:movement-unit": "tsx ./phase2-movement-unit.ts",
     "phase2:movement-smoke": "tsx ./phase2-movement-smoke.ts",
     "phase3:inbound-smoke": "tsx ./phase3-inbound-smoke.ts",

@@ -20,6 +20,105 @@ CREATE TABLE "system_settings" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "transactions"
+  ADD COLUMN "operation_id" text,
+  ADD COLUMN "origin_node_id" text,
+  ADD COLUMN "origin_sequence" integer,
+  ADD COLUMN "document_number_scope" text;
+--> statement-breakpoint
+CREATE UNIQUE INDEX "transactions_operation_id_unique"
+  ON "transactions" ("operation_id");
+--> statement-breakpoint
+CREATE TABLE "node_identity" (
+"id" serial PRIMARY KEY NOT NULL,
+"node_id" text NOT NULL UNIQUE,
+"installation_id" text NOT NULL UNIQUE,
+"node_type" text NOT NULL,
+"key_id" text,
+"origin_sequence" integer DEFAULT 0 NOT NULL,
+"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "sync_entity_ids" (
+"id" serial PRIMARY KEY NOT NULL,
+"entity_type" text NOT NULL,
+"local_id" integer NOT NULL,
+"global_id" text NOT NULL UNIQUE,
+"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+CONSTRAINT "sync_entity_ids_entity_local_unique" UNIQUE("entity_type", "local_id")
+);
+--> statement-breakpoint
+CREATE TABLE "sync_change_log" (
+"change_id" text PRIMARY KEY NOT NULL,
+"operation_id" text NOT NULL UNIQUE,
+"entity_type" text NOT NULL,
+"entity_global_id" text NOT NULL,
+"local_entity_id" integer,
+"change_type" text NOT NULL,
+"payload" jsonb NOT NULL,
+"origin_node_id" text NOT NULL,
+"origin_sequence" integer NOT NULL,
+"caused_by_change_id" text,
+"parent_revision" text,
+"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+"received_at" timestamp with time zone,
+"applied_at" timestamp with time zone,
+"status" text DEFAULT 'local-pending' NOT NULL,
+"rejection_code" text
+);
+--> statement-breakpoint
+CREATE TABLE "sync_outbox" (
+"id" serial PRIMARY KEY NOT NULL,
+"change_id" text NOT NULL UNIQUE,
+"status" text DEFAULT 'pending' NOT NULL,
+"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+"exported_at" timestamp with time zone,
+"acknowledged_at" timestamp with time zone,
+CONSTRAINT "sync_outbox_change_fk" FOREIGN KEY ("change_id") REFERENCES "sync_change_log"("change_id") ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE "sync_inbox" (
+"id" serial PRIMARY KEY NOT NULL,
+"change_id" text NOT NULL UNIQUE,
+"origin_node_id" text NOT NULL,
+"status" text DEFAULT 'received' NOT NULL,
+"received_at" timestamp with time zone DEFAULT now() NOT NULL,
+"applied_at" timestamp with time zone,
+"rejection_code" text
+);
+--> statement-breakpoint
+CREATE TABLE "sync_cursors" (
+"id" serial PRIMARY KEY NOT NULL,
+"peer_node_id" text NOT NULL UNIQUE,
+"vector" jsonb DEFAULT '{}'::jsonb NOT NULL,
+"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "sync_conflicts" (
+"id" serial PRIMARY KEY NOT NULL,
+"change_id" text NOT NULL UNIQUE,
+"conflict_code" text NOT NULL,
+"details" jsonb NOT NULL,
+"status" text DEFAULT 'open' NOT NULL,
+"resolved_by" integer,
+"resolution" text,
+"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+"resolved_at" timestamp with time zone
+);
+--> statement-breakpoint
+CREATE TABLE "sync_tombstones" (
+"id" serial PRIMARY KEY NOT NULL,
+"entity_type" text NOT NULL,
+"entity_global_id" text NOT NULL,
+"deleted_by_change_id" text NOT NULL,
+"origin_node_id" text NOT NULL,
+"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+"propagated" boolean DEFAULT false NOT NULL,
+CONSTRAINT "sync_tombstones_entity_unique" UNIQUE("entity_type", "entity_global_id")
+);
+--> statement-breakpoint
 CREATE TABLE "categories" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,

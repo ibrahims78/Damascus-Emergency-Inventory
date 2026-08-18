@@ -10,6 +10,11 @@ import { requireAuth, requireRole } from "../middlewares/auth";
 import { auditLog } from "../middlewares/audit";
 import { runAlertWorker } from "../lib/alert-worker";
 import {
+  ensureEntityIdentity,
+  ensureNodeIdentity,
+  recordLocalChange,
+} from "../lib/sync-service";
+import {
   allocateBatchesFefo,
   InventoryMovementError,
   type FefoBatch,
@@ -167,23 +172,40 @@ router.post(
         res.status(400).json({ error: "minStock must be a non-negative number" });
         return;
       }
-      const [item] = await db
-        .insert(itemsTable)
-        .values({
-          code: code || null,
-          name,
-          categoryId: categoryId ? parseInt(categoryId, 10) : null,
-          itemType,
-          unit,
-          currentStock: parsedStock,
-          minStock: parsedMinStock,
-          expiryDate: expiryDate || null,
-          batchNumber: batchNumber || null,
-          location: location || null,
-          supplier: supplier || null,
-          notes: notes || null,
-        })
-        .returning();
+      const node = await ensureNodeIdentity("web");
+      const item = await db.transaction(async (tx) => {
+        const [created] = await tx
+          .insert(itemsTable)
+          .values({
+            code: code || null,
+            name,
+            categoryId: categoryId ? parseInt(categoryId, 10) : null,
+            itemType,
+            unit,
+            currentStock: parsedStock,
+            minStock: parsedMinStock,
+            expiryDate: expiryDate || null,
+            batchNumber: batchNumber || null,
+            location: location || null,
+            supplier: supplier || null,
+            notes: notes || null,
+          })
+          .returning();
+        const globalId = await ensureEntityIdentity(tx, "item", created.id);
+        await recordLocalChange(tx, {
+          nodeId: node.nodeId,
+          entityType: "item",
+          localEntityId: created.id,
+          globalId,
+          changeType: "create",
+          payload: {
+            name: created.name,
+            itemType: created.itemType,
+            currentStock: created.currentStock,
+          },
+        });
+        return created;
+      });
       await auditLog({ req, action: "create", entityType: "item", entityId: item.id, details: { name: item.name, itemType: item.itemType } });
       res.status(201).json(item);
     } catch (err) {
@@ -581,11 +603,30 @@ router.put(
       if (supplier !== undefined) updates.supplier = supplier || null;
       if (notes !== undefined) updates.notes = notes || null;
 
-      const [item] = await db
-        .update(itemsTable)
-        .set({ ...updates, updatedAt: new Date() })
-        .where(eq(itemsTable.id, id))
-        .returning();
+      const node = await ensureNodeIdentity("web");
+      const item = await db.transaction(async (tx) => {
+        const [updated] = await tx
+          .update(itemsTable)
+          .set({ ...updates, updatedAt: new Date() })
+          .where(eq(itemsTable.id, id))
+          .returning();
+        if (!updated) return undefined;
+        const globalId = await ensureEntityIdentity(tx, "item", updated.id);
+        await recordLocalChange(tx, {
+          nodeId: node.nodeId,
+          entityType: "item",
+          localEntityId: updated.id,
+          globalId,
+          changeType: "update",
+          payload: {
+            name: updated.name,
+            itemType: updated.itemType,
+            currentStock: updated.currentStock,
+            minStock: updated.minStock,
+          },
+        });
+        return updated;
+      });
 
       if (!item) {
         res.status(404).json({ error: "Item not found" });
@@ -610,10 +651,29 @@ router.delete(
     try {
       const id = parseInt(String(req.params.id), 10);
       if (isNaN(id)) { res.status(400).json({ error: "Invalid item id" }); return; }
-      await db
-        .update(itemsTable)
-        .set({ isActive: false, updatedAt: new Date() })
-        .where(eq(itemsTable.id, id));
+      const node = await ensureNodeIdentity("web");
+      const deleted = await db.transaction(async (tx) => {
+        const [updated] = await tx
+          .update(itemsTable)
+          .set({ isActive: false, updatedAt: new Date() })
+          .where(eq(itemsTable.id, id))
+          .returning({ id: itemsTable.id, name: itemsTable.name });
+        if (!updated) return undefined;
+        const globalId = await ensureEntityIdentity(tx, "item", updated.id);
+        await recordLocalChange(tx, {
+          nodeId: node.nodeId,
+          entityType: "item",
+          localEntityId: updated.id,
+          globalId,
+          changeType: "delete",
+          payload: { name: updated.name },
+        });
+        return updated;
+      });
+      if (!deleted) {
+        res.status(404).json({ error: "Item not found" });
+        return;
+      }
       await auditLog({ req, action: "delete", entityType: "item", entityId: id, details: {} });
       res.status(204).send();
       runAlertWorker().catch((e) => console.error("Alert worker:", e));

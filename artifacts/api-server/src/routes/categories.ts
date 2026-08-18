@@ -4,6 +4,11 @@ import { categoriesTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/auth";
 import { auditLog } from "../middlewares/audit";
+import {
+  ensureEntityIdentity,
+  ensureNodeIdentity,
+  recordLocalChange,
+} from "../lib/sync-service";
 
 const router = Router();
 
@@ -32,10 +37,23 @@ router.post("/", requireAuth, requireRole("admin"), async (req, res) => {
       res.status(400).json({ error: "نوع التصنيف مطلوب (consumable أو equipment)" });
       return;
     }
-    const [created] = await db
-      .insert(categoriesTable)
-      .values({ name: name.trim(), type: type as "consumable" | "equipment" })
-      .returning();
+    const node = await ensureNodeIdentity("web");
+    const created = await db.transaction(async (tx) => {
+      const [category] = await tx
+        .insert(categoriesTable)
+        .values({ name: name.trim(), type: type as "consumable" | "equipment" })
+        .returning();
+      const globalId = await ensureEntityIdentity(tx, "category", category.id);
+      await recordLocalChange(tx, {
+        nodeId: node.nodeId,
+        entityType: "category",
+        localEntityId: category.id,
+        globalId,
+        changeType: "create",
+        payload: { name: category.name, type: category.type },
+      });
+      return category;
+    });
     await auditLog({
       req,
       action: "create",
@@ -68,11 +86,25 @@ router.put("/:id", requireAuth, requireRole("admin"), async (req, res) => {
     if (type && ["consumable", "equipment"].includes(type)) {
       updateData.type = type as "consumable" | "equipment";
     }
-    const [updated] = await db
-      .update(categoriesTable)
-      .set(updateData)
-      .where(eq(categoriesTable.id, id))
-      .returning();
+    const node = await ensureNodeIdentity("web");
+    const updated = await db.transaction(async (tx) => {
+      const [category] = await tx
+        .update(categoriesTable)
+        .set(updateData)
+        .where(eq(categoriesTable.id, id))
+        .returning();
+      if (!category) return undefined;
+      const globalId = await ensureEntityIdentity(tx, "category", category.id);
+      await recordLocalChange(tx, {
+        nodeId: node.nodeId,
+        entityType: "category",
+        localEntityId: category.id,
+        globalId,
+        changeType: "update",
+        payload: { name: category.name, type: category.type },
+      });
+      return category;
+    });
     if (!updated) {
       res.status(404).json({ error: "التصنيف غير موجود" });
       return;
@@ -100,10 +132,24 @@ router.delete("/:id", requireAuth, requireRole("admin"), async (req, res) => {
   try {
     const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid category id" }); return; }
-    const [deleted] = await db
-      .delete(categoriesTable)
-      .where(eq(categoriesTable.id, id))
-      .returning();
+    const node = await ensureNodeIdentity("web");
+    const deleted = await db.transaction(async (tx) => {
+      const [category] = await tx
+        .delete(categoriesTable)
+        .where(eq(categoriesTable.id, id))
+        .returning();
+      if (!category) return undefined;
+      const globalId = await ensureEntityIdentity(tx, "category", category.id);
+      await recordLocalChange(tx, {
+        nodeId: node.nodeId,
+        entityType: "category",
+        localEntityId: category.id,
+        globalId,
+        changeType: "delete",
+        payload: { name: category.name, type: category.type },
+      });
+      return category;
+    });
     if (!deleted) {
       res.status(404).json({ error: "التصنيف غير موجود" });
       return;
