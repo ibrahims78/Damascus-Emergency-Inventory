@@ -12,8 +12,11 @@ import { gunzipSync, gzipSync } from "node:zlib";
 const MAGIC = Buffer.from("DME-SYNC\n", "utf8");
 const FORMAT_VERSION = 1;
 const SCRYPT_OPTIONS = { N: 16_384, r: 8, p: 1 };
-const HEADER_LIMIT = 32_768;
 const DEFAULT_MAX_PACKAGE_BYTES = 512 * 1024 * 1024;
+// Version 1 stores the authenticated ciphertext in the JSON envelope. Keep
+// the parser bounded by the package limit so legitimate large backups are not
+// rejected as "incomplete headers", while still preventing unbounded input.
+const HEADER_LIMIT = DEFAULT_MAX_PACKAGE_BYTES;
 const SENSITIVE_KEY = /(?:password|passwd|secret|token|session|cookie|private.?key|api.?key|credential)/i;
 
 export type PackageType = "full-backup" | "delta-sync" | "baseline-migration";

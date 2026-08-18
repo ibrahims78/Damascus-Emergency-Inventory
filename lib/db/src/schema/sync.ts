@@ -45,6 +45,8 @@ export type SyncPackageStatus =
   | "applied"
   | "acknowledged"
   | "failed";
+export type RelayPackageStatus = "available" | "downloaded" | "expired" | "deleted";
+export type ConflictSeverity = "low" | "medium" | "high" | "critical";
 
 /**
  * One durable identity per installation/database. The sequence is reserved
@@ -151,6 +153,7 @@ export const syncConflictTable = pgTable(
     id: serial("id").primaryKey(),
     changeId: text("change_id").notNull().unique(),
     conflictCode: text("conflict_code").notNull(),
+    severity: text("severity").notNull().$type<ConflictSeverity>().default("medium"),
     details: jsonb("details").notNull(),
     status: text("status").notNull().$type<"open" | "resolved" | "deferred">().default("open"),
     resolvedBy: integer("resolved_by"),
@@ -175,6 +178,76 @@ export const syncTombstoneTable = pgTable(
   (table) => [
     unique("sync_tombstones_entity_unique").on(table.entityType, table.entityGlobalId),
     index("sync_tombstones_propagated_idx").on(table.propagated),
+  ],
+);
+
+/**
+ * Nodes explicitly trusted by an administrator. Pairing codes create these
+ * rows; revocation is retained for auditability instead of deleting trust
+ * history.
+ */
+export const syncTrustedNodeTable = pgTable(
+  "sync_trusted_nodes",
+  {
+    nodeId: text("node_id").primaryKey(),
+    nodeType: text("node_type").notNull().$type<SyncNodeType>(),
+    label: text("label"),
+    status: text("status").notNull().$type<"trusted" | "revoked">().default("trusted"),
+    pairedAt: timestamp("paired_at", { withTimezone: true }).notNull().defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  },
+  (table) => [index("sync_trusted_nodes_status_idx").on(table.status)],
+);
+
+export const syncPairingTable = pgTable(
+  "sync_pairings",
+  {
+    pairingId: text("pairing_id").primaryKey(),
+    codeHash: text("code_hash").notNull().unique(),
+    sourceNodeId: text("source_node_id").notNull(),
+    targetNodeId: text("target_node_id"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("sync_pairings_expiry_idx").on(table.expiresAt),
+    index("sync_pairings_source_idx").on(table.sourceNodeId),
+  ],
+);
+
+/**
+ * Relay stores the encrypted .dme-sync bytes as opaque bytea. The server
+ * never decrypts or indexes the package contents. A response points to the
+ * original relay item so a lost response can be recreated safely.
+ */
+export const syncRelayPackageTable = pgTable(
+  "sync_relay_packages",
+  {
+    relayId: text("relay_id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => syncSessionTable.sessionId, { onDelete: "cascade" }),
+    packageId: text("package_id").notNull(),
+    responseToRelayId: text("response_to_relay_id"),
+    direction: text("direction").notNull().$type<SyncPackageDirection>(),
+    sourceNodeId: text("source_node_id").notNull(),
+    targetNodeId: text("target_node_id").notNull(),
+    contentHash: text("content_hash").notNull(),
+    transportHash: text("transport_hash").notNull(),
+    payload: text("payload").notNull(),
+    status: text("status").notNull().$type<RelayPackageStatus>().default("available"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    downloadedAt: timestamp("downloaded_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("sync_relay_session_transport_unique").on(table.sessionId, table.transportHash),
+    index("sync_relay_packages_session_idx").on(table.sessionId),
+    index("sync_relay_packages_expiry_idx").on(table.expiresAt),
+    index("sync_relay_packages_status_idx").on(table.status),
   ],
 );
 

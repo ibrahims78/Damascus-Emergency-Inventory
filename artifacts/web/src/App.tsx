@@ -21,6 +21,7 @@ import { ReportsPage } from '@/pages/reports';
 import { UsersPage } from '@/pages/users';
 import { SettingsPage } from '@/pages/settings';
 import { AuditPage } from '@/pages/audit';
+import { SyncPage } from '@/pages/sync';
 import { PrintTransactionPage } from '@/pages/print-transaction';
 import { AdjustmentForm } from '@/pages/adjustment-form';
 import { ItemDetailsPage } from '@/pages/item-details';
@@ -117,6 +118,7 @@ function Router() {
       {/* Admin-only routes */}
       <Route path="/users"><ProtectedRoute component={UsersPage} adminOnly /></Route>
       <Route path="/audit"><ProtectedRoute component={AuditPage} adminOnly /></Route>
+      <Route path="/sync"><ProtectedRoute component={SyncPage} adminOnly /></Route>
       <Route path="/settings"><ProtectedRoute component={SettingsPage} /></Route>
 
       {/* Print Route (No shell) */}

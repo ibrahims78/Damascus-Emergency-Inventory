@@ -18,6 +18,7 @@ import {
   FileWarning,
   RotateCcw,
   UserRoundCheck,
+  Network,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -52,6 +53,7 @@ const movementItems = [
 const adminItems = [
   { href: '/users',    label: 'المستخدمين',  icon: Users },
   { href: '/audit',    label: 'سجل التدقيق', icon: ShieldCheck },
+  { href: '/sync',     label: 'المزامنة والعقد', icon: Network },
   { href: '/settings', label: 'الإعدادات',   icon: Settings },
 ];
 

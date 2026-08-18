@@ -11,6 +11,17 @@ import {
   handshakeSyncSession,
   prepareSyncPackage,
 } from "../lib/sync-service";
+import {
+  consumePairing,
+  createPairing,
+  getRelayPackage,
+  listRelayPackages,
+  listTrustedNodes,
+  purgeExpiredRelayPackages,
+  revokeTrustedNode,
+  uploadRelayPackage,
+} from "../lib/relay-service";
+import { listSyncConflicts, resolveSyncConflict } from "../lib/conflict-service";
 
 const router = Router();
 
@@ -164,6 +175,115 @@ router.post("/sessions/:sessionId/ack", async (req, res) => {
   } catch (error) {
     res.status(400).json({ error: errorMessage(error) });
   }
+});
+
+router.post("/pairings", async (req, res) => {
+  try {
+    res.status(201).json(await createPairing({
+      targetNodeId: req.body?.targetNodeId ? String(req.body.targetNodeId) : null,
+      ttlMs: Number.isFinite(Number(req.body?.ttlMs)) ? Number(req.body.ttlMs) : undefined,
+    }));
+  } catch (error) {
+    res.status(400).json({ error: errorMessage(error) });
+  }
+});
+
+router.post("/pairings/consume", async (req, res) => {
+  try {
+    const result = await consumePairing({
+      code: String(req.body?.code ?? ""),
+      nodeId: String(req.body?.nodeId ?? ""),
+      nodeType: req.body?.nodeType ?? "web",
+      label: req.body?.label ? String(req.body.label) : null,
+    });
+    await auditLog({ req, action: "sync_pairing_consume", entityType: "sync_trusted_node", details: result });
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(400).json({ error: errorMessage(error) });
+  }
+});
+
+router.get("/trusted-nodes", async (_req, res) => {
+  res.json(await listTrustedNodes());
+});
+
+router.post("/trusted-nodes/:nodeId/revoke", async (req, res) => {
+  try {
+    const nodeId = String(req.params.nodeId);
+    const result = await revokeTrustedNode(nodeId);
+    await auditLog({ req, action: "sync_trusted_node_revoke", entityType: "sync_trusted_node", details: { nodeId } });
+    res.json(result);
+  } catch (error) {
+    res.status(404).json({ error: errorMessage(error) });
+  }
+});
+
+router.get("/conflicts", async (req, res) => {
+  const requested = String(req.query.status ?? "open");
+  const status = ["open", "resolved", "deferred", "all"].includes(requested)
+    ? requested as "open" | "resolved" | "deferred" | "all"
+    : "open";
+  res.json(await listSyncConflicts(status));
+});
+
+router.post("/conflicts/:id/resolve", async (req, res) => {
+  try {
+    const conflictId = Number(req.params.id);
+    const result = await resolveSyncConflict({
+      conflictId,
+      userId: res.locals.user.id,
+      resolution: req.body?.resolution,
+      correction: req.body?.correction,
+    });
+    await auditLog({
+      req,
+      action: "sync_conflict_resolve",
+      entityType: "sync_conflict",
+      details: { conflictId, resolution: req.body?.resolution },
+    });
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ error: errorMessage(error) });
+  }
+});
+
+router.post("/relay/packages", async (req, res) => {
+  try {
+    const result = await uploadRelayPackage({
+      sessionId: String(req.body?.sessionId ?? ""),
+      packageId: String(req.body?.packageId ?? ""),
+      responseToRelayId: req.body?.responseToRelayId ? String(req.body.responseToRelayId) : null,
+      direction: req.body?.direction,
+      sourceNodeId: String(req.body?.sourceNodeId ?? ""),
+      targetNodeId: String(req.body?.targetNodeId ?? ""),
+      contentHash: String(req.body?.contentHash ?? ""),
+      payloadBase64: String(req.body?.payloadBase64 ?? ""),
+      expiresAt: req.body?.expiresAt ? String(req.body.expiresAt) : undefined,
+    });
+    await auditLog({ req, action: "sync_relay_upload", entityType: "sync_relay_package", details: result });
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(400).json({ error: errorMessage(error) });
+  }
+});
+
+router.get("/relay/packages", async (req, res) => {
+  res.json(await listRelayPackages(req.query.sessionId ? String(req.query.sessionId) : undefined));
+});
+
+router.get("/relay/packages/:relayId", async (req, res) => {
+  try {
+    const includePayload = req.query.download === "true";
+    const result = await getRelayPackage(String(req.params.relayId), includePayload);
+    res.json(result);
+  } catch (error) {
+    res.status(404).json({ error: errorMessage(error) });
+  }
+});
+
+router.delete("/relay/expired", async (_req, res) => {
+  const result = await purgeExpiredRelayPackages();
+  res.json({ deleted: result.length });
 });
 
 export default router;

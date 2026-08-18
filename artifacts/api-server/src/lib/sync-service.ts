@@ -444,6 +444,13 @@ function packageChanges(value: unknown): SyncChange[] {
   return value as SyncChange[];
 }
 
+export function classifyConflictSeverity(conflictCode: string): "low" | "medium" | "high" | "critical" {
+  if (conflictCode.includes("BALANCE") || conflictCode.includes("CUSTODY")) return "critical";
+  if (conflictCode.includes("DELETE") || conflictCode.includes("DOCUMENT")) return "high";
+  if (conflictCode.includes("PAYLOAD") || conflictCode.includes("REVISION")) return "medium";
+  return "low";
+}
+
 export async function applySyncPackage(input: {
   sessionId: string;
   nodeId: string;
@@ -520,6 +527,7 @@ export async function applySyncPackage(input: {
             .values({
               changeId: existing.changeId,
               conflictCode: "OPERATION_PAYLOAD_MISMATCH",
+              severity: classifyConflictSeverity("OPERATION_PAYLOAD_MISMATCH"),
               details: { incomingChangeId: change.changeId, operationId: change.operationId },
             })
             .onConflictDoNothing();
