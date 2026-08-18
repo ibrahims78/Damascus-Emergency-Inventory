@@ -1095,6 +1095,67 @@ export interface ChangePasswordInput {
   newPassword: string;
 }
 
+export interface JsonObject { [key: string]: unknown }
+
+export interface ConfirmInput {
+  confirm: boolean;
+}
+
+export interface BackupPasswordInput {
+  /** @minLength 8 */
+  password: string;
+}
+
+export interface BackupPackageInput {
+  packageBase64: string;
+  password: string;
+}
+
+export type BackupRestoreInputMode = typeof BackupRestoreInputMode[keyof typeof BackupRestoreInputMode];
+
+
+export const BackupRestoreInputMode = {
+  full: 'full',
+  merge: 'merge',
+} as const;
+
+export type BackupRestoreInput = BackupPackageInput & {
+  mode: BackupRestoreInputMode;
+  previewToken?: string;
+  confirm?: boolean;
+};
+
+export type BackupCreateInputPackageType = typeof BackupCreateInputPackageType[keyof typeof BackupCreateInputPackageType];
+
+
+export const BackupCreateInputPackageType = {
+  'full-backup': 'full-backup',
+  'delta-sync': 'delta-sync',
+} as const;
+
+export type BackupCreateInputBaseVector = {[key: string]: number};
+
+export type BackupCreateInputRetentionClass = typeof BackupCreateInputRetentionClass[keyof typeof BackupCreateInputRetentionClass];
+
+
+export const BackupCreateInputRetentionClass = {
+  manual: 'manual',
+  daily: 'daily',
+  weekly: 'weekly',
+  monthly: 'monthly',
+} as const;
+
+export type BackupCreateInput = BackupPasswordInput & {
+  packageType?: BackupCreateInputPackageType;
+  baseVector?: BackupCreateInputBaseVector;
+  retentionClass?: BackupCreateInputRetentionClass;
+};
+
+export interface BackupCatalogResponse {
+  backups: JsonObject[];
+  policy: JsonObject;
+}
+
 export type ListItemsParams = {
 categoryId?: number;
 search?: string;
@@ -1282,5 +1343,27 @@ export const GetCustodiesReportStatus = {
 
 export type ChangePassword200 = {
   ok?: boolean;
+};
+
+export type ListSyncConflictsParams = {
+status?: ListSyncConflictsStatus;
+};
+
+export type ListSyncConflictsStatus = typeof ListSyncConflictsStatus[keyof typeof ListSyncConflictsStatus];
+
+
+export const ListSyncConflictsStatus = {
+  open: 'open',
+  resolved: 'resolved',
+  deferred: 'deferred',
+  all: 'all',
+} as const;
+
+export type ListRelayPackagesParams = {
+sessionId?: string;
+};
+
+export type DownloadRelayPackageParams = {
+download?: boolean;
 };
 

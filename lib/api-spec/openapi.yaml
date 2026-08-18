@@ -1212,6 +1212,541 @@ paths:
         "204":
           description: Deactivated
 
+  /backups:
+    get:
+      operationId: listBackups
+      tags: [backups]
+      summary: List encrypted backup catalog entries
+      responses:
+        "200":
+          description: Backup catalog and retention policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupCatalogResponse"
+    post:
+      operationId: createBackup
+      tags: [backups]
+      summary: Create and catalog a full or delta backup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BackupCreateInput"
+      responses:
+        "201":
+          description: Created backup metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
+  /backups/export:
+    post:
+      operationId: exportBackupPackage
+      tags: [backups]
+      summary: Export a canonical encrypted dme-sync package
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BackupPasswordInput"
+      responses:
+        "200":
+          description: Encrypted package bytes
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+
+  /backups/inspect:
+    post:
+      operationId: inspectBackupPackage
+      tags: [backups]
+      summary: Inspect a package before restore
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BackupPackageInput"
+      responses:
+        "200":
+          description: Package summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
+  /backups/dry-run:
+    post:
+      operationId: previewBackupRestore
+      tags: [backups]
+      summary: Preview a full restore or safe merge without writing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BackupRestoreInput"
+      responses:
+        "200":
+          description: Restore preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
+  /backups/restore:
+    post:
+      operationId: restoreBackupPackage
+      tags: [backups]
+      summary: Apply a previously previewed restore atomically
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BackupRestoreInput"
+      responses:
+        "200":
+          description: Restore report and rollback point
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
+  /backups/policy:
+    get:
+      operationId: getBackupRetentionPolicy
+      tags: [backups]
+      summary: Read backup retention policy
+      responses:
+        "200":
+          description: Retention policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+    put:
+      operationId: updateBackupRetentionPolicy
+      tags: [backups]
+      summary: Update backup retention policy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JsonObject"
+      responses:
+        "200":
+          description: Updated policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
+  /backups/retention/enforce:
+    post:
+      operationId: enforceBackupRetention
+      tags: [backups]
+      summary: Enforce configured retention policy
+      responses:
+        "200":
+          description: Retention result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
+  /backups/{backupId}/package:
+    get:
+      operationId: downloadCatalogBackup
+      tags: [backups]
+      summary: Download an encrypted catalog package
+      parameters:
+        - { name: backupId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Encrypted package bytes
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+
+  /backups/{backupId}/verify:
+    post:
+      operationId: verifyCatalogBackup
+      tags: [backups]
+      summary: Verify a catalog package password and fingerprint
+      parameters:
+        - { name: backupId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BackupPasswordInput"
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
+  /backups/{restorePointId}/report:
+    get:
+      operationId: getRestorePointReport
+      tags: [backups]
+      summary: Get a restore point report
+      parameters:
+        - { name: restorePointId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Restore point report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
+  /backups/{restorePointId}/rollback:
+    post:
+      operationId: rollbackRestorePoint
+      tags: [backups]
+      summary: Roll back to a saved restore point
+      parameters:
+        - { name: restorePointId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmInput"
+      responses:
+        "200":
+          description: Rollback report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
+  /sync/node:
+    get:
+      operationId: getSyncNode
+      tags: [sync]
+      summary: Get node identity and vector clock
+      responses:
+        "200":
+          description: Node identity and vector
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
+  /sync/sessions:
+    post:
+      operationId: createSyncSession
+      tags: [sync]
+      summary: Create a resumable two-node sync session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JsonObject"
+      responses:
+        "201":
+          description: Sync session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
+  /sync/sessions/{sessionId}:
+    get:
+      operationId: getSyncSession
+      tags: [sync]
+      summary: Read a sync session and its package reports
+      parameters:
+        - { name: sessionId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Sync session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
+  /sync/sessions/{sessionId}/handshake:
+    post:
+      operationId: handshakeSyncSession
+      tags: [sync]
+      summary: Exchange vector clocks
+      parameters:
+        - { name: sessionId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JsonObject"
+      responses:
+        "200":
+          description: Handshake result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
+  /sync/sessions/{sessionId}/manifest:
+    post:
+      operationId: prepareSyncManifest
+      tags: [sync]
+      summary: Prepare a delta manifest from a vector clock
+      parameters:
+        - { name: sessionId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JsonObject"
+      responses:
+        "200":
+          description: Delta manifest
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
+  /sync/sessions/{sessionId}/packages:
+    post:
+      operationId: applySyncPackage
+      tags: [sync]
+      summary: Validate and apply a received package atomically
+      parameters:
+        - { name: sessionId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JsonObject"
+      responses:
+        "200":
+          description: Sync application report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
+  /sync/sessions/{sessionId}/packages/{packageId}:
+    get:
+      operationId: getSyncPackage
+      tags: [sync]
+      summary: Read a saved sync package report
+      parameters:
+        - { name: sessionId, in: path, required: true, schema: { type: string } }
+        - { name: packageId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Sync package
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
+  /sync/sessions/{sessionId}/ack:
+    post:
+      operationId: acknowledgeSyncPackage
+      tags: [sync]
+      summary: Acknowledge a received sync package
+      parameters:
+        - { name: sessionId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JsonObject"
+      responses:
+        "200":
+          description: Acknowledgement result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
+  /sync/pairings:
+    post:
+      operationId: createSyncPairing
+      tags: [sync]
+      summary: Create a short-lived single-use pairing code
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JsonObject"
+      responses:
+        "201":
+          description: Pairing code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
+  /sync/pairings/consume:
+    post:
+      operationId: consumeSyncPairing
+      tags: [sync]
+      summary: Consume a pairing code and trust a peer node
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JsonObject"
+      responses:
+        "201":
+          description: Trusted node
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
+  /sync/trusted-nodes:
+    get:
+      operationId: listTrustedSyncNodes
+      tags: [sync]
+      summary: List trusted and revoked nodes
+      responses:
+        "200":
+          description: Trusted nodes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JsonObject"
+
+  /sync/trusted-nodes/{nodeId}/revoke:
+    post:
+      operationId: revokeTrustedSyncNode
+      tags: [sync]
+      summary: Revoke a trusted node without deleting audit history
+      parameters:
+        - { name: nodeId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Revoked node
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
+  /sync/conflicts:
+    get:
+      operationId: listSyncConflicts
+      tags: [sync]
+      summary: List open, resolved, or deferred sync conflicts
+      parameters:
+        - { name: status, in: query, required: false, schema: { type: string, enum: [open, resolved, deferred, all] } }
+      responses:
+        "200":
+          description: Conflict queue
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JsonObject"
+
+  /sync/conflicts/{id}/resolve:
+    post:
+      operationId: resolveSyncConflict
+      tags: [sync]
+      summary: Approve, reject, or defer a conflict
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JsonObject"
+      responses:
+        "200":
+          description: Conflict decision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
+  /sync/relay/packages:
+    get:
+      operationId: listRelayPackages
+      tags: [sync]
+      summary: List opaque encrypted relay packages
+      parameters:
+        - { name: sessionId, in: query, required: false, schema: { type: string } }
+      responses:
+        "200":
+          description: Relay package metadata
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JsonObject"
+    post:
+      operationId: uploadRelayPackage
+      tags: [sync]
+      summary: Store an opaque encrypted relay package
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JsonObject"
+      responses:
+        "201":
+          description: Relay package metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
+  /sync/relay/packages/{relayId}:
+    get:
+      operationId: downloadRelayPackage
+      tags: [sync]
+      summary: Download opaque relay bytes when requested
+      parameters:
+        - { name: relayId, in: path, required: true, schema: { type: string } }
+        - { name: download, in: query, required: false, schema: { type: boolean } }
+      responses:
+        "200":
+          description: Relay package metadata or encrypted bytes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
+  /sync/relay/expired:
+    delete:
+      operationId: purgeExpiredRelayPackages
+      tags: [sync]
+      summary: Purge expired relay packages
+      responses:
+        "200":
+          description: Purge result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonObject"
+
 components:
   schemas:
     HealthStatus:
@@ -2450,3 +2985,72 @@ components:
           type: string
         newPassword:
           type: string
+
+    JsonObject:
+      type: object
+      additionalProperties: true
+
+    ConfirmInput:
+      type: object
+      required: [confirm]
+      properties:
+        confirm:
+          type: boolean
+
+    BackupPasswordInput:
+      type: object
+      required: [password]
+      properties:
+        password:
+          type: string
+          minLength: 8
+
+    BackupPackageInput:
+      type: object
+      required: [packageBase64, password]
+      properties:
+        packageBase64:
+          type: string
+        password:
+          type: string
+
+    BackupRestoreInput:
+      allOf:
+        - $ref: "#/components/schemas/BackupPackageInput"
+        - type: object
+          required: [mode]
+          properties:
+            mode:
+              type: string
+              enum: [full, merge]
+            previewToken:
+              type: string
+            confirm:
+              type: boolean
+
+    BackupCreateInput:
+      allOf:
+        - $ref: "#/components/schemas/BackupPasswordInput"
+        - type: object
+          properties:
+            packageType:
+              type: string
+              enum: [full-backup, delta-sync]
+            baseVector:
+              type: object
+              additionalProperties:
+                type: integer
+            retentionClass:
+              type: string
+              enum: [manual, daily, weekly, monthly]
+
+    BackupCatalogResponse:
+      type: object
+      required: [backups, policy]
+      properties:
+        backups:
+          type: array
+          items:
+            $ref: "#/components/schemas/JsonObject"
+        policy:
+          $ref: "#/components/schemas/JsonObject"

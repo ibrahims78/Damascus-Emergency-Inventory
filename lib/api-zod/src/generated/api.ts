@@ -1830,3 +1830,335 @@ export const DeleteUserParams = zod.object({
 export const DeleteUserResponse = zod.void()
 
 
+/**
+ * @summary List encrypted backup catalog entries
+ */
+export const ListBackupsResponse = zod.object({
+  "backups": zod.array(zod.record(zod.string(), zod.unknown())),
+  "policy": zod.record(zod.string(), zod.unknown())
+})
+
+
+/**
+ * @summary Create and catalog a full or delta backup
+ */
+export const createBackupBodyOnePasswordMin = 8;
+
+
+
+export const CreateBackupBody = zod.object({
+  "password": zod.string().min(createBackupBodyOnePasswordMin)
+}).and(zod.object({
+  "packageType": zod.enum(['full-backup', 'delta-sync']).optional(),
+  "baseVector": zod.record(zod.string(), zod.number().int()).optional(),
+  "retentionClass": zod.enum(['manual', 'daily', 'weekly', 'monthly']).optional()
+}))
+
+export const CreateBackupResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Export a canonical encrypted dme-sync package
+ */
+export const exportBackupPackageBodyPasswordMin = 8;
+
+
+
+export const ExportBackupPackageBody = zod.object({
+  "password": zod.string().min(exportBackupPackageBodyPasswordMin)
+})
+
+export const ExportBackupPackageResponse = zod.unknown()
+
+
+/**
+ * @summary Inspect a package before restore
+ */
+export const InspectBackupPackageBody = zod.object({
+  "packageBase64": zod.string(),
+  "password": zod.string()
+})
+
+export const InspectBackupPackageResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Preview a full restore or safe merge without writing
+ */
+export const PreviewBackupRestoreBody = zod.object({
+  "packageBase64": zod.string(),
+  "password": zod.string()
+}).and(zod.object({
+  "mode": zod.enum(['full', 'merge']),
+  "previewToken": zod.string().optional(),
+  "confirm": zod.boolean().optional()
+}))
+
+export const PreviewBackupRestoreResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Apply a previously previewed restore atomically
+ */
+export const RestoreBackupPackageBody = zod.object({
+  "packageBase64": zod.string(),
+  "password": zod.string()
+}).and(zod.object({
+  "mode": zod.enum(['full', 'merge']),
+  "previewToken": zod.string().optional(),
+  "confirm": zod.boolean().optional()
+}))
+
+export const RestoreBackupPackageResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Read backup retention policy
+ */
+export const GetBackupRetentionPolicyResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Update backup retention policy
+ */
+export const UpdateBackupRetentionPolicyBody = zod.record(zod.string(), zod.unknown())
+
+export const UpdateBackupRetentionPolicyResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Enforce configured retention policy
+ */
+export const EnforceBackupRetentionResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Download an encrypted catalog package
+ */
+export const DownloadCatalogBackupParams = zod.object({
+  "backupId": zod.coerce.string()
+})
+
+export const DownloadCatalogBackupResponse = zod.unknown()
+
+
+/**
+ * @summary Verify a catalog package password and fingerprint
+ */
+export const VerifyCatalogBackupParams = zod.object({
+  "backupId": zod.coerce.string()
+})
+
+export const verifyCatalogBackupBodyPasswordMin = 8;
+
+
+
+export const VerifyCatalogBackupBody = zod.object({
+  "password": zod.string().min(verifyCatalogBackupBodyPasswordMin)
+})
+
+export const VerifyCatalogBackupResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Get a restore point report
+ */
+export const GetRestorePointReportParams = zod.object({
+  "restorePointId": zod.coerce.string()
+})
+
+export const GetRestorePointReportResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Roll back to a saved restore point
+ */
+export const RollbackRestorePointParams = zod.object({
+  "restorePointId": zod.coerce.string()
+})
+
+export const RollbackRestorePointBody = zod.object({
+  "confirm": zod.boolean()
+})
+
+export const RollbackRestorePointResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Get node identity and vector clock
+ */
+export const GetSyncNodeResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Create a resumable two-node sync session
+ */
+export const CreateSyncSessionBody = zod.record(zod.string(), zod.unknown())
+
+export const CreateSyncSessionResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Read a sync session and its package reports
+ */
+export const GetSyncSessionParams = zod.object({
+  "sessionId": zod.coerce.string()
+})
+
+export const GetSyncSessionResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Exchange vector clocks
+ */
+export const HandshakeSyncSessionParams = zod.object({
+  "sessionId": zod.coerce.string()
+})
+
+export const HandshakeSyncSessionBody = zod.record(zod.string(), zod.unknown())
+
+export const HandshakeSyncSessionResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Prepare a delta manifest from a vector clock
+ */
+export const PrepareSyncManifestParams = zod.object({
+  "sessionId": zod.coerce.string()
+})
+
+export const PrepareSyncManifestBody = zod.record(zod.string(), zod.unknown())
+
+export const PrepareSyncManifestResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Validate and apply a received package atomically
+ */
+export const ApplySyncPackageParams = zod.object({
+  "sessionId": zod.coerce.string()
+})
+
+export const ApplySyncPackageBody = zod.record(zod.string(), zod.unknown())
+
+export const ApplySyncPackageResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Read a saved sync package report
+ */
+export const GetSyncPackageParams = zod.object({
+  "sessionId": zod.coerce.string(),
+  "packageId": zod.coerce.string()
+})
+
+export const GetSyncPackageResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Acknowledge a received sync package
+ */
+export const AcknowledgeSyncPackageParams = zod.object({
+  "sessionId": zod.coerce.string()
+})
+
+export const AcknowledgeSyncPackageBody = zod.record(zod.string(), zod.unknown())
+
+export const AcknowledgeSyncPackageResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Create a short-lived single-use pairing code
+ */
+export const CreateSyncPairingBody = zod.record(zod.string(), zod.unknown())
+
+export const CreateSyncPairingResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Consume a pairing code and trust a peer node
+ */
+export const ConsumeSyncPairingBody = zod.record(zod.string(), zod.unknown())
+
+export const ConsumeSyncPairingResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary List trusted and revoked nodes
+ */
+export const ListTrustedSyncNodesResponseItem = zod.record(zod.string(), zod.unknown())
+export const ListTrustedSyncNodesResponse = zod.array(ListTrustedSyncNodesResponseItem)
+
+
+/**
+ * @summary Revoke a trusted node without deleting audit history
+ */
+export const RevokeTrustedSyncNodeParams = zod.object({
+  "nodeId": zod.coerce.string()
+})
+
+export const RevokeTrustedSyncNodeResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary List open, resolved, or deferred sync conflicts
+ */
+export const ListSyncConflictsQueryParams = zod.object({
+  "status": zod.enum(['open', 'resolved', 'deferred', 'all']).optional()
+})
+
+export const ListSyncConflictsResponseItem = zod.record(zod.string(), zod.unknown())
+export const ListSyncConflictsResponse = zod.array(ListSyncConflictsResponseItem)
+
+
+/**
+ * @summary Approve, reject, or defer a conflict
+ */
+export const ResolveSyncConflictParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ResolveSyncConflictBody = zod.record(zod.string(), zod.unknown())
+
+export const ResolveSyncConflictResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary List opaque encrypted relay packages
+ */
+export const ListRelayPackagesQueryParams = zod.object({
+  "sessionId": zod.coerce.string().optional()
+})
+
+export const ListRelayPackagesResponseItem = zod.record(zod.string(), zod.unknown())
+export const ListRelayPackagesResponse = zod.array(ListRelayPackagesResponseItem)
+
+
+/**
+ * @summary Store an opaque encrypted relay package
+ */
+export const UploadRelayPackageBody = zod.record(zod.string(), zod.unknown())
+
+export const UploadRelayPackageResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Download opaque relay bytes when requested
+ */
+export const DownloadRelayPackageParams = zod.object({
+  "relayId": zod.coerce.string()
+})
+
+export const DownloadRelayPackageQueryParams = zod.object({
+  "download": zod.coerce.boolean().optional()
+})
+
+export const DownloadRelayPackageResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Purge expired relay packages
+ */
+export const PurgeExpiredRelayPackagesResponse = zod.record(zod.string(), zod.unknown())
+
+

@@ -683,6 +683,8 @@ importers:
         specifier: ^0.31.10
         version: 0.31.10
 
+  lib/sync-contract: {}
+
   scripts:
     dependencies:
       '@workspace/backup-format':

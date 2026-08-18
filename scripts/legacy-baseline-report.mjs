@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 const args = new Map();
 for (let index = 2; index < process.argv.length; index += 1) {
@@ -15,6 +15,10 @@ if (!inputPath) {
 
 const raw = JSON.parse(await readFile(inputPath, "utf8"));
 const state = raw?.data ?? raw;
+if (!state || typeof state !== "object" || Array.isArray(state)) {
+  console.error("The legacy backup must contain an object or a data object.");
+  process.exit(2);
+}
 const collections = ["users", "categories", "items", "equipment", "recipients", "transactions", "batches", "custodies", "auditLog"];
 const sensitive = /password|secret|token|cookie|session|private.?key|api.?key|credential/i;
 const report = {
@@ -29,6 +33,14 @@ const report = {
   sensitivePaths: [],
   warnings: [],
 };
+
+function stableGlobalId(entityType, localId) {
+  const digest = createHash("sha256")
+    .update(`damascus-ems:legacy:${entityType}:${String(localId)}`)
+    .digest("hex")
+    .slice(0, 32);
+  return `${digest.slice(0, 8)}-${digest.slice(8, 12)}-${digest.slice(12, 16)}-${digest.slice(16, 20)}-${digest.slice(20)}`;
+}
 
 function walk(value, path) {
   if (Array.isArray(value)) return value.forEach((entry, index) => walk(entry, `${path}[${index}]`));
@@ -53,7 +65,7 @@ for (const entityType of collections) {
     if (seen.has(key)) report.duplicateLocalKeys.push(key);
     seen.add(key);
     if (!row.globalId) report.generatedGlobalIds += 1;
-    report.mappings.push({ entityType, localId, globalId: row.globalId || randomUUID() });
+    report.mappings.push({ entityType, localId, globalId: row.globalId || stableGlobalId(entityType, localId) });
   }
 }
 

@@ -23,10 +23,16 @@ import type {
   AdjustmentInput,
   Alert,
   AuthUser,
+  BackupCatalogResponse,
+  BackupCreateInput,
+  BackupPackageInput,
+  BackupPasswordInput,
+  BackupRestoreInput,
   Category,
   CentralReturnInput,
   ChangePassword200,
   ChangePasswordInput,
+  ConfirmInput,
   CustodyHistoryResponse,
   CustodyOutInput,
   CustodyReport,
@@ -35,6 +41,7 @@ import type {
   DamageInput,
   DashboardCharts,
   DashboardStats,
+  DownloadRelayPackageParams,
   Equipment,
   EquipmentHistoryResponse,
   EquipmentInput,
@@ -55,11 +62,14 @@ import type {
   ItemInput,
   ItemListResponse,
   ItemUpdate,
+  JsonObject,
   ListCustodiesParams,
   ListEquipmentParams,
   ListExitReasonsParams,
   ListItemsParams,
   ListRecipientsParams,
+  ListRelayPackagesParams,
+  ListSyncConflictsParams,
   ListTransactionsParams,
   LoginCredentials,
   OkResponse,
@@ -4702,5 +4712,2310 @@ export const useDeleteUser = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteUserMutationOptions(options));
+    }
+
+export const getListBackupsUrl = () => {
+
+
+
+
+  return `/api/backups`
+}
+
+/**
+ * @summary List encrypted backup catalog entries
+ */
+export const listBackups = async ( options?: Parameters<typeof customFetch>[1]): Promise<BackupCatalogResponse> => {
+
+  return customFetch<BackupCatalogResponse>(getListBackupsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBackupsQueryKey = () => {
+    return [
+    `/api/backups`
+    ] as const;
+    }
+
+
+export const getListBackupsQueryOptions = <TData = Awaited<ReturnType<typeof listBackups>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBackups>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBackupsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBackups>>> = ({ signal }) => listBackups({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBackups>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBackupsQueryResult = NonNullable<Awaited<ReturnType<typeof listBackups>>>
+export type ListBackupsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List encrypted backup catalog entries
+ */
+
+export function useListBackups<TData = Awaited<ReturnType<typeof listBackups>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBackups>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBackupsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateBackupUrl = () => {
+
+
+
+
+  return `/api/backups`
+}
+
+/**
+ * @summary Create and catalog a full or delta backup
+ */
+export const createBackup = async (backupCreateInput: BackupCreateInput, options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getCreateBackupUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(backupCreateInput)
+  }
+);}
+
+
+
+
+
+export const getCreateBackupMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBackup>>, TError,{data: BodyType<BackupCreateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createBackup>>, TError,{data: BodyType<BackupCreateInput>}, TContext> => {
+
+const mutationKey = ['createBackup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createBackup>>, {data: BodyType<BackupCreateInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createBackup(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateBackupMutationResult = NonNullable<Awaited<ReturnType<typeof createBackup>>>
+    export type CreateBackupMutationBody = BodyType<BackupCreateInput>
+    export type CreateBackupMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create and catalog a full or delta backup
+ */
+export const useCreateBackup = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBackup>>, TError,{data: BodyType<BackupCreateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createBackup>>,
+        TError,
+        {data: BodyType<BackupCreateInput>},
+        TContext
+      > => {
+      return useMutation(getCreateBackupMutationOptions(options));
+    }
+
+export const getExportBackupPackageUrl = () => {
+
+
+
+
+  return `/api/backups/export`
+}
+
+/**
+ * @summary Export a canonical encrypted dme-sync package
+ */
+export const exportBackupPackage = async (backupPasswordInput: BackupPasswordInput, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getExportBackupPackageUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(backupPasswordInput)
+  }
+);}
+
+
+
+
+
+export const getExportBackupPackageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof exportBackupPackage>>, TError,{data: BodyType<BackupPasswordInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof exportBackupPackage>>, TError,{data: BodyType<BackupPasswordInput>}, TContext> => {
+
+const mutationKey = ['exportBackupPackage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof exportBackupPackage>>, {data: BodyType<BackupPasswordInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  exportBackupPackage(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ExportBackupPackageMutationResult = NonNullable<Awaited<ReturnType<typeof exportBackupPackage>>>
+    export type ExportBackupPackageMutationBody = BodyType<BackupPasswordInput>
+    export type ExportBackupPackageMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Export a canonical encrypted dme-sync package
+ */
+export const useExportBackupPackage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof exportBackupPackage>>, TError,{data: BodyType<BackupPasswordInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof exportBackupPackage>>,
+        TError,
+        {data: BodyType<BackupPasswordInput>},
+        TContext
+      > => {
+      return useMutation(getExportBackupPackageMutationOptions(options));
+    }
+
+export const getInspectBackupPackageUrl = () => {
+
+
+
+
+  return `/api/backups/inspect`
+}
+
+/**
+ * @summary Inspect a package before restore
+ */
+export const inspectBackupPackage = async (backupPackageInput: BackupPackageInput, options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getInspectBackupPackageUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(backupPackageInput)
+  }
+);}
+
+
+
+
+
+export const getInspectBackupPackageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof inspectBackupPackage>>, TError,{data: BodyType<BackupPackageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof inspectBackupPackage>>, TError,{data: BodyType<BackupPackageInput>}, TContext> => {
+
+const mutationKey = ['inspectBackupPackage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof inspectBackupPackage>>, {data: BodyType<BackupPackageInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  inspectBackupPackage(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type InspectBackupPackageMutationResult = NonNullable<Awaited<ReturnType<typeof inspectBackupPackage>>>
+    export type InspectBackupPackageMutationBody = BodyType<BackupPackageInput>
+    export type InspectBackupPackageMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Inspect a package before restore
+ */
+export const useInspectBackupPackage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof inspectBackupPackage>>, TError,{data: BodyType<BackupPackageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof inspectBackupPackage>>,
+        TError,
+        {data: BodyType<BackupPackageInput>},
+        TContext
+      > => {
+      return useMutation(getInspectBackupPackageMutationOptions(options));
+    }
+
+export const getPreviewBackupRestoreUrl = () => {
+
+
+
+
+  return `/api/backups/dry-run`
+}
+
+/**
+ * @summary Preview a full restore or safe merge without writing
+ */
+export const previewBackupRestore = async (backupRestoreInput: BackupRestoreInput, options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getPreviewBackupRestoreUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(backupRestoreInput)
+  }
+);}
+
+
+
+
+
+export const getPreviewBackupRestoreMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewBackupRestore>>, TError,{data: BodyType<BackupRestoreInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof previewBackupRestore>>, TError,{data: BodyType<BackupRestoreInput>}, TContext> => {
+
+const mutationKey = ['previewBackupRestore'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof previewBackupRestore>>, {data: BodyType<BackupRestoreInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  previewBackupRestore(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PreviewBackupRestoreMutationResult = NonNullable<Awaited<ReturnType<typeof previewBackupRestore>>>
+    export type PreviewBackupRestoreMutationBody = BodyType<BackupRestoreInput>
+    export type PreviewBackupRestoreMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Preview a full restore or safe merge without writing
+ */
+export const usePreviewBackupRestore = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewBackupRestore>>, TError,{data: BodyType<BackupRestoreInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof previewBackupRestore>>,
+        TError,
+        {data: BodyType<BackupRestoreInput>},
+        TContext
+      > => {
+      return useMutation(getPreviewBackupRestoreMutationOptions(options));
+    }
+
+export const getRestoreBackupPackageUrl = () => {
+
+
+
+
+  return `/api/backups/restore`
+}
+
+/**
+ * @summary Apply a previously previewed restore atomically
+ */
+export const restoreBackupPackage = async (backupRestoreInput: BackupRestoreInput, options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getRestoreBackupPackageUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(backupRestoreInput)
+  }
+);}
+
+
+
+
+
+export const getRestoreBackupPackageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreBackupPackage>>, TError,{data: BodyType<BackupRestoreInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreBackupPackage>>, TError,{data: BodyType<BackupRestoreInput>}, TContext> => {
+
+const mutationKey = ['restoreBackupPackage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreBackupPackage>>, {data: BodyType<BackupRestoreInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  restoreBackupPackage(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreBackupPackageMutationResult = NonNullable<Awaited<ReturnType<typeof restoreBackupPackage>>>
+    export type RestoreBackupPackageMutationBody = BodyType<BackupRestoreInput>
+    export type RestoreBackupPackageMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Apply a previously previewed restore atomically
+ */
+export const useRestoreBackupPackage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreBackupPackage>>, TError,{data: BodyType<BackupRestoreInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof restoreBackupPackage>>,
+        TError,
+        {data: BodyType<BackupRestoreInput>},
+        TContext
+      > => {
+      return useMutation(getRestoreBackupPackageMutationOptions(options));
+    }
+
+export const getGetBackupRetentionPolicyUrl = () => {
+
+
+
+
+  return `/api/backups/policy`
+}
+
+/**
+ * @summary Read backup retention policy
+ */
+export const getBackupRetentionPolicy = async ( options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getGetBackupRetentionPolicyUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBackupRetentionPolicyQueryKey = () => {
+    return [
+    `/api/backups/policy`
+    ] as const;
+    }
+
+
+export const getGetBackupRetentionPolicyQueryOptions = <TData = Awaited<ReturnType<typeof getBackupRetentionPolicy>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBackupRetentionPolicy>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBackupRetentionPolicyQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBackupRetentionPolicy>>> = ({ signal }) => getBackupRetentionPolicy({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBackupRetentionPolicy>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBackupRetentionPolicyQueryResult = NonNullable<Awaited<ReturnType<typeof getBackupRetentionPolicy>>>
+export type GetBackupRetentionPolicyQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Read backup retention policy
+ */
+
+export function useGetBackupRetentionPolicy<TData = Awaited<ReturnType<typeof getBackupRetentionPolicy>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBackupRetentionPolicy>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBackupRetentionPolicyQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateBackupRetentionPolicyUrl = () => {
+
+
+
+
+  return `/api/backups/policy`
+}
+
+/**
+ * @summary Update backup retention policy
+ */
+export const updateBackupRetentionPolicy = async (jsonObject: JsonObject, options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getUpdateBackupRetentionPolicyUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(jsonObject)
+  }
+);}
+
+
+
+
+
+export const getUpdateBackupRetentionPolicyMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBackupRetentionPolicy>>, TError,{data: BodyType<JsonObject>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateBackupRetentionPolicy>>, TError,{data: BodyType<JsonObject>}, TContext> => {
+
+const mutationKey = ['updateBackupRetentionPolicy'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateBackupRetentionPolicy>>, {data: BodyType<JsonObject>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateBackupRetentionPolicy(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateBackupRetentionPolicyMutationResult = NonNullable<Awaited<ReturnType<typeof updateBackupRetentionPolicy>>>
+    export type UpdateBackupRetentionPolicyMutationBody = BodyType<JsonObject>
+    export type UpdateBackupRetentionPolicyMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update backup retention policy
+ */
+export const useUpdateBackupRetentionPolicy = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBackupRetentionPolicy>>, TError,{data: BodyType<JsonObject>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateBackupRetentionPolicy>>,
+        TError,
+        {data: BodyType<JsonObject>},
+        TContext
+      > => {
+      return useMutation(getUpdateBackupRetentionPolicyMutationOptions(options));
+    }
+
+export const getEnforceBackupRetentionUrl = () => {
+
+
+
+
+  return `/api/backups/retention/enforce`
+}
+
+/**
+ * @summary Enforce configured retention policy
+ */
+export const enforceBackupRetention = async ( options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getEnforceBackupRetentionUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getEnforceBackupRetentionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enforceBackupRetention>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof enforceBackupRetention>>, TError,void, TContext> => {
+
+const mutationKey = ['enforceBackupRetention'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof enforceBackupRetention>>, void> = () => {
+
+
+          return  enforceBackupRetention(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EnforceBackupRetentionMutationResult = NonNullable<Awaited<ReturnType<typeof enforceBackupRetention>>>
+
+    export type EnforceBackupRetentionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Enforce configured retention policy
+ */
+export const useEnforceBackupRetention = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enforceBackupRetention>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof enforceBackupRetention>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getEnforceBackupRetentionMutationOptions(options));
+    }
+
+export const getDownloadCatalogBackupUrl = (backupId: string,) => {
+
+
+
+
+  return `/api/backups/${backupId}/package`
+}
+
+/**
+ * @summary Download an encrypted catalog package
+ */
+export const downloadCatalogBackup = async (backupId: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadCatalogBackupUrl(backupId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadCatalogBackupQueryKey = (backupId: string,) => {
+    return [
+    `/api/backups/${backupId}/package`
+    ] as const;
+    }
+
+
+export const getDownloadCatalogBackupQueryOptions = <TData = Awaited<ReturnType<typeof downloadCatalogBackup>>, TError = ErrorType<unknown>>(backupId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadCatalogBackup>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadCatalogBackupQueryKey(backupId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadCatalogBackup>>> = ({ signal }) => downloadCatalogBackup(backupId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: backupId !== null && backupId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadCatalogBackup>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadCatalogBackupQueryResult = NonNullable<Awaited<ReturnType<typeof downloadCatalogBackup>>>
+export type DownloadCatalogBackupQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Download an encrypted catalog package
+ */
+
+export function useDownloadCatalogBackup<TData = Awaited<ReturnType<typeof downloadCatalogBackup>>, TError = ErrorType<unknown>>(
+ backupId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadCatalogBackup>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadCatalogBackupQueryOptions(backupId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getVerifyCatalogBackupUrl = (backupId: string,) => {
+
+
+
+
+  return `/api/backups/${backupId}/verify`
+}
+
+/**
+ * @summary Verify a catalog package password and fingerprint
+ */
+export const verifyCatalogBackup = async (backupId: string,
+    backupPasswordInput: BackupPasswordInput, options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getVerifyCatalogBackupUrl(backupId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(backupPasswordInput)
+  }
+);}
+
+
+
+
+
+export const getVerifyCatalogBackupMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyCatalogBackup>>, TError,{backupId: string;data: BodyType<BackupPasswordInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof verifyCatalogBackup>>, TError,{backupId: string;data: BodyType<BackupPasswordInput>}, TContext> => {
+
+const mutationKey = ['verifyCatalogBackup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyCatalogBackup>>, {backupId: string;data: BodyType<BackupPasswordInput>}> = (props) => {
+          const {backupId,data} = props ?? {};
+
+          return  verifyCatalogBackup(backupId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VerifyCatalogBackupMutationResult = NonNullable<Awaited<ReturnType<typeof verifyCatalogBackup>>>
+    export type VerifyCatalogBackupMutationBody = BodyType<BackupPasswordInput>
+    export type VerifyCatalogBackupMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Verify a catalog package password and fingerprint
+ */
+export const useVerifyCatalogBackup = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyCatalogBackup>>, TError,{backupId: string;data: BodyType<BackupPasswordInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof verifyCatalogBackup>>,
+        TError,
+        {backupId: string;data: BodyType<BackupPasswordInput>},
+        TContext
+      > => {
+      return useMutation(getVerifyCatalogBackupMutationOptions(options));
+    }
+
+export const getGetRestorePointReportUrl = (restorePointId: string,) => {
+
+
+
+
+  return `/api/backups/${restorePointId}/report`
+}
+
+/**
+ * @summary Get a restore point report
+ */
+export const getRestorePointReport = async (restorePointId: string, options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getGetRestorePointReportUrl(restorePointId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRestorePointReportQueryKey = (restorePointId: string,) => {
+    return [
+    `/api/backups/${restorePointId}/report`
+    ] as const;
+    }
+
+
+export const getGetRestorePointReportQueryOptions = <TData = Awaited<ReturnType<typeof getRestorePointReport>>, TError = ErrorType<unknown>>(restorePointId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRestorePointReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRestorePointReportQueryKey(restorePointId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRestorePointReport>>> = ({ signal }) => getRestorePointReport(restorePointId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: restorePointId !== null && restorePointId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRestorePointReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRestorePointReportQueryResult = NonNullable<Awaited<ReturnType<typeof getRestorePointReport>>>
+export type GetRestorePointReportQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get a restore point report
+ */
+
+export function useGetRestorePointReport<TData = Awaited<ReturnType<typeof getRestorePointReport>>, TError = ErrorType<unknown>>(
+ restorePointId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRestorePointReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRestorePointReportQueryOptions(restorePointId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRollbackRestorePointUrl = (restorePointId: string,) => {
+
+
+
+
+  return `/api/backups/${restorePointId}/rollback`
+}
+
+/**
+ * @summary Roll back to a saved restore point
+ */
+export const rollbackRestorePoint = async (restorePointId: string,
+    confirmInput: ConfirmInput, options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getRollbackRestorePointUrl(restorePointId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(confirmInput)
+  }
+);}
+
+
+
+
+
+export const getRollbackRestorePointMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rollbackRestorePoint>>, TError,{restorePointId: string;data: BodyType<ConfirmInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rollbackRestorePoint>>, TError,{restorePointId: string;data: BodyType<ConfirmInput>}, TContext> => {
+
+const mutationKey = ['rollbackRestorePoint'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rollbackRestorePoint>>, {restorePointId: string;data: BodyType<ConfirmInput>}> = (props) => {
+          const {restorePointId,data} = props ?? {};
+
+          return  rollbackRestorePoint(restorePointId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RollbackRestorePointMutationResult = NonNullable<Awaited<ReturnType<typeof rollbackRestorePoint>>>
+    export type RollbackRestorePointMutationBody = BodyType<ConfirmInput>
+    export type RollbackRestorePointMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Roll back to a saved restore point
+ */
+export const useRollbackRestorePoint = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rollbackRestorePoint>>, TError,{restorePointId: string;data: BodyType<ConfirmInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof rollbackRestorePoint>>,
+        TError,
+        {restorePointId: string;data: BodyType<ConfirmInput>},
+        TContext
+      > => {
+      return useMutation(getRollbackRestorePointMutationOptions(options));
+    }
+
+export const getGetSyncNodeUrl = () => {
+
+
+
+
+  return `/api/sync/node`
+}
+
+/**
+ * @summary Get node identity and vector clock
+ */
+export const getSyncNode = async ( options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getGetSyncNodeUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSyncNodeQueryKey = () => {
+    return [
+    `/api/sync/node`
+    ] as const;
+    }
+
+
+export const getGetSyncNodeQueryOptions = <TData = Awaited<ReturnType<typeof getSyncNode>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSyncNode>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSyncNodeQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSyncNode>>> = ({ signal }) => getSyncNode({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSyncNode>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSyncNodeQueryResult = NonNullable<Awaited<ReturnType<typeof getSyncNode>>>
+export type GetSyncNodeQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get node identity and vector clock
+ */
+
+export function useGetSyncNode<TData = Awaited<ReturnType<typeof getSyncNode>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSyncNode>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSyncNodeQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSyncSessionUrl = () => {
+
+
+
+
+  return `/api/sync/sessions`
+}
+
+/**
+ * @summary Create a resumable two-node sync session
+ */
+export const createSyncSession = async (jsonObject: JsonObject, options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getCreateSyncSessionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(jsonObject)
+  }
+);}
+
+
+
+
+
+export const getCreateSyncSessionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSyncSession>>, TError,{data: BodyType<JsonObject>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSyncSession>>, TError,{data: BodyType<JsonObject>}, TContext> => {
+
+const mutationKey = ['createSyncSession'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSyncSession>>, {data: BodyType<JsonObject>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSyncSession(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSyncSessionMutationResult = NonNullable<Awaited<ReturnType<typeof createSyncSession>>>
+    export type CreateSyncSessionMutationBody = BodyType<JsonObject>
+    export type CreateSyncSessionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a resumable two-node sync session
+ */
+export const useCreateSyncSession = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSyncSession>>, TError,{data: BodyType<JsonObject>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSyncSession>>,
+        TError,
+        {data: BodyType<JsonObject>},
+        TContext
+      > => {
+      return useMutation(getCreateSyncSessionMutationOptions(options));
+    }
+
+export const getGetSyncSessionUrl = (sessionId: string,) => {
+
+
+
+
+  return `/api/sync/sessions/${sessionId}`
+}
+
+/**
+ * @summary Read a sync session and its package reports
+ */
+export const getSyncSession = async (sessionId: string, options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getGetSyncSessionUrl(sessionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSyncSessionQueryKey = (sessionId: string,) => {
+    return [
+    `/api/sync/sessions/${sessionId}`
+    ] as const;
+    }
+
+
+export const getGetSyncSessionQueryOptions = <TData = Awaited<ReturnType<typeof getSyncSession>>, TError = ErrorType<unknown>>(sessionId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSyncSession>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSyncSessionQueryKey(sessionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSyncSession>>> = ({ signal }) => getSyncSession(sessionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: sessionId !== null && sessionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSyncSession>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSyncSessionQueryResult = NonNullable<Awaited<ReturnType<typeof getSyncSession>>>
+export type GetSyncSessionQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Read a sync session and its package reports
+ */
+
+export function useGetSyncSession<TData = Awaited<ReturnType<typeof getSyncSession>>, TError = ErrorType<unknown>>(
+ sessionId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSyncSession>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSyncSessionQueryOptions(sessionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getHandshakeSyncSessionUrl = (sessionId: string,) => {
+
+
+
+
+  return `/api/sync/sessions/${sessionId}/handshake`
+}
+
+/**
+ * @summary Exchange vector clocks
+ */
+export const handshakeSyncSession = async (sessionId: string,
+    jsonObject: JsonObject, options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getHandshakeSyncSessionUrl(sessionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(jsonObject)
+  }
+);}
+
+
+
+
+
+export const getHandshakeSyncSessionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof handshakeSyncSession>>, TError,{sessionId: string;data: BodyType<JsonObject>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof handshakeSyncSession>>, TError,{sessionId: string;data: BodyType<JsonObject>}, TContext> => {
+
+const mutationKey = ['handshakeSyncSession'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof handshakeSyncSession>>, {sessionId: string;data: BodyType<JsonObject>}> = (props) => {
+          const {sessionId,data} = props ?? {};
+
+          return  handshakeSyncSession(sessionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type HandshakeSyncSessionMutationResult = NonNullable<Awaited<ReturnType<typeof handshakeSyncSession>>>
+    export type HandshakeSyncSessionMutationBody = BodyType<JsonObject>
+    export type HandshakeSyncSessionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Exchange vector clocks
+ */
+export const useHandshakeSyncSession = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof handshakeSyncSession>>, TError,{sessionId: string;data: BodyType<JsonObject>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof handshakeSyncSession>>,
+        TError,
+        {sessionId: string;data: BodyType<JsonObject>},
+        TContext
+      > => {
+      return useMutation(getHandshakeSyncSessionMutationOptions(options));
+    }
+
+export const getPrepareSyncManifestUrl = (sessionId: string,) => {
+
+
+
+
+  return `/api/sync/sessions/${sessionId}/manifest`
+}
+
+/**
+ * @summary Prepare a delta manifest from a vector clock
+ */
+export const prepareSyncManifest = async (sessionId: string,
+    jsonObject: JsonObject, options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getPrepareSyncManifestUrl(sessionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(jsonObject)
+  }
+);}
+
+
+
+
+
+export const getPrepareSyncManifestMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof prepareSyncManifest>>, TError,{sessionId: string;data: BodyType<JsonObject>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof prepareSyncManifest>>, TError,{sessionId: string;data: BodyType<JsonObject>}, TContext> => {
+
+const mutationKey = ['prepareSyncManifest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof prepareSyncManifest>>, {sessionId: string;data: BodyType<JsonObject>}> = (props) => {
+          const {sessionId,data} = props ?? {};
+
+          return  prepareSyncManifest(sessionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PrepareSyncManifestMutationResult = NonNullable<Awaited<ReturnType<typeof prepareSyncManifest>>>
+    export type PrepareSyncManifestMutationBody = BodyType<JsonObject>
+    export type PrepareSyncManifestMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Prepare a delta manifest from a vector clock
+ */
+export const usePrepareSyncManifest = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof prepareSyncManifest>>, TError,{sessionId: string;data: BodyType<JsonObject>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof prepareSyncManifest>>,
+        TError,
+        {sessionId: string;data: BodyType<JsonObject>},
+        TContext
+      > => {
+      return useMutation(getPrepareSyncManifestMutationOptions(options));
+    }
+
+export const getApplySyncPackageUrl = (sessionId: string,) => {
+
+
+
+
+  return `/api/sync/sessions/${sessionId}/packages`
+}
+
+/**
+ * @summary Validate and apply a received package atomically
+ */
+export const applySyncPackage = async (sessionId: string,
+    jsonObject: JsonObject, options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getApplySyncPackageUrl(sessionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(jsonObject)
+  }
+);}
+
+
+
+
+
+export const getApplySyncPackageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applySyncPackage>>, TError,{sessionId: string;data: BodyType<JsonObject>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof applySyncPackage>>, TError,{sessionId: string;data: BodyType<JsonObject>}, TContext> => {
+
+const mutationKey = ['applySyncPackage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof applySyncPackage>>, {sessionId: string;data: BodyType<JsonObject>}> = (props) => {
+          const {sessionId,data} = props ?? {};
+
+          return  applySyncPackage(sessionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApplySyncPackageMutationResult = NonNullable<Awaited<ReturnType<typeof applySyncPackage>>>
+    export type ApplySyncPackageMutationBody = BodyType<JsonObject>
+    export type ApplySyncPackageMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Validate and apply a received package atomically
+ */
+export const useApplySyncPackage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applySyncPackage>>, TError,{sessionId: string;data: BodyType<JsonObject>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof applySyncPackage>>,
+        TError,
+        {sessionId: string;data: BodyType<JsonObject>},
+        TContext
+      > => {
+      return useMutation(getApplySyncPackageMutationOptions(options));
+    }
+
+export const getGetSyncPackageUrl = (sessionId: string,
+    packageId: string,) => {
+
+
+
+
+  return `/api/sync/sessions/${sessionId}/packages/${packageId}`
+}
+
+/**
+ * @summary Read a saved sync package report
+ */
+export const getSyncPackage = async (sessionId: string,
+    packageId: string, options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getGetSyncPackageUrl(sessionId,packageId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSyncPackageQueryKey = (sessionId: string,
+    packageId: string,) => {
+    return [
+    `/api/sync/sessions/${sessionId}/packages/${packageId}`
+    ] as const;
+    }
+
+
+export const getGetSyncPackageQueryOptions = <TData = Awaited<ReturnType<typeof getSyncPackage>>, TError = ErrorType<unknown>>(sessionId: string,
+    packageId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSyncPackage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSyncPackageQueryKey(sessionId,packageId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSyncPackage>>> = ({ signal }) => getSyncPackage(sessionId,packageId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: sessionId !== null && sessionId !== undefined && packageId !== null && packageId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSyncPackage>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSyncPackageQueryResult = NonNullable<Awaited<ReturnType<typeof getSyncPackage>>>
+export type GetSyncPackageQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Read a saved sync package report
+ */
+
+export function useGetSyncPackage<TData = Awaited<ReturnType<typeof getSyncPackage>>, TError = ErrorType<unknown>>(
+ sessionId: string,
+    packageId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSyncPackage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSyncPackageQueryOptions(sessionId,packageId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAcknowledgeSyncPackageUrl = (sessionId: string,) => {
+
+
+
+
+  return `/api/sync/sessions/${sessionId}/ack`
+}
+
+/**
+ * @summary Acknowledge a received sync package
+ */
+export const acknowledgeSyncPackage = async (sessionId: string,
+    jsonObject: JsonObject, options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getAcknowledgeSyncPackageUrl(sessionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(jsonObject)
+  }
+);}
+
+
+
+
+
+export const getAcknowledgeSyncPackageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acknowledgeSyncPackage>>, TError,{sessionId: string;data: BodyType<JsonObject>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acknowledgeSyncPackage>>, TError,{sessionId: string;data: BodyType<JsonObject>}, TContext> => {
+
+const mutationKey = ['acknowledgeSyncPackage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acknowledgeSyncPackage>>, {sessionId: string;data: BodyType<JsonObject>}> = (props) => {
+          const {sessionId,data} = props ?? {};
+
+          return  acknowledgeSyncPackage(sessionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcknowledgeSyncPackageMutationResult = NonNullable<Awaited<ReturnType<typeof acknowledgeSyncPackage>>>
+    export type AcknowledgeSyncPackageMutationBody = BodyType<JsonObject>
+    export type AcknowledgeSyncPackageMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Acknowledge a received sync package
+ */
+export const useAcknowledgeSyncPackage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acknowledgeSyncPackage>>, TError,{sessionId: string;data: BodyType<JsonObject>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof acknowledgeSyncPackage>>,
+        TError,
+        {sessionId: string;data: BodyType<JsonObject>},
+        TContext
+      > => {
+      return useMutation(getAcknowledgeSyncPackageMutationOptions(options));
+    }
+
+export const getCreateSyncPairingUrl = () => {
+
+
+
+
+  return `/api/sync/pairings`
+}
+
+/**
+ * @summary Create a short-lived single-use pairing code
+ */
+export const createSyncPairing = async (jsonObject?: JsonObject, options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getCreateSyncPairingUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(jsonObject)
+  }
+);}
+
+
+
+
+
+export const getCreateSyncPairingMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSyncPairing>>, TError,{data?: BodyType<JsonObject>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSyncPairing>>, TError,{data?: BodyType<JsonObject>}, TContext> => {
+
+const mutationKey = ['createSyncPairing'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSyncPairing>>, {data?: BodyType<JsonObject>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSyncPairing(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSyncPairingMutationResult = NonNullable<Awaited<ReturnType<typeof createSyncPairing>>>
+    export type CreateSyncPairingMutationBody = BodyType<JsonObject> | undefined
+    export type CreateSyncPairingMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a short-lived single-use pairing code
+ */
+export const useCreateSyncPairing = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSyncPairing>>, TError,{data?: BodyType<JsonObject>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSyncPairing>>,
+        TError,
+        {data?: BodyType<JsonObject>},
+        TContext
+      > => {
+      return useMutation(getCreateSyncPairingMutationOptions(options));
+    }
+
+export const getConsumeSyncPairingUrl = () => {
+
+
+
+
+  return `/api/sync/pairings/consume`
+}
+
+/**
+ * @summary Consume a pairing code and trust a peer node
+ */
+export const consumeSyncPairing = async (jsonObject: JsonObject, options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getConsumeSyncPairingUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(jsonObject)
+  }
+);}
+
+
+
+
+
+export const getConsumeSyncPairingMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof consumeSyncPairing>>, TError,{data: BodyType<JsonObject>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof consumeSyncPairing>>, TError,{data: BodyType<JsonObject>}, TContext> => {
+
+const mutationKey = ['consumeSyncPairing'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof consumeSyncPairing>>, {data: BodyType<JsonObject>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  consumeSyncPairing(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConsumeSyncPairingMutationResult = NonNullable<Awaited<ReturnType<typeof consumeSyncPairing>>>
+    export type ConsumeSyncPairingMutationBody = BodyType<JsonObject>
+    export type ConsumeSyncPairingMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Consume a pairing code and trust a peer node
+ */
+export const useConsumeSyncPairing = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof consumeSyncPairing>>, TError,{data: BodyType<JsonObject>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof consumeSyncPairing>>,
+        TError,
+        {data: BodyType<JsonObject>},
+        TContext
+      > => {
+      return useMutation(getConsumeSyncPairingMutationOptions(options));
+    }
+
+export const getListTrustedSyncNodesUrl = () => {
+
+
+
+
+  return `/api/sync/trusted-nodes`
+}
+
+/**
+ * @summary List trusted and revoked nodes
+ */
+export const listTrustedSyncNodes = async ( options?: Parameters<typeof customFetch>[1]): Promise<JsonObject[]> => {
+
+  return customFetch<JsonObject[]>(getListTrustedSyncNodesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTrustedSyncNodesQueryKey = () => {
+    return [
+    `/api/sync/trusted-nodes`
+    ] as const;
+    }
+
+
+export const getListTrustedSyncNodesQueryOptions = <TData = Awaited<ReturnType<typeof listTrustedSyncNodes>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTrustedSyncNodes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTrustedSyncNodesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTrustedSyncNodes>>> = ({ signal }) => listTrustedSyncNodes({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTrustedSyncNodes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListTrustedSyncNodesQueryResult = NonNullable<Awaited<ReturnType<typeof listTrustedSyncNodes>>>
+export type ListTrustedSyncNodesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List trusted and revoked nodes
+ */
+
+export function useListTrustedSyncNodes<TData = Awaited<ReturnType<typeof listTrustedSyncNodes>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTrustedSyncNodes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListTrustedSyncNodesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRevokeTrustedSyncNodeUrl = (nodeId: string,) => {
+
+
+
+
+  return `/api/sync/trusted-nodes/${nodeId}/revoke`
+}
+
+/**
+ * @summary Revoke a trusted node without deleting audit history
+ */
+export const revokeTrustedSyncNode = async (nodeId: string, options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getRevokeTrustedSyncNodeUrl(nodeId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRevokeTrustedSyncNodeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeTrustedSyncNode>>, TError,{nodeId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revokeTrustedSyncNode>>, TError,{nodeId: string}, TContext> => {
+
+const mutationKey = ['revokeTrustedSyncNode'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revokeTrustedSyncNode>>, {nodeId: string}> = (props) => {
+          const {nodeId} = props ?? {};
+
+          return  revokeTrustedSyncNode(nodeId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevokeTrustedSyncNodeMutationResult = NonNullable<Awaited<ReturnType<typeof revokeTrustedSyncNode>>>
+
+    export type RevokeTrustedSyncNodeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Revoke a trusted node without deleting audit history
+ */
+export const useRevokeTrustedSyncNode = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeTrustedSyncNode>>, TError,{nodeId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof revokeTrustedSyncNode>>,
+        TError,
+        {nodeId: string},
+        TContext
+      > => {
+      return useMutation(getRevokeTrustedSyncNodeMutationOptions(options));
+    }
+
+export const getListSyncConflictsUrl = (params?: ListSyncConflictsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/sync/conflicts?${stringifiedParams}` : `/api/sync/conflicts`
+}
+
+/**
+ * @summary List open, resolved, or deferred sync conflicts
+ */
+export const listSyncConflicts = async (params?: ListSyncConflictsParams, options?: Parameters<typeof customFetch>[1]): Promise<JsonObject[]> => {
+
+  return customFetch<JsonObject[]>(getListSyncConflictsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSyncConflictsQueryKey = (params?: ListSyncConflictsParams,) => {
+    return [
+    `/api/sync/conflicts`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListSyncConflictsQueryOptions = <TData = Awaited<ReturnType<typeof listSyncConflicts>>, TError = ErrorType<unknown>>(params?: ListSyncConflictsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSyncConflicts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSyncConflictsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSyncConflicts>>> = ({ signal }) => listSyncConflicts(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSyncConflicts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSyncConflictsQueryResult = NonNullable<Awaited<ReturnType<typeof listSyncConflicts>>>
+export type ListSyncConflictsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List open, resolved, or deferred sync conflicts
+ */
+
+export function useListSyncConflicts<TData = Awaited<ReturnType<typeof listSyncConflicts>>, TError = ErrorType<unknown>>(
+ params?: ListSyncConflictsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSyncConflicts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSyncConflictsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getResolveSyncConflictUrl = (id: number,) => {
+
+
+
+
+  return `/api/sync/conflicts/${id}/resolve`
+}
+
+/**
+ * @summary Approve, reject, or defer a conflict
+ */
+export const resolveSyncConflict = async (id: number,
+    jsonObject: JsonObject, options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getResolveSyncConflictUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(jsonObject)
+  }
+);}
+
+
+
+
+
+export const getResolveSyncConflictMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveSyncConflict>>, TError,{id: number;data: BodyType<JsonObject>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resolveSyncConflict>>, TError,{id: number;data: BodyType<JsonObject>}, TContext> => {
+
+const mutationKey = ['resolveSyncConflict'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolveSyncConflict>>, {id: number;data: BodyType<JsonObject>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  resolveSyncConflict(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResolveSyncConflictMutationResult = NonNullable<Awaited<ReturnType<typeof resolveSyncConflict>>>
+    export type ResolveSyncConflictMutationBody = BodyType<JsonObject>
+    export type ResolveSyncConflictMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Approve, reject, or defer a conflict
+ */
+export const useResolveSyncConflict = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveSyncConflict>>, TError,{id: number;data: BodyType<JsonObject>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resolveSyncConflict>>,
+        TError,
+        {id: number;data: BodyType<JsonObject>},
+        TContext
+      > => {
+      return useMutation(getResolveSyncConflictMutationOptions(options));
+    }
+
+export const getListRelayPackagesUrl = (params?: ListRelayPackagesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/sync/relay/packages?${stringifiedParams}` : `/api/sync/relay/packages`
+}
+
+/**
+ * @summary List opaque encrypted relay packages
+ */
+export const listRelayPackages = async (params?: ListRelayPackagesParams, options?: Parameters<typeof customFetch>[1]): Promise<JsonObject[]> => {
+
+  return customFetch<JsonObject[]>(getListRelayPackagesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRelayPackagesQueryKey = (params?: ListRelayPackagesParams,) => {
+    return [
+    `/api/sync/relay/packages`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListRelayPackagesQueryOptions = <TData = Awaited<ReturnType<typeof listRelayPackages>>, TError = ErrorType<unknown>>(params?: ListRelayPackagesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRelayPackages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRelayPackagesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRelayPackages>>> = ({ signal }) => listRelayPackages(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRelayPackages>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListRelayPackagesQueryResult = NonNullable<Awaited<ReturnType<typeof listRelayPackages>>>
+export type ListRelayPackagesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List opaque encrypted relay packages
+ */
+
+export function useListRelayPackages<TData = Awaited<ReturnType<typeof listRelayPackages>>, TError = ErrorType<unknown>>(
+ params?: ListRelayPackagesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRelayPackages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListRelayPackagesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUploadRelayPackageUrl = () => {
+
+
+
+
+  return `/api/sync/relay/packages`
+}
+
+/**
+ * @summary Store an opaque encrypted relay package
+ */
+export const uploadRelayPackage = async (jsonObject: JsonObject, options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getUploadRelayPackageUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(jsonObject)
+  }
+);}
+
+
+
+
+
+export const getUploadRelayPackageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadRelayPackage>>, TError,{data: BodyType<JsonObject>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadRelayPackage>>, TError,{data: BodyType<JsonObject>}, TContext> => {
+
+const mutationKey = ['uploadRelayPackage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadRelayPackage>>, {data: BodyType<JsonObject>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  uploadRelayPackage(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadRelayPackageMutationResult = NonNullable<Awaited<ReturnType<typeof uploadRelayPackage>>>
+    export type UploadRelayPackageMutationBody = BodyType<JsonObject>
+    export type UploadRelayPackageMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Store an opaque encrypted relay package
+ */
+export const useUploadRelayPackage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadRelayPackage>>, TError,{data: BodyType<JsonObject>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadRelayPackage>>,
+        TError,
+        {data: BodyType<JsonObject>},
+        TContext
+      > => {
+      return useMutation(getUploadRelayPackageMutationOptions(options));
+    }
+
+export const getDownloadRelayPackageUrl = (relayId: string,
+    params?: DownloadRelayPackageParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/sync/relay/packages/${relayId}?${stringifiedParams}` : `/api/sync/relay/packages/${relayId}`
+}
+
+/**
+ * @summary Download opaque relay bytes when requested
+ */
+export const downloadRelayPackage = async (relayId: string,
+    params?: DownloadRelayPackageParams, options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getDownloadRelayPackageUrl(relayId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadRelayPackageQueryKey = (relayId: string,
+    params?: DownloadRelayPackageParams,) => {
+    return [
+    `/api/sync/relay/packages/${relayId}`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getDownloadRelayPackageQueryOptions = <TData = Awaited<ReturnType<typeof downloadRelayPackage>>, TError = ErrorType<unknown>>(relayId: string,
+    params?: DownloadRelayPackageParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadRelayPackage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadRelayPackageQueryKey(relayId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadRelayPackage>>> = ({ signal }) => downloadRelayPackage(relayId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: relayId !== null && relayId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadRelayPackage>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadRelayPackageQueryResult = NonNullable<Awaited<ReturnType<typeof downloadRelayPackage>>>
+export type DownloadRelayPackageQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Download opaque relay bytes when requested
+ */
+
+export function useDownloadRelayPackage<TData = Awaited<ReturnType<typeof downloadRelayPackage>>, TError = ErrorType<unknown>>(
+ relayId: string,
+    params?: DownloadRelayPackageParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadRelayPackage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadRelayPackageQueryOptions(relayId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPurgeExpiredRelayPackagesUrl = () => {
+
+
+
+
+  return `/api/sync/relay/expired`
+}
+
+/**
+ * @summary Purge expired relay packages
+ */
+export const purgeExpiredRelayPackages = async ( options?: Parameters<typeof customFetch>[1]): Promise<JsonObject> => {
+
+  return customFetch<JsonObject>(getPurgeExpiredRelayPackagesUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getPurgeExpiredRelayPackagesMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof purgeExpiredRelayPackages>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof purgeExpiredRelayPackages>>, TError,void, TContext> => {
+
+const mutationKey = ['purgeExpiredRelayPackages'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof purgeExpiredRelayPackages>>, void> = () => {
+
+
+          return  purgeExpiredRelayPackages(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PurgeExpiredRelayPackagesMutationResult = NonNullable<Awaited<ReturnType<typeof purgeExpiredRelayPackages>>>
+
+    export type PurgeExpiredRelayPackagesMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Purge expired relay packages
+ */
+export const usePurgeExpiredRelayPackages = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof purgeExpiredRelayPackages>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof purgeExpiredRelayPackages>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getPurgeExpiredRelayPackagesMutationOptions(options));
     }
 

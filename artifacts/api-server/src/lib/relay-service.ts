@@ -77,25 +77,23 @@ export async function consumePairing(input: {
 }) {
   const code = input.code.trim().toUpperCase();
   if (!/^[A-Z2-9]{8}$/.test(code)) throw new Error("SYNC_PAIRING_INVALID");
-  const [pairing] = await db
-    .select()
-    .from(syncPairingTable)
-    .where(eq(syncPairingTable.codeHash, hash(code)))
-    .limit(1);
-  if (
-    !pairing ||
-    pairing.consumedAt ||
-    pairing.revokedAt ||
-    pairing.expiresAt.getTime() <= Date.now() ||
-    (pairing.targetNodeId && pairing.targetNodeId !== input.nodeId)
-  ) {
-    throw new Error("SYNC_PAIRING_EXPIRED_OR_USED");
-  }
   await db.transaction(async (tx) => {
-    await tx
+    // Claim the pairing row atomically so two concurrent consumers cannot both
+    // pass a read-then-write check and create two trusted-node records.
+    const [pairing] = await tx
       .update(syncPairingTable)
       .set({ consumedAt: new Date(), targetNodeId: input.nodeId })
-      .where(eq(syncPairingTable.pairingId, pairing.pairingId));
+      .where(
+        and(
+          eq(syncPairingTable.codeHash, hash(code)),
+          isNull(syncPairingTable.consumedAt),
+          isNull(syncPairingTable.revokedAt),
+          gt(syncPairingTable.expiresAt, new Date()),
+          or(isNull(syncPairingTable.targetNodeId), eq(syncPairingTable.targetNodeId, input.nodeId)),
+        ),
+      )
+      .returning();
+    if (!pairing) throw new Error("SYNC_PAIRING_EXPIRED_OR_USED");
     await tx
       .insert(syncTrustedNodeTable)
       .values({

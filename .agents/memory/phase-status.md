@@ -3,8 +3,8 @@ name: Phase completion status
 description: Tracks which implementation phases are done and which remain
 ---
 
-## Current development plan — Phases 1–8 complete ✅
-## Phase 9 — Documentation complete; production gate pending ⏳
+## Current development plan — Phases 0–14 complete in development ✅
+## Phase 15 — Pilot execution and owner sign-off pending ⏳
 ## August 2026 Review — 10-gap remediation ✅ Complete
 
 ## Second Code Audit — 7 additional bugs fixed ✅ (August 2026)
@@ -62,6 +62,10 @@ Full overhaul of the alerts bell:
 - Added `docs/operations.md`, `docs/user-guide-ar.md`, and `CHANGELOG.md`.
 - GitHub push requires an authenticated GitHub/Replit integration or an equivalent secure `GITHUB_TOKEN`.
 - Production release still requires operational approval of balance rules and environment data.
+
+## Current verification — August 18, 2026
+- Re-ran typecheck, builds, phases 1–14 smoke tests, and API `/api/healthz`; all passed in development PostgreSQL.
+- Phase 15 remains an operational gate because it requires real Windows/Android/Web nodes and data-owner Go/No-Go approval.
 
 ## Key architectural notes
 - ProtectedRoute: useEffect BEFORE early returns (Rules of Hooks)

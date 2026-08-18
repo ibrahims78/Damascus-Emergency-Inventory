@@ -48,6 +48,15 @@ try {
   );
   console.log("PASS phase 8 pairing is single-use and binds the expected node");
 
+  const concurrentPairing = await createPairing({ targetNodeId: wrongNodeId });
+  const concurrentResults = await Promise.allSettled([
+    consumePairing({ code: concurrentPairing.code, nodeId: wrongNodeId, nodeType: "windows" }),
+    consumePairing({ code: concurrentPairing.code, nodeId: wrongNodeId, nodeType: "windows" }),
+  ]);
+  assert.equal(concurrentResults.filter((result) => result.status === "fulfilled").length, 1);
+  assert.equal(concurrentResults.filter((result) => result.status === "rejected").length, 1);
+  console.log("PASS phase 8 concurrent pairing consumption claims the code exactly once");
+
   const payloadBase64 = Buffer.from("opaque-encrypted-dme-sync-fixture", "utf8").toString("base64");
   const uploaded = await uploadRelayPackage({
     sessionId,
