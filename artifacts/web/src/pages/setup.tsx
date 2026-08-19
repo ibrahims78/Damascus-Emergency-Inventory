@@ -42,7 +42,7 @@ const setupSchema = z
 type SetupFormValues = z.infer<typeof setupSchema>;
 
 export function SetupPage() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const { data: status, isLoading: isCheckingStatus } = useGetSetupStatus();
@@ -73,10 +73,10 @@ export function SetupPage() {
   });
 
   useEffect(() => {
-    if (!isCheckingStatus && status && !status.needsSetup) {
+    if (!isCheckingStatus && status && !status.needsSetup && location !== '/login') {
       setLocation('/login');
     }
-  }, [isCheckingStatus, status, setLocation]);
+  }, [isCheckingStatus, status, location, setLocation]);
 
   if (isCheckingStatus || (status && !status.needsSetup)) return null;
 

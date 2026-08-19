@@ -49,15 +49,15 @@ function ProtectedRoute({
   component: React.ComponentType;
   adminOnly?: boolean;
 }) {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { data: user, isLoading, isError } = useGetCurrentUser();
 
   // Must be called unconditionally before any early returns
   useEffect(() => {
-    if (!isLoading && (isError || !user)) {
+    if (!isLoading && (isError || !user) && location !== '/login') {
       setLocation('/login');
     }
-  }, [isLoading, isError, user, setLocation]);
+  }, [isLoading, isError, user, location, setLocation]);
 
   if (isLoading) {
     return (

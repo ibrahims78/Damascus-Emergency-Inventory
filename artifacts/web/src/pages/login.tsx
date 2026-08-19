@@ -26,7 +26,7 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { data: user, isLoading: isCheckingUser } = useGetCurrentUser();
   const { data: setupStatus, isLoading: isCheckingSetup } = useGetSetupStatus();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -55,16 +55,16 @@ export function LoginPage() {
   });
 
   useEffect(() => {
-    if (!isCheckingSetup && setupStatus?.needsSetup) {
+    if (!isCheckingSetup && setupStatus?.needsSetup && location !== '/setup') {
       setLocation('/setup');
     }
-  }, [isCheckingSetup, setupStatus, setLocation]);
+  }, [isCheckingSetup, setupStatus, location, setLocation]);
 
   useEffect(() => {
-    if (!isCheckingUser && user) {
+    if (!isCheckingUser && user && location !== '/') {
       setLocation('/');
     }
-  }, [isCheckingUser, user, setLocation]);
+  }, [isCheckingUser, user, location, setLocation]);
 
   if (isCheckingUser || isCheckingSetup) return null;
   if (setupStatus?.needsSetup || user) return null;
