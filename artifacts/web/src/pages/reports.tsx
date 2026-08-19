@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
 import {
   useGetStockReport,
@@ -53,9 +54,20 @@ import { formatDateTime, formatDate } from '@/lib/utils';
 
 type ExcelCell = string | number | boolean | null;
 
-function exportFilename(baseName: string) {
+function exportFilename(baseName: string, qualifier?: string) {
   const date = new Date().toISOString().slice(0, 10);
-  return `${baseName}-${date}.xlsx`;
+  return `${baseName}${qualifier ? `-${qualifier}` : ''}-${date}.xlsx`;
+}
+
+function dateRangeFilename(from: string, to: string) {
+  if (!from && !to) return undefined;
+  return `من-${from || 'البداية'}-إلى-${to || 'اليوم'}`;
+}
+
+async function fetchReportSettings(): Promise<{ expiryAlertDays: number }> {
+  const response = await fetch('/api/settings', { credentials: 'include' });
+  if (!response.ok) throw new Error('تعذر جلب إعدادات التقارير');
+  return response.json() as Promise<{ expiryAlertDays: number }>;
 }
 
 function columnName(index: number) {
@@ -169,7 +181,13 @@ function transactionTypeLabel(type: string) {
 
 function StockTab() {
   const { data, isLoading } = useGetStockReport();
+  const { data: settings } = useQuery({
+    queryKey: ['settings', 'reports'],
+    queryFn: fetchReportSettings,
+    staleTime: 5 * 60 * 1000,
+  });
   const items = data ?? [];
+  const expiryAlertDays = settings?.expiryAlertDays ?? 30;
 
   const totalItems = items.length;
   const totalStock = items.reduce((s, i) => s + i.currentStock, 0);
@@ -188,7 +206,12 @@ function StockTab() {
         i.unit,
         i.expiryDate ? formatDate(i.expiryDate) : '',
         i.location ?? '',
-        i.currentStock <= i.minStock ? 'نقص' : i.expiryDate && (new Date(i.expiryDate).getTime() - Date.now()) / 86400000 <= 60 ? 'قرب انتهاء' : 'طبيعي',
+         i.currentStock <= i.minStock
+           ? 'نقص'
+           : i.expiryDate &&
+               (new Date(i.expiryDate).getTime() - Date.now()) / 86400000 <= expiryAlertDays
+             ? 'قرب انتهاء'
+             : 'طبيعي',
       ]),
     );
   };
@@ -238,7 +261,7 @@ function StockTab() {
                 const isBelowMin = item.currentStock <= item.minStock;
                 const isNearExpiry =
                   item.expiryDate
-                    ? (new Date(item.expiryDate).getTime() - Date.now()) / 86400000 <= 60
+                   ? (new Date(item.expiryDate).getTime() - Date.now()) / 86400000 <= expiryAlertDays
                     : false;
                 return (
                   <TableRow key={item.id} className={isBelowMin ? 'bg-destructive/5' : ''}>
@@ -296,7 +319,7 @@ function MovementsTab() {
 
   const handleExport = async () => {
     await exportXlsx(
-      exportFilename('تقرير-حركة-المواد'),
+       exportFilename('تقرير-حركة-المواد', dateRangeFilename(from, to)),
       ['رقم السند', 'التاريخ', 'النوع', 'الصنف', 'الكمية', 'الجهة المستلمة', 'اسم المستلم', 'سبب العملية', 'المستخدم'],
       txs.map((t: Transaction) => [
         t.documentNumber ?? '',
@@ -849,7 +872,10 @@ function CustodiesTab() {
 
   const handleExport = async () => {
     await exportXlsx(
-      exportFilename('تقرير-العهد-الشخصية'),
+       exportFilename(
+         'تقرير-العهد-الشخصية',
+         `حالة-${status === 'all' ? 'الكل' : status === 'partially_returned' ? 'إعادة-جزئية' : status === 'damaged' ? 'تالف' : 'مفتوحة'}${search ? '-بحث' : ''}`,
+       ),
       ['التجهيز', 'الرقم التسلسلي', 'المستلم', 'مذكرة التسليم', 'التاريخ', 'المكان', 'المتبقي', 'الحالة', 'متأخرة'],
       records.map((record: CustodyReportRecord) => [
         record.equipmentName,
