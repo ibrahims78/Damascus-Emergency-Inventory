@@ -1,3 +1,4 @@
+ - [Backup restore user references](backup-restore-user-references.md) — cross-environment restores must remap missing user IDs because users are intentionally not restored.
 - [Sync safety guards](sync-safety-guards.md) — pairing claims are atomic and legacy baseline IDs are deterministic, reviewed, and never auto-applied.
 - [Project overview & run commands](project-overview.md) — warehouse mgmt app for Damascus EMS; pnpm monorepo, Express + Drizzle + React/Vite; SESSION_SECRET required
 - [Phase completion status](phase-status.md) — current development plan phases 1–5 are complete; phases 6–9 remain outside this implementation scope
