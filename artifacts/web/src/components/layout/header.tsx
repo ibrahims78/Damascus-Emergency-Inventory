@@ -308,11 +308,14 @@ export function Header() {
     // retaining the previous user in the query cache.
     queryClient.removeQueries({ queryKey: getGetCurrentUserQueryKey(), exact: true });
     queryClient.removeQueries({ queryKey: getListAlertsQueryKey() });
-    setLocation('/login');
-
-    // The server logout is idempotent, so an expired session must not block
-    // the local logout flow or show an error.
-    logout.mutate();
+    // Complete the server request when possible, then perform a real document
+    // navigation. This clears any mounted auth-scoped React state and avoids
+    // redirect loops while the protected tree is being unmounted.
+    void logout.mutateAsync()
+      .catch(() => undefined)
+      .finally(() => {
+        window.location.replace('/login');
+      });
   };
 
   const roleLabel: Record<string, string> = {
