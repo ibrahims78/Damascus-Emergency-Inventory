@@ -306,7 +306,7 @@ export function Header() {
   const handleLogout = () => {
     // Clear auth-scoped state immediately so the login page can render without
     // retaining the previous user in the query cache.
-    queryClient.setQueryData(getGetCurrentUserQueryKey(), undefined);
+    queryClient.removeQueries({ queryKey: getGetCurrentUserQueryKey(), exact: true });
     queryClient.removeQueries({ queryKey: getListAlertsQueryKey() });
     setLocation('/login');
 
