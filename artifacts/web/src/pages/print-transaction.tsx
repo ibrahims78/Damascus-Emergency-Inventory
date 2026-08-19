@@ -179,6 +179,12 @@ export function PrintTransactionPage() {
             {isOut && tx.deliveryDestination && (
               <InfoRow label="وجهة التسليم" value={tx.deliveryDestination === 'ambulance_point' ? 'نقطة إسعاف' : 'المبنى الإداري'} />
             )}
+            {isOut && tx.internalDeliveryNoteNumber && (
+              <InfoRow label="رقم مذكرة التسليم الداخلية" value={tx.internalDeliveryNoteNumber} />
+            )}
+            {isOut && tx.internalDeliveryNoteDate && (
+              <InfoRow label="تاريخ مذكرة التسليم الداخلية" value={tx.internalDeliveryNoteDate.substring(0, 10)} />
+            )}
             {(isIn || (!isOperationalOut && !isCustodyReturn)) && tx.supplier && (
               <InfoRow label="المورد" value={tx.supplier} />
             )}
@@ -217,6 +223,12 @@ export function PrintTransactionPage() {
             )}
             {isCustodyReturn && tx.custodyLocation && (
               <InfoRow label="مكان الإرجاع" value={tx.custodyLocation} />
+            )}
+            {(isCustodyReturn || isDamage || isCentralReturn) && tx.documentDate && (
+              <InfoRow
+                label={isCustodyReturn ? 'تاريخ الإعادة' : isDamage ? 'تاريخ التلف' : 'تاريخ المرتجع'}
+                value={tx.documentDate.substring(0, 10)}
+              />
             )}
             {tx.batchNumber && (
               <InfoRow label="رقم الدفعة / اللوت" value={tx.batchNumber} />

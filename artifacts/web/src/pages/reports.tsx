@@ -402,12 +402,14 @@ function MovementsTab() {
               <TableHead className="text-right">الصنف</TableHead>
               <TableHead className="text-center">الكمية</TableHead>
               <TableHead className="text-right">الجهة المستلمة</TableHead>
+              <TableHead className="text-right">اسم المستلم</TableHead>
+              <TableHead className="text-right">سبب العملية</TableHead>
               <TableHead className="text-right print:hidden">المستخدم</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="h-32 text-center text-muted-foreground">جاري التحميل...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="h-32 text-center text-muted-foreground">جاري التحميل...</TableCell></TableRow>
             ) : txs.length === 0 ? (
               <EmptyState message={hasFilters ? 'لا توجد عمليات بهذه الفلاتر' : 'لا توجد عمليات مسجّلة بعد'} />
             ) : (
@@ -432,6 +434,12 @@ function MovementsTab() {
                     {tx.quantity != null ? tx.quantity.toLocaleString('ar') : '—'}
                   </TableCell>
                   <TableCell className="text-sm">{tx.recipientName ?? '—'}</TableCell>
+                  <TableCell className="text-sm">
+                    {tx.recipientPerson ?? '—'}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {tx.exitReason ?? '—'}
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground print:hidden">{tx.createdByName ?? '—'}</TableCell>
                 </TableRow>
               ))
