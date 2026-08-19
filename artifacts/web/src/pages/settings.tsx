@@ -936,6 +936,14 @@ function BackupTab() {
   } | null>(null);
   const [restoring, setRestoring] = useState(false);
   const [restorePointId, setRestorePointId] = useState<string | null>(null);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+  const [restoreResult, setRestoreResult] = useState<{
+    applied: number;
+    duplicate: number;
+    conflict: number;
+    skipped: number;
+    restorePointId: string | null;
+  } | null>(null);
 
   const { data: info, isLoading: infoLoading, refetch } = useQuery({
     queryKey: ['backup-info'],
@@ -998,6 +1006,8 @@ function BackupTab() {
     }
     setRestoring(true);
     setPreview(null);
+    setRestoreError(null);
+    setRestoreResult(null);
     try {
       const encoded = await fileToBase64(restoreFile);
       setPackageBase64(encoded);
@@ -1027,7 +1037,9 @@ function BackupTab() {
       toast.success('تم الفحص والمعاينة؛ لا تزال الاستعادة بحاجة إلى تأكيد صريح');
     } catch (err) {
       setPackageBase64('');
-      toast.error(err instanceof Error ? err.message : 'تعذر فحص الحزمة');
+      const message = err instanceof Error ? err.message : 'تعذر فحص الحزمة';
+      setRestoreError(message);
+      toast.error(message);
     } finally {
       setRestoring(false);
     }
@@ -1037,6 +1049,8 @@ function BackupTab() {
     if (!preview || !packageBase64) return;
     if (!window.confirm('سيتم تطبيق الاستعادة بعد المعاينة. هل تريد المتابعة؟')) return;
     setRestoring(true);
+    setRestoreError(null);
+    setRestoreResult(null);
     try {
       const response = await fetch('/api/backups/restore', {
         method: 'POST',
@@ -1050,16 +1064,29 @@ function BackupTab() {
           confirm: true,
         }),
       });
-      const result = (await response.json()) as { error?: string; restorePointId?: string };
+      const result = (await response.json()) as {
+        error?: string;
+        restorePointId?: string;
+        counts?: { applied?: number; duplicate?: number; conflict?: number; skipped?: number };
+      };
       if (!response.ok) throw new Error(result.error || 'فشلت الاستعادة');
       setRestorePointId(result.restorePointId ?? null);
+      setRestoreResult({
+        applied: result.counts?.applied ?? 0,
+        duplicate: result.counts?.duplicate ?? 0,
+        conflict: result.counts?.conflict ?? 0,
+        skipped: result.counts?.skipped ?? 0,
+        restorePointId: result.restorePointId ?? null,
+      });
       setPreview(null);
       setPackageBase64('');
       setRestoreFile(null);
       toast.success('تمت الاستعادة ذرياً وحُفظت نقطة تراجع تلقائية');
       await refetch();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'فشلت الاستعادة');
+      const message = err instanceof Error ? err.message : 'فشلت الاستعادة';
+      setRestoreError(message);
+      toast.error(message);
     } finally {
       setRestoring(false);
     }
@@ -1147,6 +1174,8 @@ function BackupTab() {
               setRestoreFile(event.target.files?.[0] ?? null);
               setPackageSummary(null);
               setPreview(null);
+              setRestoreError(null);
+              setRestoreResult(null);
             }}
             aria-label="اختيار حزمة dme-sync"
           />
@@ -1197,6 +1226,21 @@ function BackupTab() {
             <Button onClick={applyRestore} disabled={restoring || (preview.report.counts.rejected ?? 0) > 0} className="gap-2">
               <CheckCircle2 className="h-4 w-4" /> تأكيد وتطبيق الاستعادة
             </Button>
+          </div>
+        )}
+        {restoreError && (
+          <div role="alert" className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
+            <p className="font-medium">فشلت الاستعادة ولم تُحفظ التغييرات</p>
+            <p className="mt-1">{restoreError}</p>
+            <p className="mt-2 text-xs">نفّذ الفحص والمعاينة مرة أخرى قبل إعادة المحاولة.</p>
+          </div>
+        )}
+        {restoreResult && (
+          <div role="status" className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-4 text-sm text-emerald-700 dark:text-emerald-400">
+            <p className="font-medium">تمت الاستعادة بنجاح</p>
+            <p className="mt-1">
+              مطبّق: {restoreResult.applied} — مكرر: {restoreResult.duplicate} — متعارض: {restoreResult.conflict} — متجاوز: {restoreResult.skipped}
+            </p>
           </div>
         )}
         {restorePointId && (

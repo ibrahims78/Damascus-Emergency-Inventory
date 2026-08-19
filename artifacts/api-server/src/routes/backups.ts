@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { auditLog } from "../middlewares/audit";
 import { requireAuth, requireRole } from "../middlewares/auth";
+import { logger } from "../lib/logger";
 import {
   applyRestore,
   consumePreview,
@@ -178,7 +179,11 @@ router.post("/restore", requireAuth, requireRole("admin"), async (req, res) => {
     await consumePreview(String(req.body?.previewToken ?? ""), pkg.packageHash, mode);
     const beforeRestore = await createFullBackup(serverRestorePointPassword());
     const userId = Number(req.session.userId);
-    const report = await applyRestore(pkg, mode);
+    const report = await applyRestore(
+      pkg,
+      mode,
+      Number.isInteger(userId) ? userId : null,
+    );
     const restorePointId = await createRestorePoint(Number.isInteger(userId) ? userId : null, beforeRestore, report);
     await auditLog({
       req,
@@ -188,6 +193,7 @@ router.post("/restore", requireAuth, requireRole("admin"), async (req, res) => {
     });
     res.json({ ...report, restorePointId });
   } catch (error) {
+    logger.error({ err: error }, "Backup restore failed");
     res.status(400).json({ error: errorMessage(error) });
   }
 });

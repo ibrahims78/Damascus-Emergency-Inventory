@@ -16,6 +16,7 @@ import {
   backupRestorePreviewTable,
   backupRestorePointTable,
   nodeIdentityTable,
+  usersTable,
 } from "@workspace/db";
 
 export { packageSummary };
@@ -403,6 +404,34 @@ export type RestoreReport = {
   records: RestoreRecordResult[];
 };
 
+const USER_REFERENCE_COLUMNS = new Set([
+  "created_by",
+  "user_id",
+]);
+
+function normalizeUserReferences(
+  data: Record<string, unknown>,
+  availableUserIds: Set<number>,
+  fallbackUserId: number | null,
+) {
+  if (!fallbackUserId) return { data, remapped: 0 };
+  const normalized = { ...data };
+  let remapped = 0;
+  for (const column of USER_REFERENCE_COLUMNS) {
+    const value = normalized[column];
+    if (
+      value != null &&
+      typeof value === "number" &&
+      Number.isInteger(value) &&
+      !availableUserIds.has(value)
+    ) {
+      normalized[column] = fallbackUserId;
+      remapped += 1;
+    }
+  }
+  return { data: normalized, remapped };
+}
+
 function tableForEntity(entityType: string): BackupTable | undefined {
   return TABLES.find((table) => TABLE_ENTITY_TYPES[table] === entityType);
 }
@@ -492,12 +521,20 @@ export function previewRestore(pkg: SyncPackage, mode: RestoreMode): RestoreRepo
   return report;
 }
 
-export async function applyRestore(pkg: SyncPackage, mode: RestoreMode): Promise<RestoreReport> {
+export async function applyRestore(
+  pkg: SyncPackage,
+  mode: RestoreMode,
+  fallbackUserId?: number | null,
+): Promise<RestoreReport> {
   const report = previewRestore(pkg, mode);
   if (report.counts.rejected > 0) {
     throw new Error("لا يمكن تطبيق حزمة تحتوي على سجلات مرفوضة؛ راجع المعاينة");
   }
   await db.transaction(async (tx) => {
+    const existingUsers = await tx
+      .select({ id: usersTable.id })
+      .from(usersTable);
+    const availableUserIds = new Set(existingUsers.map((user) => user.id));
     if (mode === "full") await deleteBusinessRows(tx);
     for (const record of pkg.records) {
       const result = report.records.find(
@@ -508,7 +545,14 @@ export async function applyRestore(pkg: SyncPackage, mode: RestoreMode): Promise
       if (!table) continue;
       try {
         const isDelta = pkg.manifest.packageType === "delta-sync";
-        const inserted = (await tx.execute(insertStatement(table, record.data, isDelta && mode === "merge"))) as {
+        const normalized = normalizeUserReferences(
+          record.data,
+          availableUserIds,
+          fallbackUserId ?? null,
+        );
+        const inserted = (await tx.execute(
+          insertStatement(table, normalized.data, isDelta && mode === "merge"),
+        )) as {
           rowCount?: number;
         };
         if (Number(inserted.rowCount ?? 0) > 0) {
