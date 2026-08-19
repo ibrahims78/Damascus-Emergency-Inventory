@@ -3,6 +3,7 @@ import {
   useLogout,
   getListAlertsQueryOptions,
   getListAlertsQueryKey,
+  getGetCurrentUserQueryKey,
   useMarkAllAlertsRead,
   useMarkAlertRead,
   useResolveAlert,
@@ -303,9 +304,15 @@ export function Header() {
   );
 
   const handleLogout = () => {
-    logout.mutate(undefined, {
-      onSuccess: () => setLocation('/login'),
-    });
+    // Clear auth-scoped state immediately so the login page can render without
+    // retaining the previous user in the query cache.
+    queryClient.setQueryData(getGetCurrentUserQueryKey(), undefined);
+    queryClient.removeQueries({ queryKey: getListAlertsQueryKey() });
+    setLocation('/login');
+
+    // The server logout is idempotent, so an expired session must not block
+    // the local logout flow or show an error.
+    logout.mutate();
   };
 
   const roleLabel: Record<string, string> = {

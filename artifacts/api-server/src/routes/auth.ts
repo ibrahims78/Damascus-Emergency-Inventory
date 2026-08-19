@@ -149,10 +149,14 @@ router.post("/login", loginRateLimiter, async (req, res) => {
 });
 
 // POST /api/auth/logout
-router.post("/logout", requireAuth, async (req, res) => {
+// Logout is intentionally idempotent: an expired or already-destroyed
+// session should still be treated as a successful logout.
+router.post("/logout", async (req, res) => {
   try {
     const user = res.locals.user as { id?: number; username?: string } | undefined;
-    await auditLog({ req, action: "logout", entityType: "user", entityId: user?.id, details: { username: user?.username } });
+    if (user?.id) {
+      await auditLog({ req, action: "logout", entityType: "user", entityId: user.id, details: { username: user.username } });
+    }
     req.session.destroy(() => {
       res.clearCookie("connect.sid");
       res.json({ ok: true });
