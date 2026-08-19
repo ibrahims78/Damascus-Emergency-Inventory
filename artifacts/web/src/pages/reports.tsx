@@ -51,13 +51,42 @@ import { formatDateTime, formatDate } from '@/lib/utils';
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function exportXlsx(filename: string, headers: string[], rows: (string | number)[][]) {
+type ExcelCell = string | number | boolean | null;
+
+function exportFilename(baseName: string) {
+  const date = new Date().toISOString().slice(0, 10);
+  return `${baseName}-${date}.xlsx`;
+}
+
+function columnName(index: number) {
+  let name = '';
+  let value = index + 1;
+  while (value > 0) {
+    const remainder = (value - 1) % 26;
+    name = String.fromCharCode(65 + remainder) + name;
+    value = Math.floor((value - 1) / 26);
+  }
+  return name;
+}
+
+async function exportXlsx(filename: string, headers: string[], rows: ExcelCell[][]) {
   const XLSX = await import('xlsx');
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-  // RTL column widths
-  ws['!cols'] = headers.map(() => ({ wch: 22 }));
+  ws['!cols'] = headers.map((header, index) => {
+    const longestValue = rows.reduce((max, row) => Math.max(max, String(row[index] ?? '').length), header.length);
+    return { wch: Math.min(42, Math.max(14, longestValue + 2)) };
+  });
+  if (rows.length > 0) {
+    ws['!autofilter'] = { ref: `A1:${columnName(headers.length - 1)}${rows.length + 1}` };
+  }
+  ws['!views'] = [{ RTL: true }];
   const wb = XLSX.utils.book_new();
+  wb.Props = {
+    Title: filename.replace(/\.xlsx$/i, ''),
+    Subject: 'تقرير منظومة مستودع الإسعاف والطوارئ — دمشق',
+    Author: 'منظومة مستودع الإسعاف والطوارئ',
+    CreatedDate: new Date(),
+  };
   XLSX.utils.book_append_sheet(wb, ws, 'البيانات');
   XLSX.writeFile(wb, filename);
 }
@@ -135,16 +164,18 @@ function StockTab() {
 
   const handleExport = async () => {
     await exportXlsx(
-      'جرد-المخزون.xlsx',
-      ['الكود', 'الاسم', 'الرصيد الحالي', 'الحد الأدنى', 'الوحدة', 'تاريخ الانتهاء', 'الموقع'],
+      exportFilename('تقرير-جرد-المخزون'),
+      ['الكود', 'الاسم', 'التصنيف', 'الرصيد الحالي', 'الحد الأدنى', 'الوحدة', 'تاريخ الانتهاء', 'الموقع', 'الحالة'],
       items.map((i: Item) => [
         i.code ?? '',
         i.name,
-        String(i.currentStock),
-        String(i.minStock),
+        i.categoryName ?? '',
+        i.currentStock,
+        i.minStock,
         i.unit,
         i.expiryDate ? formatDate(i.expiryDate) : '',
         i.location ?? '',
+        i.currentStock <= i.minStock ? 'نقص' : i.expiryDate && (new Date(i.expiryDate).getTime() - Date.now()) / 86400000 <= 60 ? 'قرب انتهاء' : 'طبيعي',
       ]),
     );
   };
@@ -251,15 +282,17 @@ function MovementsTab() {
 
   const handleExport = async () => {
     await exportXlsx(
-      'حركة-المواد.xlsx',
-      ['رقم السند', 'التاريخ', 'النوع', 'الصنف', 'الكمية', 'الجهة', 'المستخدم'],
+      exportFilename('تقرير-حركة-المواد'),
+      ['رقم السند', 'التاريخ', 'النوع', 'الصنف', 'الكمية', 'الجهة المستلمة', 'اسم المستلم', 'سبب العملية', 'المستخدم'],
       txs.map((t: Transaction) => [
         t.documentNumber ?? '',
         formatDateTime(t.createdAt),
         t.type === 'in' ? 'إدخال' : t.type === 'out' ? 'إخراج' : 'رصيد افتتاحي',
         t.itemType === 'equipment' ? (t.equipmentName ?? '') : (t.itemName ?? ''),
-        t.quantity != null ? String(t.quantity) : '—',
+        t.quantity ?? null,
         t.recipientName ?? '',
+        t.recipientPerson ?? '',
+        t.exitReason ?? '',
         t.createdByName ?? '',
       ]),
     );
@@ -333,7 +366,7 @@ function MovementsTab() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="h-32 text-center text-muted-foreground">جاري التحميل...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="h-32 text-center text-muted-foreground">جاري التحميل...</TableCell></TableRow>
             ) : txs.length === 0 ? (
               <EmptyState message={hasFilters ? 'لا توجد عمليات بهذه الفلاتر' : 'لا توجد عمليات مسجّلة بعد'} />
             ) : (
@@ -382,13 +415,13 @@ function ExpiryTab() {
 
   const handleExport = async () => {
     await exportXlsx(
-      'قرب-انتهاء-الصلاحية.xlsx',
+      exportFilename('تقرير-قرب-انتهاء-الصلاحية'),
       ['الاسم', 'الرصيد', 'الوحدة', 'تاريخ الانتهاء', 'الأيام المتبقية'],
       items.map((i: Item) => {
         const days = i.expiryDate
           ? Math.ceil((new Date(i.expiryDate).getTime() - Date.now()) / 86400000)
           : 0;
-        return [i.name, String(i.currentStock), i.unit, i.expiryDate ? formatDate(i.expiryDate) : '', String(days)];
+        return [i.name, i.currentStock, i.unit, i.expiryDate ? formatDate(i.expiryDate) : '', days];
       }),
     );
   };
@@ -398,7 +431,7 @@ function ExpiryTab() {
       <PrintHeader title="تقرير الأصناف القريبة من انتهاء الصلاحية" />
       <div className="grid grid-cols-2 gap-4 mb-4 print:hidden">
         <SummaryCard label="منتهية الصلاحية" value={expired} accent={expired > 0 ? 'danger' : 'success'} />
-        <SummaryCard label="تنتهي خلال 60 يوم" value={nearExpiry} accent={nearExpiry > 0 ? 'warning' : 'success'} />
+        <SummaryCard label="ضمن فترة التنبيه" value={nearExpiry} accent={nearExpiry > 0 ? 'warning' : 'success'} />
       </div>
 
       <div className="flex justify-end gap-2 mb-4 print:hidden">
@@ -475,13 +508,13 @@ function BelowMinTab() {
 
   const handleExport = async () => {
     await exportXlsx(
-      'أقل-من-الحد-الأدنى.xlsx',
+      exportFilename('تقرير-أقل-من-الحد-الأدنى'),
       ['الاسم', 'الرصيد الحالي', 'الحد الأدنى', 'الفرق', 'الوحدة'],
       items.map((i: Item) => [
         i.name,
-        String(i.currentStock),
-        String(i.minStock),
-        String(i.minStock - i.currentStock),
+        i.currentStock,
+        i.minStock,
+        i.minStock - i.currentStock,
         i.unit,
       ]),
     );
@@ -575,7 +608,7 @@ function EquipmentTab() {
 
   const handleExport = async () => {
     await exportXlsx(
-      'حالة-التجهيزات.xlsx',
+      exportFilename('تقرير-حالة-التجهيزات'),
       ['الاسم', 'الرقم التسلسلي', 'الموديل', 'الحالة', 'الحائز', 'ملاحظات'],
       equipment.map((e: Equipment) => [
         e.name,
@@ -623,7 +656,7 @@ function EquipmentTab() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="h-32 text-center text-muted-foreground">جاري التحميل...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="h-32 text-center text-muted-foreground">جاري التحميل...</TableCell></TableRow>
             ) : equipment.length === 0 ? (
               <EmptyState message="لا توجد تجهيزات مسجّلة بعد" />
             ) : (
@@ -670,26 +703,26 @@ function StockPositionTab() {
 
   const handleExport = async () => {
     await exportXlsx(
-      'الوضع-التفصيلي-للمخزون.xlsx',
+      exportFilename('تقرير-الوضع-التفصيلي-للمخزون'),
       ['النوع', 'الصنف', 'الإجمالي', 'المتاح', 'العهدة', 'التالف', 'الدفعات'],
       [
         ...items.map((item: StockPositionItem) => [
           'مادة',
           item.name,
-          String(item.currentStock),
-          String(item.availableQuantity),
-          String(item.custodyQuantity),
-          String(item.damagedQuantity),
-          String(item.batches.length),
+          item.currentStock,
+          item.availableQuantity,
+          item.custodyQuantity,
+          item.damagedQuantity,
+          item.batches.length,
         ]),
         ...equipment.map((item: StockPositionEquipment) => [
           'تجهيز',
           item.name,
-          String(item.quantity),
-          String(item.availableQuantity),
-          String(item.custodyQuantity),
-          String(item.damagedQuantity),
-          '—',
+          item.quantity,
+          item.availableQuantity,
+          item.custodyQuantity,
+          item.damagedQuantity,
+          null,
         ]),
       ],
     );
@@ -798,7 +831,7 @@ function CustodiesTab() {
 
   const handleExport = async () => {
     await exportXlsx(
-      'العهد-الشخصية-المفتوحة.xlsx',
+      exportFilename('تقرير-العهد-الشخصية'),
       ['التجهيز', 'الرقم التسلسلي', 'المستلم', 'مذكرة التسليم', 'التاريخ', 'المكان', 'المتبقي', 'الحالة', 'متأخرة'],
       records.map((record: CustodyReportRecord) => [
         record.equipmentName,
@@ -807,7 +840,7 @@ function CustodiesTab() {
         record.deliveryNoteNumber,
         formatDate(record.deliveryDate),
         record.location,
-        String(record.outstandingQuantity),
+         record.outstandingQuantity,
         record.status === 'partially_returned' ? 'إعادة جزئية' : record.status === 'damaged' ? 'تالف' : 'مفتوحة',
         record.overdue ? 'نعم' : 'لا',
       ]),

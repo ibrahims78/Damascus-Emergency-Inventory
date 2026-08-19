@@ -260,6 +260,9 @@
   
   /* Print utilities */
   @media print {
+    [data-state='inactive'] {
+      display: none !important;
+    }
     .print-hidden {
       display: none !important;
     }
