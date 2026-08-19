@@ -152,6 +152,19 @@ const conditionMap: Record<string, { label: string; variant: 'default' | 'second
   needs_inspection: { label: 'تحتاج فحص', variant: 'secondary' },
 };
 
+function transactionTypeLabel(type: string) {
+  return {
+    in: 'إدخال',
+    out: 'إخراج',
+    init: 'رصيد افتتاحي',
+    adjust: 'تسوية جرد',
+    custody_out: 'إخراج عهدة',
+    custody_return: 'إعادة عهدة',
+    damage: 'إتلاف',
+    central_return: 'مرتجع مركزي',
+  }[type] ?? type;
+}
+
 // ─── tab 1: stock ───────────────────────────────────────────────────────────
 
 function StockTab() {
@@ -183,7 +196,7 @@ function StockTab() {
   return (
     <>
       <PrintHeader title="تقرير جرد المخزون" />
-      <div className="grid grid-cols-3 gap-4 mb-6 print:hidden">
+      <div className="grid grid-cols-3 gap-4 mb-6 print:grid">
         <SummaryCard label="إجمالي الأصناف" value={totalItems} />
         <SummaryCard label="إجمالي الوحدات" value={totalStock.toLocaleString('ar')} />
         <SummaryCard label="أقل من الحد الأدنى" value={belowMin} accent={belowMin > 0 ? 'danger' : 'success'} />
@@ -277,6 +290,7 @@ function MovementsTab() {
 
   const countIn = txs.filter((t) => t.type === 'in').length;
   const countOut = txs.filter((t) => t.type === 'out').length;
+  const countOther = txs.length - countIn - countOut;
 
   const hasFilters = from !== '' || to !== '' || type !== 'all';
 
@@ -287,7 +301,7 @@ function MovementsTab() {
       txs.map((t: Transaction) => [
         t.documentNumber ?? '',
         formatDateTime(t.createdAt),
-        t.type === 'in' ? 'إدخال' : t.type === 'out' ? 'إخراج' : 'رصيد افتتاحي',
+        transactionTypeLabel(t.type),
         t.itemType === 'equipment' ? (t.equipmentName ?? '') : (t.itemName ?? ''),
         t.quantity ?? null,
         t.recipientName ?? '',
@@ -336,10 +350,14 @@ function MovementsTab() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-4 print:hidden">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 print:grid">
         <SummaryCard label="إجمالي العمليات" value={txs.length} />
         <SummaryCard label="عمليات إدخال" value={countIn} accent="success" />
         <SummaryCard label="عمليات إخراج" value={countOut} accent="danger" />
+        <SummaryCard label="عمليات أخرى" value={countOther} />
+      </div>
+      <div className="hidden print:block text-xs text-muted-foreground mb-3">
+        الفلاتر: من {from || 'البداية'} إلى {to || 'اليوم'} · النوع: {type === 'all' ? 'كل العمليات' : transactionTypeLabel(type)}
       </div>
 
       <div className="flex justify-end gap-2 mb-4 print:hidden">
@@ -380,7 +398,7 @@ function MovementsTab() {
                     ) : tx.type === 'out' ? (
                       <Badge variant="destructive" className="text-xs">إخراج</Badge>
                     ) : (
-                      <Badge variant="secondary" className="text-xs">افتتاحي</Badge>
+                      <Badge variant="secondary" className="text-xs">{transactionTypeLabel(tx.type)}</Badge>
                     )}
                   </TableCell>
                   <TableCell className="font-medium">
@@ -429,7 +447,7 @@ function ExpiryTab() {
   return (
     <>
       <PrintHeader title="تقرير الأصناف القريبة من انتهاء الصلاحية" />
-      <div className="grid grid-cols-2 gap-4 mb-4 print:hidden">
+      <div className="grid grid-cols-2 gap-4 mb-4 print:grid">
         <SummaryCard label="منتهية الصلاحية" value={expired} accent={expired > 0 ? 'danger' : 'success'} />
         <SummaryCard label="ضمن فترة التنبيه" value={nearExpiry} accent={nearExpiry > 0 ? 'warning' : 'success'} />
       </div>
@@ -523,7 +541,7 @@ function BelowMinTab() {
   return (
     <>
       <PrintHeader title="تقرير الأصناف دون الحد الأدنى" />
-      <div className="grid grid-cols-2 gap-4 mb-4 print:hidden">
+      <div className="grid grid-cols-2 gap-4 mb-4 print:grid">
         <SummaryCard label="أصناف تحتاج طلبية" value={items.length} accent={items.length > 0 ? 'warning' : 'success'} />
         <SummaryCard label="نفدت من المستودع (صفر)" value={critical} accent={critical > 0 ? 'danger' : 'success'} />
       </div>
@@ -625,7 +643,7 @@ function EquipmentTab() {
     <>
       <PrintHeader title="تقرير حالة التجهيزات" />
 
-      <div className="grid grid-cols-3 md:grid-cols-5 gap-3 mb-4 print:hidden">
+      <div className="grid grid-cols-3 md:grid-cols-5 gap-3 mb-4 print:grid">
         <SummaryCard label="إجمالي التجهيزات" value={equipment.length} />
         <SummaryCard label="جيدة" value={countByCondition['good'] ?? 0} accent="success" />
         <SummaryCard label="صيانة" value={countByCondition['maintenance'] ?? 0} accent="warning" />
@@ -731,7 +749,7 @@ function StockPositionTab() {
   return (
     <>
       <PrintHeader title="تقرير الوضع التفصيلي للمخزون" />
-      <div className="grid grid-cols-3 gap-3 mb-4 print:hidden">
+      <div className="grid grid-cols-3 gap-3 mb-4 print:grid">
         <SummaryCard label="المتاح" value={totalAvailable.toLocaleString('ar')} accent="success" />
         <SummaryCard label="على العهدة" value={totalCustody.toLocaleString('ar')} accent="warning" />
         <SummaryCard label="التالف" value={totalDamaged.toLocaleString('ar')} accent="danger" />
@@ -868,10 +886,14 @@ function CustodiesTab() {
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-3 mb-4 print:hidden">
+      <div className="grid grid-cols-3 gap-3 mb-4 print:grid">
         <SummaryCard label="عهد مفتوحة" value={data?.totals.open ?? 0} />
         <SummaryCard label="الكمية المتبقية" value={(data?.totals.outstandingQuantity ?? 0).toLocaleString('ar')} accent="warning" />
         <SummaryCard label="عهد متأخرة" value={data?.totals.overdue ?? 0} accent={(data?.totals.overdue ?? 0) > 0 ? 'danger' : 'success'} />
+      </div>
+      <div className="hidden print:block text-xs text-muted-foreground mb-3">
+        الفلاتر: الحالة {status === 'all' ? 'كل العهد المفتوحة' : status === 'partially_returned' ? 'إعادة جزئية' : status === 'damaged' ? 'تالف' : 'مفتوحة'}
+        · البحث: {search || 'بدون بحث'} · اعتبار العهدة متأخرة بعد {overdueDays} يومًا
       </div>
       <div className="flex justify-end gap-2 mb-4 print:hidden">
         <Button variant="outline" size="sm" className="gap-2" onClick={() => window.print()}>

@@ -278,5 +278,12 @@
       -webkit-print-color-adjust: exact;
       color-adjust: exact;
     }
+    thead {
+      display: table-header-group;
+    }
+    tr {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
   }
 }

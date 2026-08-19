@@ -212,6 +212,9 @@ export function PrintTransactionPage() {
             {(isCustodyReturn || isDamage || isCentralReturn || isAdjustment) && tx.reason && (
               <InfoRow label="السبب" value={tx.reason} />
             )}
+            {isAdjustment && tx.notes && (
+              <InfoRow label="تفاصيل التسوية" value={tx.notes} />
+            )}
             {isCustodyReturn && tx.custodyLocation && (
               <InfoRow label="مكان الإرجاع" value={tx.custodyLocation} />
             )}
