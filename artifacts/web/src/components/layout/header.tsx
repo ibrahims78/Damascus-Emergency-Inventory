@@ -277,7 +277,7 @@ export function Header() {
   const { theme, setTheme } = useTheme();
   const { data: user } = useGetCurrentUser();
   const logout = useLogout();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const markAllRead = useMarkAllAlertsRead();
   const { data: systemSettings } = useQuery({
@@ -362,17 +362,19 @@ export function Header() {
 
       <div className="flex items-center gap-3">
         {/* ── Help center ── */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setLocation('/help')}
-          className="gap-1.5 border-primary/25 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary"
-          aria-label="فتح مركز المساعدة"
-          data-testid="button-open-help"
-        >
-          <HelpCircle className="h-4 w-4" />
-          <span>مساعدة</span>
-        </Button>
+        {location === '/' && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setLocation('/help')}
+            className="gap-1.5 border-primary/25 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary"
+            aria-label="فتح مركز المساعدة"
+            data-testid="button-open-help"
+          >
+            <HelpCircle className="h-4 w-4" />
+            <span>مساعدة</span>
+          </Button>
+        )}
 
         {/* ── Alerts bell ── */}
         <DropdownMenu>
