@@ -74,9 +74,9 @@ export function PrintTransactionPage() {
         </Button>
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-500">سند رقم: {tx.documentNumber}</span>
-          <Button variant="outline" onClick={handlePdf} className="gap-2">
+          <Button variant="outline" onClick={handlePdf} className="gap-2" title="يفتح نافذة الطباعة لاختيار حفظ كـ PDF">
             <FileDown className="h-4 w-4" />
-            تحميل PDF
+            حفظ كـ PDF
           </Button>
           <Button onClick={() => window.print()} className="gap-2">
             <Printer className="h-4 w-4" />
@@ -87,7 +87,7 @@ export function PrintTransactionPage() {
 
       {/* ─── A4 Container ─── */}
       <div
-        className="mx-auto my-8 bg-white shadow-lg print:shadow-none print:my-0"
+        className="print-sheet mx-auto my-8 bg-white shadow-lg print:shadow-none print:my-0"
         style={{ width: '210mm', minHeight: '297mm' }}
       >
         <div style={{ padding: '15mm' }}>
@@ -333,7 +333,7 @@ export function PrintTransactionPage() {
 
       {/* PDF tip (visible on screen only) */}
       <div className="print-hidden text-center text-xs text-gray-400 mb-4">
-        لتحميل PDF: اضغط "تحميل PDF" ثم اختر "حفظ كـ PDF" من نافذة الطباعة
+        لحفظ السند كملف PDF: اضغط "حفظ كـ PDF" ثم اختر "حفظ كـ PDF" من نافذة الطباعة
       </div>
     </div>
   );

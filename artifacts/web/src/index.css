@@ -284,6 +284,14 @@
     background: white !important;
   }
 
+  /* The screen sheet is sized to a full A4 page. On paper the @page
+     margins reduce the available content box, so keeping that min-height
+     would force an otherwise short document onto a blank second page. */
+  .print-sheet {
+    width: auto !important;
+    min-height: 0 !important;
+  }
+
   .report-table-shell,
   .print-report .overflow-hidden,
   .print-report .overflow-x-auto,
