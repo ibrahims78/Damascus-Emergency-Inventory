@@ -236,7 +236,7 @@ function StockTab() {
         </Button>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
+      <div className="report-table-shell border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -392,7 +392,7 @@ function MovementsTab() {
         </Button>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
+      <div className="report-table-shell border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -492,7 +492,7 @@ function ExpiryTab() {
         </Button>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
+      <div className="report-table-shell border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -586,7 +586,7 @@ function BelowMinTab() {
         </Button>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
+      <div className="report-table-shell border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -691,7 +691,7 @@ function EquipmentTab() {
         </Button>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
+      <div className="report-table-shell border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -795,7 +795,7 @@ function StockPositionTab() {
       </div>
 
       <div className="space-y-6">
-        <section className="border rounded-lg overflow-hidden">
+        <section className="report-table-shell border rounded-lg overflow-hidden">
           <div className="bg-muted/40 px-4 py-3 font-semibold">المواد والدفعات</div>
           <Table>
             <TableHeader>
@@ -829,7 +829,7 @@ function StockPositionTab() {
           </Table>
         </section>
 
-        <section className="border rounded-lg overflow-hidden">
+        <section className="report-table-shell border rounded-lg overflow-hidden">
           <div className="bg-muted/40 px-4 py-3 font-semibold">التجهيزات والحالة</div>
           <Table>
             <TableHeader>
@@ -937,7 +937,7 @@ function CustodiesTab() {
           <Download className="w-4 h-4" />تصدير Excel
         </Button>
       </div>
-      <div className="border rounded-lg overflow-hidden">
+      <div className="report-table-shell border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -1006,7 +1006,7 @@ export function ReportsPage() {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="print-report space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 print:hidden">
         <h1 className="text-2xl font-bold tracking-tight">التقارير</h1>

@@ -64,7 +64,7 @@ export function PrintTransactionPage() {
   };
 
   return (
-    <div dir="rtl" style={{ fontFamily: "'Cairo', sans-serif" }} className="min-h-screen bg-gray-100 print:bg-white">
+    <div dir="rtl" style={{ fontFamily: "'Cairo', sans-serif" }} className="print-document min-h-screen bg-gray-100 print:bg-white">
 
       {/* ─── Toolbar (hidden on print) ─── */}
       <div className="print-hidden bg-white border-b shadow-sm px-4 py-3 flex items-center justify-between sticky top-0 z-10">
@@ -302,7 +302,6 @@ export function PrintTransactionPage() {
           >
             <SignatureBox
               title="أمين المستودع"
-              name={tx.createdByName || undefined}
             />
 
             {(isOperationalOut || isCustodyReturn) && <SignatureBox title="المسؤول المرسل" />}

@@ -129,7 +129,7 @@ export function EquipmentDetailsPage({ equipmentId: providedId }: { equipmentId?
   const { equipment } = data;
   const condition = CONDITION_META[equipment.condition] ?? { label: equipment.condition, className: '' };
   return (
-    <div className="space-y-6 print:space-y-3" dir="rtl">
+    <div className="print-document space-y-6 print:space-y-3" dir="rtl">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <Button variant="ghost" onClick={() => setLocation('/equipment')} className="mb-2 -mr-3 gap-2 print:hidden"><ArrowLeft className="h-4 w-4" /> العودة للتجهيزات</Button>

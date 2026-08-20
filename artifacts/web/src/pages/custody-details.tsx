@@ -54,7 +54,7 @@ export function CustodyDetailsPage({ custodyId: providedId }: { custodyId?: numb
   const { custody, equipment } = data;
   const status = STATUS_META[custody.status] ?? { label: custody.status, className: '' };
   return (
-    <div className="space-y-6 print:space-y-3" dir="rtl">
+    <div className="print-document space-y-6 print:space-y-3" dir="rtl">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <Button variant="ghost" onClick={() => setLocation('/reports?tab=custodies')} className="mb-2 -mr-3 gap-2 print:hidden"><ArrowLeft className="h-4 w-4" /> العودة للعهد</Button>

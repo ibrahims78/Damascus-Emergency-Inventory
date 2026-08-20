@@ -220,15 +220,117 @@
     height: auto !important;
     min-height: 0 !important;
     overflow: visible !important;
+    width: auto !important;
   }
 
   @page {
     size: A4;
-    margin: 12mm;
+    margin: 10mm;
   }
 
   body {
     background: white !important;
+    margin: 0 !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+    scrollbar-width: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body::-webkit-scrollbar,
+  #root::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
+  /* The authenticated app is a fixed-height scrolling shell on screen.
+     Printing must flatten it into normal document flow so long reports
+     continue onto subsequent A4 pages. */
+  .app-shell,
+  .app-shell-main,
+  .app-shell-main > div,
+  .print-report,
+  .print-document {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    width: auto !important;
+    max-width: none !important;
+    overflow: visible !important;
+    position: static !important;
+    transform: none !important;
+  }
+
+  .app-shell > aside,
+  .app-shell > div > header,
+  .app-shell-main > div > :not(.print-report):not(.print-document),
+  .print-hidden,
+  [data-radix-popper-content-wrapper],
+  [data-sonner-toaster],
+  [role='status'],
+  [role='alert'],
+  .animate-spin,
+  [class*='animate-spin'] {
+    display: none !important;
+  }
+
+  .print-report,
+  .print-document {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: white !important;
+  }
+
+  .report-table-shell,
+  .print-report .overflow-hidden,
+  .print-report .overflow-x-auto,
+  .print-document .overflow-hidden,
+  .print-document .overflow-x-auto {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  .report-table-shell {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .print-report table,
+  .print-document table {
+    width: 100% !important;
+    max-width: none !important;
+    border-collapse: collapse !important;
+    table-layout: auto !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+
+  .print-report thead,
+  .print-document thead {
+    display: table-header-group !important;
+  }
+
+  .print-report tr,
+  .print-document tr,
+  .print-report article,
+  .print-document article {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-report .grid,
+  .print-document .grid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-report a,
+  .print-document a {
+    color: inherit !important;
+    text-decoration: none !important;
   }
 }
 
@@ -264,61 +366,5 @@
   .border.hover-elevate-2:not(.no-hover-interaction-elevate)::after,
   .border.active-elevate-2:not(.no-active-interaction-elevate)::after {
     inset: -1px;
-  }
-  
-  /* Print utilities */
-  @media print {
-    [data-state='inactive'] {
-      display: none !important;
-    }
-    .print-hidden {
-      display: none !important;
-    }
-    .print-only {
-      display: block !important;
-    }
-    @page {
-      size: A4;
-      margin: 10mm;
-    }
-    body {
-      background-color: white !important;
-      -webkit-print-color-adjust: exact;
-      color-adjust: exact;
-    }
-    header,
-    aside {
-      display: none !important;
-    }
-    main {
-      height: auto !important;
-      min-height: 0 !important;
-      overflow: visible !important;
-      padding: 0 !important;
-    }
-    .h-screen {
-      height: auto !important;
-      min-height: 0 !important;
-    }
-    .overflow-y-auto {
-      overflow: visible !important;
-    }
-    .flex-1 {
-      flex: none !important;
-    }
-    thead {
-      display: table-header-group;
-    }
-    table {
-      page-break-inside: auto;
-      break-inside: auto;
-    }
-    tr {
-      break-inside: avoid;
-      page-break-inside: avoid;
-    }
-    .overflow-hidden {
-      overflow: visible !important;
-    }
   }
 }
