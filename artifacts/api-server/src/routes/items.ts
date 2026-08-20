@@ -191,6 +191,17 @@ router.post(
             notes: notes || null,
           })
           .returning();
+        if (created.currentStock > 0) {
+          const openingDate = new Date().toISOString().slice(0, 10);
+          await tx.insert(inventoryBatchesTable).values({
+            itemId: created.id,
+            receivedQuantity: created.currentStock,
+            remainingQuantity: created.currentStock,
+            deliveryNoteNumber: `افتتاحي-${created.id}`,
+            deliveryNoteDate: openingDate,
+            supplySource: "central_warehouses",
+          });
+        }
         const globalId = await ensureEntityIdentity(tx, "item", created.id);
         await recordLocalChange(tx, {
           nodeId: node.nodeId,
