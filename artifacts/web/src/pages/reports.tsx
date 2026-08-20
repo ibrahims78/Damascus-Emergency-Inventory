@@ -49,6 +49,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatDateTime, formatDate } from '@/lib/utils';
+import { toast } from '@/hooks/use-toast';
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 
@@ -82,25 +83,34 @@ function columnName(index: number) {
 }
 
 async function exportXlsx(filename: string, headers: string[], rows: ExcelCell[][]) {
-  const XLSX = await import('xlsx');
-  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-  ws['!cols'] = headers.map((header, index) => {
-    const longestValue = rows.reduce((max, row) => Math.max(max, String(row[index] ?? '').length), header.length);
-    return { wch: Math.min(42, Math.max(14, longestValue + 2)) };
-  });
-  if (rows.length > 0) {
-    ws['!autofilter'] = { ref: `A1:${columnName(headers.length - 1)}${rows.length + 1}` };
+  if (rows.length === 0) {
+    toast.info('لا توجد بيانات لتصديرها');
+    return;
   }
-  ws['!views'] = [{ RTL: true }];
-  const wb = XLSX.utils.book_new();
-  wb.Props = {
-    Title: filename.replace(/\.xlsx$/i, ''),
-    Subject: 'تقرير منظومة مستودع الإسعاف والطوارئ — دمشق',
-    Author: 'منظومة مستودع الإسعاف والطوارئ',
-    CreatedDate: new Date(),
-  };
-  XLSX.utils.book_append_sheet(wb, ws, 'البيانات');
-  XLSX.writeFile(wb, filename);
+
+  try {
+    const XLSX = await import('xlsx');
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    ws['!cols'] = headers.map((header, index) => {
+      const longestValue = rows.reduce((max, row) => Math.max(max, String(row[index] ?? '').length), header.length);
+      return { wch: Math.min(42, Math.max(14, longestValue + 2)) };
+    });
+    ws['!autofilter'] = { ref: `A1:${columnName(headers.length - 1)}${rows.length + 1}` };
+    ws['!views'] = [{ RTL: true }];
+    const wb = XLSX.utils.book_new();
+    wb.Props = {
+      Title: filename.replace(/\.xlsx$/i, ''),
+      Subject: 'تقرير منظومة مستودع الإسعاف والطوارئ — دمشق',
+      Author: 'منظومة مستودع الإسعاف والطوارئ',
+      CreatedDate: new Date(),
+    };
+    XLSX.utils.book_append_sheet(wb, ws, 'البيانات');
+    XLSX.writeFile(wb, filename);
+    toast.success(`تم تصدير ${rows.length.toLocaleString('ar')} سجل بنجاح`);
+  } catch (error) {
+    console.error('Report export failed:', error);
+    toast.error('تعذر إنشاء ملف Excel. حاول مرة أخرى');
+  }
 }
 
 function SummaryCard({

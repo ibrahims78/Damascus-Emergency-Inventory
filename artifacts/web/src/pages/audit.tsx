@@ -162,6 +162,7 @@ export function AuditPage() {
     a.href = URL.createObjectURL(blob);
     a.download = `سجل-التدقيق-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 0);
   };
 
   return (
