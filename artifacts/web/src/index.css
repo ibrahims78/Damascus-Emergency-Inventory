@@ -281,9 +281,16 @@
     thead {
       display: table-header-group;
     }
+    table {
+      page-break-inside: auto;
+      break-inside: auto;
+    }
     tr {
       break-inside: avoid;
       page-break-inside: avoid;
+    }
+    .overflow-hidden {
+      overflow: visible !important;
     }
   }
 }

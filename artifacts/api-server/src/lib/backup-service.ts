@@ -484,6 +484,30 @@ async function deleteBusinessRows(tx: QueryExecutor) {
   }
 }
 
+async function synchronizeBusinessSequences(tx: QueryExecutor) {
+  const sequenceTables = [
+    ["categories", "categories"],
+    ["items", "items"],
+    ["equipment", "equipment"],
+    ["recipients", "recipients"],
+    ["exit_reasons", "exit_reasons"],
+    ["transactions", "transactions"],
+    ["inventory_batches", "inventory_batches"],
+    ["transaction_batch_allocations", "transaction_batch_allocations"],
+    ["personal_custodies", "personal_custodies"],
+    ["custody_returns", "custody_returns"],
+    ["damage_records", "damage_records"],
+    ["central_returns", "central_returns"],
+    ["audit_log", "audit_log"],
+  ] as const;
+
+  for (const [tableName, sequenceTable] of sequenceTables) {
+    await tx.execute(sql.raw(
+      `SELECT setval(pg_get_serial_sequence('${sequenceTable}', 'id'), COALESCE((SELECT MAX(id) FROM "${tableName}"), 1), true)`,
+    ));
+  }
+}
+
 function newReport(pkg: SyncPackage, mode: RestoreMode): RestoreReport {
   return {
     mode,
@@ -566,6 +590,9 @@ export async function applyRestore(
         result.code = error instanceof Error ? error.message.slice(0, 160) : "database-conflict";
       }
     }
+    // Restored rows can carry explicit IDs. Align serial sequences before the
+    // next write so audit and business records cannot collide after restore.
+    await synchronizeBusinessSequences(tx);
   });
   report.counts = { total: report.records.length, applied: 0, duplicate: 0, rejected: 0, conflict: 0, skipped: 0 };
   for (const record of report.records) report.counts[record.status] += 1;
