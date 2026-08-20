@@ -394,16 +394,29 @@ function MovementEntityForm({
   const [date, setDate] = useState(today());
   const [notes, setNotes] = useState('');
   const [confirming, setConfirming] = useState(false);
+  const [validationError, setValidationError] = useState('');
   const pending = damageMutation.isPending || returnMutation.isPending;
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     const selectedId = type === 'item' ? itemId : equipmentId;
     if (!selectedId || quantity < 1 || !reason.trim() || !date) {
-      toast.error('يرجى اختيار الصنف وإدخال الكمية والسبب والتاريخ');
+      const message = !selectedId
+        ? 'يرجى اختيار مادة أو تجهيز أولاً'
+        : quantity < 1
+          ? 'يجب أن تكون الكمية أكبر من صفر'
+          : !reason.trim()
+            ? 'يرجى إدخال سبب المرتجع'
+            : 'يرجى اختيار تاريخ المرتجع';
+      setValidationError(message);
+      toast.error(message);
       return;
     }
-    if (!confirming) { setConfirming(true); return; }
+    setValidationError('');
+    if (!confirming) {
+      setConfirming(true);
+      return;
+    }
     const callbacks = {
       onSuccess: (transaction: { id: number }) => { toast.success(kind === 'damage' ? 'تم تسجيل التلف' : 'تم تسجيل المرتجع المركزي'); setLocation(`/print/${transaction.id}`); },
       onError: (error: unknown) => { toast.error(errorMessage(error)); setConfirming(false); },
@@ -421,17 +434,26 @@ function MovementEntityForm({
         <p className="font-semibold text-destructive">{kind === 'damage' ? 'حركة تلف موثقة' : 'حركة مرتجع مستقلة'}</p>
         <p className="mt-1 text-muted-foreground">{kind === 'damage' ? 'لا تعدل الرصيد مباشرة؛ ينشئ النظام حركة تلف وسجل تدقيق ويستهلك الكمية المناسبة.' : 'المرتجع المركزي ليس إعادة عهدة، ويُسجل بمستند مستقل إلى المستودعات المركزية.'}</p>
       </div>
-      <FormCard onSubmit={submit} pending={pending} confirming={confirming} onCancelConfirm={() => setConfirming(false)} submitLabel={kind === 'damage' ? 'تسجيل التلف' : 'تسجيل المرتجع'}>
-        <EntityPicker type={type} itemId={itemId} equipmentId={equipmentId} onTypeChange={(value) => { setType(value); setItemId(null); setEquipmentId(null); setConfirming(false); }} onItemChange={(id) => { setItemId(id); setConfirming(false); }} onEquipmentChange={(id) => { setEquipmentId(id); setConfirming(false); }} />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="الكمية" required><Input type="number" min={1} value={quantity} onChange={(e) => { setQuantity(e.target.valueAsNumber || 1); setConfirming(false); }} /></Field>
-          <Field label={kind === 'damage' ? 'تاريخ التلف' : 'تاريخ المرتجع'} required><Input type="date" value={date} onChange={(e) => { setDate(e.target.value); setConfirming(false); }} /></Field>
-          {kind === 'central-return' && (
-            <Field label="حالة المرتجع" required><Select value={condition} onValueChange={(value) => { setCondition(value as typeof condition); setConfirming(false); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="good">جيد</SelectItem><SelectItem value="damaged">تالف</SelectItem><SelectItem value="needs_maintenance">يحتاج صيانة</SelectItem><SelectItem value="missing">مفقود</SelectItem></SelectContent></Select></Field>
-          )}
-          <Field label="السبب" required><Input value={reason} onChange={(e) => { setReason(e.target.value); setConfirming(false); }} placeholder="اكتب السبب بالتفصيل" /></Field>
+      {validationError && (
+        <div
+          role="alert"
+          aria-live="polite"
+          className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
+        >
+          {validationError}
         </div>
-          <Field label="ملاحظات / رقم المحضر"><Textarea value={notes} onChange={(e) => { setNotes(e.target.value); setConfirming(false); }} className="min-h-24" /></Field>
+      )}
+      <FormCard onSubmit={submit} pending={pending} confirming={confirming} onCancelConfirm={() => setConfirming(false)} submitLabel={kind === 'damage' ? 'مراجعة وتسجيل التلف' : 'مراجعة وتسجيل المرتجع'}>
+        <EntityPicker type={type} itemId={itemId} equipmentId={equipmentId} onTypeChange={(value) => { setType(value); setItemId(null); setEquipmentId(null); setConfirming(false); setValidationError(''); }} onItemChange={(id) => { setItemId(id); setConfirming(false); setValidationError(''); }} onEquipmentChange={(id) => { setEquipmentId(id); setConfirming(false); setValidationError(''); }} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="الكمية" required><Input type="number" min={1} value={quantity} onChange={(e) => { setQuantity(e.target.valueAsNumber || 1); setConfirming(false); setValidationError(''); }} /></Field>
+          <Field label={kind === 'damage' ? 'تاريخ التلف' : 'تاريخ المرتجع'} required><Input type="date" value={date} onChange={(e) => { setDate(e.target.value); setConfirming(false); setValidationError(''); }} /></Field>
+          {kind === 'central-return' && (
+            <Field label="حالة المرتجع" required><Select value={condition} onValueChange={(value) => { setCondition(value as typeof condition); setConfirming(false); setValidationError(''); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="good">جيد</SelectItem><SelectItem value="damaged">تالف</SelectItem><SelectItem value="needs_maintenance">يحتاج صيانة</SelectItem><SelectItem value="missing">مفقود</SelectItem></SelectContent></Select></Field>
+          )}
+          <Field label="السبب" required><Input value={reason} onChange={(e) => { setReason(e.target.value); setConfirming(false); setValidationError(''); }} placeholder="اكتب السبب بالتفصيل" /></Field>
+        </div>
+          <Field label="ملاحظات / رقم المحضر"><Textarea value={notes} onChange={(e) => { setNotes(e.target.value); setConfirming(false); setValidationError(''); }} className="min-h-24" /></Field>
       </FormCard>
     </PageFrame>
   );
