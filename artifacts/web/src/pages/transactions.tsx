@@ -162,6 +162,14 @@ function TransactionsList() {
             <PackageMinus className="w-4 h-4" />
             إخراج مادة
           </Button>
+          <Button
+            onClick={() => setLocation('/custody/out/new')}
+            variant="outline"
+            className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10"
+          >
+            <PackageMinus className="w-4 h-4" />
+            إخراج تجهيز
+          </Button>
         </div>
       </div>
 

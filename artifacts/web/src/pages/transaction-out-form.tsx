@@ -203,6 +203,35 @@ export function TransactionOutForm() {
         </div>
       </div>
 
+      <div className="rounded-lg border bg-card p-1 shadow-sm">
+        <div className="grid grid-cols-2 gap-1" role="tablist" aria-label="نوع الإخراج">
+          <Button
+            type="button"
+            role="tab"
+            aria-selected="true"
+            className="gap-2"
+            variant="default"
+          >
+            <PackageMinus className="h-4 w-4" />
+            إخراج مادة
+          </Button>
+          <Button
+            type="button"
+            role="tab"
+            aria-selected="false"
+            variant="ghost"
+            className="gap-2"
+            onClick={() => setLocation('/custody/out/new')}
+          >
+            <PackageMinus className="h-4 w-4" />
+            إخراج تجهيز
+          </Button>
+        </div>
+        <p className="px-3 pb-2 pt-2 text-xs text-muted-foreground">
+          إخراج التجهيزات يتم كتسليم عهدة موثق حتى تبقى دورة حياة التجهيز قابلة للتتبع والإعادة.
+        </p>
+      </div>
+
       <div className="bg-card border rounded-lg shadow-sm p-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
