@@ -22,6 +22,7 @@ import { UsersPage } from '@/pages/users';
 import { SettingsPage } from '@/pages/settings';
 import { AuditPage } from '@/pages/audit';
 import { SyncPage } from '@/pages/sync';
+import { HelpPage } from '@/pages/help';
 import { PrintTransactionPage } from '@/pages/print-transaction';
 import { AdjustmentForm } from '@/pages/adjustment-form';
 import { ItemDetailsPage } from '@/pages/item-details';
@@ -114,6 +115,7 @@ function Router() {
       <Route path="/central-return/new"><ProtectedRoute component={CentralReturnForm} /></Route>
 
       <Route path="/reports"><ProtectedRoute component={ReportsPage} /></Route>
+      <Route path="/help"><ProtectedRoute component={HelpPage} /></Route>
 
       {/* Admin-only routes */}
       <Route path="/users"><ProtectedRoute component={UsersPage} adminOnly /></Route>

@@ -25,6 +25,7 @@ import {
   Package,
   Wrench,
   Settings,
+  HelpCircle,
 } from 'lucide-react';
 import { useTheme } from '@/components/theme-provider';
 import { useLocation } from 'wouter';
@@ -360,6 +361,19 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-3">
+        {/* ── Help center ── */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setLocation('/help')}
+          className="gap-1.5 border-primary/25 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary"
+          aria-label="فتح مركز المساعدة"
+          data-testid="button-open-help"
+        >
+          <HelpCircle className="h-4 w-4" />
+          <span>مساعدة</span>
+        </Button>
+
         {/* ── Alerts bell ── */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
