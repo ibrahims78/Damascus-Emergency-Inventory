@@ -1167,7 +1167,10 @@ async function verifyFixture(fixture: Fixture) {
       )::int AS custody_returns
   `;
   const demoBatches = await sql`
-    SELECT batch_number AS "batchNumber", remaining_quantity AS "remainingQuantity"
+    SELECT
+      batch_number AS "batchNumber",
+      remaining_quantity AS "remainingQuantity",
+      expiry_date AS "expiryDate"
     FROM inventory_batches
     WHERE item_id = ${fixture.itemId}
       AND (
@@ -1240,10 +1243,19 @@ async function verifyFixture(fixture: Fixture) {
       row.batchNumberSnap,
       row.expiryDateSnap ? new Date(row.expiryDateSnap).toISOString().slice(0, 10) : null,
     ]),
-    [
-      ["item outbound — FEFO across batches", 12, "DEMO-FINAL-BATCH-NEAR", isoDate(30)],
-      ["item outbound — administrative delivery across batches", 4, "DEMO-FINAL-BATCH-NEAR", isoDate(30)],
-    ],
+    (() => {
+      const nearBatch = demoBatches.find(
+        (row) => row.batchNumber === "DEMO-FINAL-BATCH-NEAR",
+      );
+      assert(nearBatch, "دفعة الانتهاء القريب التجريبية غير موجودة");
+      const nearExpiry = nearBatch.expiryDate
+        ? new Date(nearBatch.expiryDate).toISOString().slice(0, 10)
+        : null;
+      return [
+        ["item outbound — FEFO across batches", 12, "DEMO-FINAL-BATCH-NEAR", nearExpiry],
+        ["item outbound — administrative delivery across batches", 4, "DEMO-FINAL-BATCH-NEAR", nearExpiry],
+      ];
+    })(),
     "تخصيصات الخروج يجب أن تكون FEFO وألا تستخدم الدفعة المنتهية",
   );
   assert.deepEqual(
