@@ -305,11 +305,20 @@ export function TransactionInForm() {
                           value: equipment.id.toString(),
                           searchValue: `${equipment.id} ${equipment.name} ${equipment.serialNumber ?? ''} ${equipment.model ?? ''}`,
                           label: (
-                            <>
-                              {equipment.name}
-                              {equipment.serialNumber ? ` — رقم تسلسلي: ${equipment.serialNumber}` : ''}
-                              {equipment.model ? ` (${equipment.model})` : ''}
-                            </>
+                            <span className="block min-w-0 space-y-1">
+                              <span className="block truncate font-medium">{equipment.name}</span>
+                              <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                                <span className="rounded bg-muted px-1.5 py-0.5">
+                                  الكمية: {equipment.quantity}
+                                </span>
+                                {equipment.serialNumber && (
+                                  <span className="rounded bg-muted px-1.5 py-0.5">
+                                    الرقم التسلسلي: {equipment.serialNumber}
+                                  </span>
+                                )}
+                                {equipment.model && <span>{equipment.model}</span>}
+                              </span>
+                            </span>
                           ),
                         }))}
                       />

@@ -212,7 +212,20 @@ function EntityPicker({
             options={(equipmentData?.equipment ?? []).map((equipment: Equipment) => ({
               value: String(equipment.id),
               searchValue: `${equipment.id} ${equipment.name} ${equipment.serialNumber ?? ''} ${equipment.model ?? ''}`,
-                label: `${equipment.name} — الرصيد المسجل ${equipment.quantity}${equipment.serialNumber ? ` (S/N: ${equipment.serialNumber})` : ''}`,
+                label: (
+                  <span className="block min-w-0 space-y-1">
+                    <span className="block truncate font-medium">{equipment.name}</span>
+                    <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                      <span className="rounded bg-muted px-1.5 py-0.5">الكمية: {equipment.quantity}</span>
+                      {equipment.serialNumber && (
+                        <span className="rounded bg-muted px-1.5 py-0.5">
+                          الرقم التسلسلي: {equipment.serialNumber}
+                        </span>
+                      )}
+                      {equipment.model && <span>{equipment.model}</span>}
+                    </span>
+                  </span>
+                ),
             }))}
           />
         </Field>
@@ -299,7 +312,20 @@ function EquipmentOnlyPicker({ equipmentId, onChange }: { equipmentId: number | 
       options={(data?.equipment ?? []).map((equipment: Equipment) => ({
         value: String(equipment.id),
         searchValue: `${equipment.id} ${equipment.name} ${equipment.serialNumber ?? ''} ${equipment.model ?? ''}`,
-        label: `${equipment.name} — الكمية ${equipment.quantity}${equipment.serialNumber ? ` — S/N ${equipment.serialNumber}` : ''}`,
+        label: (
+          <span className="block min-w-0 space-y-1">
+            <span className="block truncate font-medium">{equipment.name}</span>
+            <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="rounded bg-muted px-1.5 py-0.5">الكمية: {equipment.quantity}</span>
+              {equipment.serialNumber && (
+                <span className="rounded bg-muted px-1.5 py-0.5">
+                  الرقم التسلسلي: {equipment.serialNumber}
+                </span>
+              )}
+              {equipment.model && <span>{equipment.model}</span>}
+            </span>
+          </span>
+        ),
       }))}
     />
   );

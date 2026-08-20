@@ -78,7 +78,7 @@ export function CatalogCombobox({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-[var(--radix-popover-trigger-width)] min-w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden p-0"
+        className="w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-1rem)] overflow-hidden p-0"
       >
         <Command>
           <CommandInput placeholder={searchPlaceholder} />
@@ -101,7 +101,9 @@ export function CatalogCombobox({
                       value === option.value ? 'opacity-100' : 'opacity-0',
                     )}
                   />
-                  <span className="min-w-0 truncate text-right">{option.label}</span>
+                  <span className="min-w-0 flex-1 whitespace-normal break-words text-right">
+                    {option.label}
+                  </span>
                 </CommandItem>
               ))}
             </CommandGroup>
