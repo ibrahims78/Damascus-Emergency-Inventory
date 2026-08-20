@@ -117,11 +117,8 @@ export function Sidebar() {
           {!collapsed && (
             <div className="min-w-0">
               <h1 className="font-bold text-sm text-foreground leading-snug">
-                منظومة الإسعاف والطوارئ
+                منظومة الاحالة و الاسعاف و الطوارئ
               </h1>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                مديرية الاحالة والاسعاف - دمشق
-              </p>
             </div>
           )}
         </div>

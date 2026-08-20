@@ -83,8 +83,7 @@ export function LoginPage() {
             alt="Logo" 
             className="w-24 h-24 mx-auto object-contain rounded-full shadow-md bg-white p-2 mb-4" 
           />
-          <h1 className="text-2xl font-bold text-foreground">منظومة الإسعاف والطوارئ</h1>
-          <p className="text-muted-foreground mt-2">مديرية الاحالة والاسعاف - دمشق</p>
+          <h1 className="text-2xl font-bold text-foreground">منظومة الاحالة و الاسعاف و الطوارئ</h1>
         </div>
         
         <div className="p-8">
