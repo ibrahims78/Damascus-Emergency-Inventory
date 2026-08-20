@@ -12,3 +12,4 @@
 - [Workspace bootstrap](workspace-bootstrap.md) — fresh GitHub syncs need locked dependencies and the development schema before workflow health checks
 - [Demo movement fixtures](demo-movement-fixture.md) — persistent movement seeds must be idempotent and assert exact ledger balances
 - [Independent nodes and peer sync](independent-nodes-peer-sync.md) — Windows, Android, and web each keep separate databases and exchange signed, idempotent changes on demand
+- [GitHub HTTPS authentication](github-https-authentication.md) — GitHub PATs work reliably for Git operations through Basic auth with x-access-token; Bearer auth may fail or hang
