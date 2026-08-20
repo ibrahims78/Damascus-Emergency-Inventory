@@ -106,7 +106,13 @@ export function LoginPage() {
                   <FormItem>
                     <FormLabel>اسم المستخدم</FormLabel>
                     <FormControl>
-                      <Input placeholder="أدخل اسم المستخدم" {...field} dir="ltr" className="text-right" />
+                      <Input
+                        placeholder="أدخل اسم المستخدم"
+                        autoComplete="username"
+                        {...field}
+                        dir="ltr"
+                        className="text-right"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -119,7 +125,14 @@ export function LoginPage() {
                   <FormItem>
                     <FormLabel>كلمة المرور</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="أدخل كلمة المرور" {...field} dir="ltr" className="text-right" />
+                      <Input
+                        type="password"
+                        placeholder="أدخل كلمة المرور"
+                        autoComplete="current-password"
+                        {...field}
+                        dir="ltr"
+                        className="text-right"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

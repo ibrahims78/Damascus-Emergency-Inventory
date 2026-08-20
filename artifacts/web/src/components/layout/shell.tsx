@@ -1,9 +1,19 @@
 import React from 'react';
+import { useEffect } from 'react';
+import { useLocation } from 'wouter';
 import { Sidebar } from './sidebar';
 import { Header } from './header';
 import { SidebarProvider } from './sidebar-context';
 
 export function Shell({ children }: { children: React.ReactNode }) {
+  const [location] = useLocation();
+
+  useEffect(() => {
+    const main = document.querySelector<HTMLElement>('.app-shell-main');
+    main?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [location]);
+
   return (
     <SidebarProvider>
       <div className="app-shell flex h-screen overflow-hidden bg-background w-full">
