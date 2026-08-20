@@ -236,7 +236,6 @@ export function PrintTransactionPage() {
             {tx.expiryDate && (
               <InfoRow label="تاريخ انتهاء الصلاحية" value={tx.expiryDate.substring(0, 10)} />
             )}
-            <InfoRow label="المسجِّل" value={tx.createdByName ?? '—'} />
           </div>
 
           {/* ===== ITEMS TABLE ===== */}
