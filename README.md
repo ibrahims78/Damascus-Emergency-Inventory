@@ -18,11 +18,15 @@
 | 📋 **العمليات (الحركات)** | تسجيل إدخال/إخراج + سند A4 قابل للطباعة بالعربية |
 | 📊 **لوحة التحكم** | إحصائيات فورية ومخططات حركة المواد |
 | 📈 **التقارير** | 7 تبويبات: جرد، حركة، انتهاء صلاحية، أقل من الحد، تجهيزات، الوضع التفصيلي، والعهد المفتوحة |
-| 👥 **إدارة المستخدمين** | أدوار ثلاثة (مدير / محاسب / مشاهد) |
+| 👥 **إدارة المستخدمين** | أدوار ثلاثة (مدير / مسؤول مستودع / مشاهد) |
 | 🔔 **التنبيهات** | جرس تنبيه في الـ Header يتجدد تلقائياً |
 | ⚙️ **الإعدادات** | ملف شخصي، تغيير كلمة المرور، إعدادات المنظومة |
 | 🖨️ **الطباعة** | سندات إدخال/إخراج بتنسيق A4 RTL جاهزة للطباعة |
 | 📤 **التصدير** | تصدير التقارير بصيغة Excel (.xlsx) |
+| 💾 **النسخ الاحتياطي والاستعادة** | حزم نسخ مشفرة، معاينة، تحقق، استعادة، ونقاط تراجع |
+| 🔄 **المزامنة** | مزامنة موقعة بين العقد مع منع التكرار ومعالجة التعارضات |
+| 🧾 **التدقيق** | سجل تدقيق للعمليات الإدارية وحركات المخزون والاستعادة |
+| 📱 **Android Offline** | تطبيق Capacitor يعمل محلياً دون API أو PostgreSQL مع تصدير النسخة |
 
 ---
 
@@ -51,17 +55,23 @@ Recharts
 │   │   └── src/
 │   │       ├── routes/      # Route handlers (one file per domain)
 │   │       └── middlewares/ # Auth, audit logging
-│   └── web/                 # React + Vite frontend (port 22333)
-│       └── src/
-│           ├── pages/       # All application pages
-│           └── components/  # UI components & layout
+│   ├── web/                 # React + Vite frontend (port 22333)
+│   │   └── src/
+│   │       ├── pages/       # All application pages
+│   │       └── components/  # UI components & layout
 ├── lib/
 │   ├── db/                  # Drizzle schema (source of truth for DB)
 │   ├── api-spec/            # OpenAPI spec (source of truth for API)
 │   ├── api-client-react/    # Generated React Query hooks (do not edit)
-│   └── api-zod/             # Generated Zod schemas (do not edit)
+│   ├── api-zod/             # Generated Zod schemas (do not edit)
+│   ├── backup-format/        # Encrypted backup and sync package format
+│   └── sync-contract/        # Shared synchronization contracts
+├── android/                  # Capacitor Android project
+├── docs/                     # Operations, user guide, and domain rules
+├── releases/                 # Published Android/Desktop release artifacts
 └── scripts/
-    └── import-excel.mjs     # Excel seed import utility
+    ├── import-excel.mjs     # Excel import utility
+    └── phase*-*.{mjs,ts}     # Development and acceptance smoke checks
 ```
 
 ---
@@ -92,6 +102,15 @@ PORT=8080 pnpm --filter @workspace/api-server run dev
 PORT=22333 BASE_PATH=/ pnpm --filter @workspace/web run dev
 ```
 
+في Replit، يتم تشغيل الخدمتين تلقائياً عبر workflow باسمَي:
+
+- `artifacts/api-server: API Server` على المنفذ `8080`
+- `artifacts/web: web` على المنفذ `22333`
+
+`DATABASE_URL` متغير مُدار تلقائياً من Replit، بينما يجب توفير `SESSION_SECRET`
+كسرّ. لا تتضمن النسخة الحالية ملفات بيانات تجريبية أو مرفقات مستخدم؛ لاستيراد
+بيانات فعلية استخدم ملف Excel خارجي مع أداة الاستيراد الموضحة أدناه.
+
 ### Default Credentials
 
 ```
@@ -118,6 +137,12 @@ tsc --build
 
 # Push DB schema changes (dev only)
 pnpm --filter @workspace/db run push
+
+# Run the API acceptance smoke test while the API workflow is running
+pnpm --filter @workspace/scripts run phase8:acceptance
+
+# Build the offline Android release
+pnpm run build:android:offline
 ```
 
 > **Important:** Always run `tsc --build` before `pnpm run typecheck` — the web package depends on compiled TypeScript libraries.
@@ -142,6 +167,13 @@ Key endpoints:
 | `GET` | `/api/reports/custodies` | Open and overdue custody report |
 | `GET` | `/api/alerts` | Active alerts |
 | `GET` | `/api/settings` | System settings |
+| `GET/POST` | `/api/backups` | Backup catalog and package operations |
+| `POST` | `/api/backups/inspect` | Inspect an encrypted backup package |
+| `POST` | `/api/backups/dry-run` | Preview a restore without applying it |
+| `POST` | `/api/backups/restore` | Restore a verified backup package |
+| `POST` | `/api/backups/:restorePointId/rollback` | Roll back a restore point |
+| `GET/POST` | `/api/sync` | Signed sync packages and sync state |
+| `GET` | `/api/audit` | Administrative audit log |
 
 ---
 
@@ -155,20 +187,37 @@ Key endpoints:
 
 ---
 
-## 📦 Seeding Data
+## 📦 Initial Data and Import
 
 To seed initial categories, recipients, exit reasons, and an admin user:
 
 ```bash
-cd artifacts/api-server
-node seed.mjs
+node artifacts/api-server/seed.mjs
 ```
 
 To import items from an Excel file (عهدة المستودع format):
 
 ```bash
+# Run from the repository root.
 node scripts/import-excel.mjs <path-to-file.xlsx>
 ```
+
+لا يتم إنشاء بيانات وهمية تلقائياً عند تشغيل التطبيق. يجب تغيير كلمة مرور
+المستخدم الإداري بعد أول تسجيل دخول، وعدم حفظ ملفات البيانات أو كلمات المرور
+داخل المستودع.
+
+## 📱 Android Offline
+
+The Android application is a Capacitor wrapper around the web frontend. Build it
+with:
+
+```bash
+pnpm run build:android:offline
+```
+
+The offline build uses a local IndexedDB-backed API. It does not require the
+Replit API, PostgreSQL, or an external server; data remains on the device and
+can be exported from the backup screen.
 
 ---
 
