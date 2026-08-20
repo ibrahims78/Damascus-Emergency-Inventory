@@ -37,6 +37,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatDateTime } from '@/lib/utils';
+import { toast } from '@/hooks/use-toast';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -119,6 +120,7 @@ export function AuditPage() {
   const [action, setAction] = useState('all');
   const [entityType, setEntityType] = useState('all');
   const [page, setPage] = useState(1);
+  const [exporting, setExporting] = useState(false);
 
   const { data, isLoading } = useQuery<AuditResponse>({
     queryKey: ['audit', { from, to, action, entityType, page }],
@@ -143,26 +145,58 @@ export function AuditPage() {
     setFrom(''); setTo(''); setAction('all'); setEntityType('all'); setPage(1);
   };
 
-  const handleExport = () => {
-    if (!data?.data.length) return;
-    const bom = '\uFEFF';
-    const headers = ['التاريخ والوقت', 'المستخدم', 'الإجراء', 'نوع البيانات', 'رقم السجل', 'عنوان IP'];
-    const rows = data.data.map((e) => [
-      formatDateTime(e.createdAt),
-      e.userNameSnap ?? '—',
-      actionLabels[e.action]?.label ?? e.action,
-      entityLabels[e.entityType] ?? e.entityType,
-      String(e.entityId ?? '—'),
-      e.ipAddress ?? '—',
-    ]);
-    const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
-    const csv = [headers.map(escape).join(','), ...rows.map((r) => r.map(escape).join(','))].join('\n');
-    const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `سجل-التدقيق-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 0);
+  const handleExport = async () => {
+    if (!data?.total || exporting) return;
+    setExporting(true);
+    try {
+      const allEntries: AuditEntry[] = [];
+      const totalPages = Math.max(1, data.totalPages);
+
+      for (let exportPage = 1; exportPage <= totalPages; exportPage += 1) {
+        const params = new URLSearchParams();
+        if (from) params.set('from', from);
+        if (to) params.set('to', to);
+        if (action !== 'all') params.set('action', action);
+        if (entityType !== 'all') params.set('entityType', entityType);
+        params.set('page', String(exportPage));
+        params.set('limit', '100');
+        const response = await fetch(`/api/audit?${params}`, { credentials: 'include' });
+        if (!response.ok) throw new Error('فشل جلب سجل التدقيق للتصدير');
+        const result = (await response.json()) as AuditResponse;
+        allEntries.push(...result.data);
+      }
+
+      if (allEntries.length === 0) {
+        toast({ description: 'لا توجد بيانات لتصديرها' });
+        return;
+      }
+
+      const bom = '\uFEFF';
+      const headers = ['التاريخ والوقت', 'المستخدم', 'الإجراء', 'نوع البيانات', 'رقم السجل', 'عنوان IP'];
+      const rows = allEntries.map((e) => [
+        formatDateTime(e.createdAt),
+        e.userNameSnap ?? '—',
+        actionLabels[e.action]?.label ?? e.action,
+        entityLabels[e.entityType] ?? e.entityType,
+        String(e.entityId ?? '—'),
+        e.ipAddress ?? '—',
+      ]);
+      const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
+      const csv = [headers.map(escape).join(','), ...rows.map((r) => r.map(escape).join(','))].join('\n');
+      const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = `سجل-التدقيق-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+      toast({ description: `تم تصدير ${allEntries.length.toLocaleString('ar')} سجل بنجاح` });
+    } catch (error) {
+      console.error('Audit export failed:', error);
+      toast({ variant: 'destructive', description: 'تعذر إنشاء ملف CSV. حاول مرة أخرى' });
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -180,9 +214,9 @@ export function AuditPage() {
             </p>
           </div>
         </div>
-        <Button variant="outline" size="sm" className="gap-2" onClick={handleExport} disabled={!data?.data.length}>
+        <Button variant="outline" size="sm" className="gap-2" onClick={handleExport} disabled={!data?.total || exporting}>
           <Download className="w-4 h-4" />
-          تصدير CSV
+          {exporting ? 'جاري التصدير...' : 'تصدير CSV'}
         </Button>
       </div>
 

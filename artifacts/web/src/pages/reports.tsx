@@ -84,7 +84,7 @@ function columnName(index: number) {
 
 async function exportXlsx(filename: string, headers: string[], rows: ExcelCell[][]) {
   if (rows.length === 0) {
-    toast.info('لا توجد بيانات لتصديرها');
+    toast({ description: 'لا توجد بيانات لتصديرها' });
     return;
   }
 
@@ -106,10 +106,10 @@ async function exportXlsx(filename: string, headers: string[], rows: ExcelCell[]
     };
     XLSX.utils.book_append_sheet(wb, ws, 'البيانات');
     XLSX.writeFile(wb, filename);
-    toast.success(`تم تصدير ${rows.length.toLocaleString('ar')} سجل بنجاح`);
+    toast({ description: `تم تصدير ${rows.length.toLocaleString('ar')} سجل بنجاح` });
   } catch (error) {
     console.error('Report export failed:', error);
-    toast.error('تعذر إنشاء ملف Excel. حاول مرة أخرى');
+    toast({ variant: 'destructive', description: 'تعذر إنشاء ملف Excel. حاول مرة أخرى' });
   }
 }
 
