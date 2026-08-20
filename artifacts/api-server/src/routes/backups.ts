@@ -2,6 +2,7 @@ import { Router } from "express";
 import { auditLog } from "../middlewares/audit";
 import { requireAuth, requireRole } from "../middlewares/auth";
 import { logger } from "../lib/logger";
+import { runAlertWorker } from "../lib/alert-worker";
 import {
   applyRestore,
   consumePreview,
@@ -184,6 +185,9 @@ router.post("/restore", requireAuth, requireRole("admin"), async (req, res) => {
       mode,
       Number.isInteger(userId) ? userId : null,
     );
+    // Restores can replace the inventory data after the periodic worker has run.
+    // Recompute immediately so the notifications bell reflects the restored state.
+    await runAlertWorker();
     const restorePointId = await createRestorePoint(Number.isInteger(userId) ? userId : null, beforeRestore, report);
     await auditLog({
       req,
@@ -224,6 +228,8 @@ router.post("/:restorePointId/rollback", requireAuth, requireRole("admin"), asyn
     }
     const restorePointId = String(req.params.restorePointId);
     const report = await rollbackRestorePoint(restorePointId);
+    // A rollback also changes inventory conditions and must refresh active alerts.
+    await runAlertWorker();
     await auditLog({
       req,
       action: "backup_restore_rollback",
