@@ -47,7 +47,7 @@ const operations: Operation[] = [
     title: 'إدخال مادة إلى المستودع',
     summary: 'تسجيل الكميات الواردة مع مصدرها وبيانات الصنف والتشغيلة والصلاحية.',
     icon: ArrowDownToLine,
-    tone: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
+    tone: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
     when: 'تستخدم عند استلام توريد أو مناقلة أو أي كمية تزيد الرصيد الفعلي.',
     steps: [
       'من لوحة التحكم أو سجل العمليات اختر «إدخال مادة».',
@@ -67,7 +67,7 @@ const operations: Operation[] = [
     title: 'إخراج مادة من المستودع',
     summary: 'تسجيل صرف المواد للجهة المستلمة مع خصم الرصيد وإصدار سند قابل للطباعة.',
     icon: ArrowUpFromLine,
-    tone: 'text-red-600 bg-red-500/10 border-red-500/20',
+    tone: 'text-red-600 dark:text-red-400 bg-red-500/10 border-red-500/20',
     when: 'تستخدم عند صرف مادة أو مستهلك إلى قسم أو جهة مستلمة.',
     steps: [
       'اختر «إخراج مادة» من لوحة التحكم أو سجل العمليات.',
@@ -87,7 +87,7 @@ const operations: Operation[] = [
     title: 'تسليم عهدة شخصية',
     summary: 'تسليم تجهيز أو مادة لشخص مع إنشاء عهدة مفتوحة قابلة للمتابعة والإعادة.',
     icon: UserRoundCheck,
-    tone: 'text-blue-600 bg-blue-500/10 border-blue-500/20',
+    tone: 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20',
     when: 'تستخدم عندما يصبح الصنف أو التجهيز مسؤولية موظف محدد.',
     steps: [
       'افتح «تسليم عهدة شخصية» من قائمة عمليات العهد والأحداث.',
@@ -107,7 +107,7 @@ const operations: Operation[] = [
     title: 'إعادة عهدة',
     summary: 'إغلاق عهدة قائمة وتوثيق الكمية والحالة والملاحظات عند الإعادة.',
     icon: RotateCcw,
-    tone: 'text-violet-600 bg-violet-500/10 border-violet-500/20',
+    tone: 'text-violet-600 dark:text-violet-400 bg-violet-500/10 border-violet-500/20',
     when: 'تستخدم عند إعادة ما تم تسليمه كعهدة، كلياً أو جزئياً.',
     steps: [
       'افتح «إعادة عهدة» واختر العهدة المفتوحة من القائمة.',
@@ -127,7 +127,7 @@ const operations: Operation[] = [
     title: 'تسجيل تلف',
     summary: 'توثيق الصنف أو التجهيز التالف مع السبب والحالة والإجراء المتخذ.',
     icon: FileWarning,
-    tone: 'text-amber-600 bg-amber-500/10 border-amber-500/20',
+    tone: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20',
     when: 'تستخدم عند اكتشاف تلف أو فقدان صلاحية أو عدم قابلية للاستخدام.',
     steps: [
       'افتح «تسجيل تلف» من قائمة عمليات العهد والأحداث.',
@@ -147,7 +147,7 @@ const operations: Operation[] = [
     title: 'مرتجع مركزي',
     summary: 'إرجاع مواد إلى الجهة المركزية مع حفظ مصدر المرتجع والوثائق المرتبطة.',
     icon: ArchiveRestore,
-    tone: 'text-cyan-600 bg-cyan-500/10 border-cyan-500/20',
+    tone: 'text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border-cyan-500/20',
     when: 'تستخدم عند إعادة مواد إلى المستودع المركزي أو الجهة الموردة.',
     steps: [
       'افتح «مرتجع مركزي» وحدد الصنف والكمية المعادة.',
@@ -167,7 +167,7 @@ const operations: Operation[] = [
     title: 'تسوية جرد',
     summary: 'مطابقة الرصيد النظامي مع الكمية الفعلية بعد جرد موثق.',
     icon: ClipboardCheck,
-    tone: 'text-slate-600 bg-slate-500/10 border-slate-500/20',
+    tone: 'text-slate-600 dark:text-slate-300 bg-slate-500/10 border-slate-500/20',
     when: 'تستخدم فقط عند ظهور فرق بين الجرد الفعلي والرصيد المسجل.',
     steps: [
       'افتح الصنف أو التجهيز واختر «تسوية جرد».',
@@ -185,12 +185,12 @@ const operations: Operation[] = [
 ];
 
 const featureCards = [
-  { icon: LayoutDashboard, title: 'لوحة تحكم فورية', text: 'ملخص الرصيد، النواقص، المنتهي، التجهيزات والعمليات الحديثة في شاشة واحدة.', color: 'text-blue-600 bg-blue-500/10' },
-  { icon: Package, title: 'إدارة المواد والمستهلكات', text: 'سجل مركزي للأصناف والتصنيفات والوحدات والتشغيلات والصلاحية والحد الأدنى.', color: 'text-emerald-600 bg-emerald-500/10' },
-  { icon: Stethoscope, title: 'إدارة التجهيزات الطبية', text: 'متابعة الأجهزة والأرقام التسلسلية والحالة والصيانة والعهدة المرتبطة بها.', color: 'text-violet-600 bg-violet-500/10' },
-  { icon: BarChart3, title: 'تقارير قابلة للتنفيذ', text: 'تقارير الجرد والحركة والنواقص والصلاحية والتجهيزات والعهد المفتوحة مع الطباعة والتصدير.', color: 'text-amber-600 bg-amber-500/10' },
-  { icon: AlertCircle, title: 'تنبيهات استباقية', text: 'تنبيه عند انخفاض الرصيد أو قرب انتهاء الصلاحية أو وجود تجهيز يحتاج صيانة.', color: 'text-red-600 bg-red-500/10' },
-  { icon: ShieldCheck, title: 'تدقيق وصلاحيات', text: 'أدوار واضحة وسجل تدقيق للحركات والتغييرات الحساسة لضمان المسؤولية.', color: 'text-cyan-600 bg-cyan-500/10' },
+  { icon: LayoutDashboard, title: 'لوحة تحكم فورية', text: 'ملخص الرصيد، النواقص، المنتهي، التجهيزات والعمليات الحديثة في شاشة واحدة.', color: 'text-blue-600 dark:text-blue-400 bg-blue-500/10' },
+  { icon: Package, title: 'إدارة المواد والمستهلكات', text: 'سجل مركزي للأصناف والتصنيفات والوحدات والتشغيلات والصلاحية والحد الأدنى.', color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10' },
+  { icon: Stethoscope, title: 'إدارة التجهيزات الطبية', text: 'متابعة الأجهزة والأرقام التسلسلية والحالة والصيانة والعهدة المرتبطة بها.', color: 'text-violet-600 dark:text-violet-400 bg-violet-500/10' },
+  { icon: BarChart3, title: 'تقارير قابلة للتنفيذ', text: 'تقارير الجرد والحركة والنواقص والصلاحية والتجهيزات والعهد المفتوحة مع الطباعة والتصدير.', color: 'text-amber-600 dark:text-amber-400 bg-amber-500/10' },
+  { icon: AlertCircle, title: 'تنبيهات استباقية', text: 'تنبيه عند انخفاض الرصيد أو قرب انتهاء الصلاحية أو وجود تجهيز يحتاج صيانة.', color: 'text-red-600 dark:text-red-400 bg-red-500/10' },
+  { icon: ShieldCheck, title: 'تدقيق وصلاحيات', text: 'أدوار واضحة وسجل تدقيق للحركات والتغييرات الحساسة لضمان المسؤولية.', color: 'text-cyan-600 dark:text-cyan-400 bg-cyan-500/10' },
 ];
 
 const workflowSteps = [
@@ -313,6 +313,31 @@ export function HelpPage() {
           </div>
         </div>
       </section>
+
+      <nav aria-label="فهرس دليل المساعدة" className="rounded-xl border bg-card p-4 shadow-sm" dir="rtl">
+        <div className="mb-3 flex items-center gap-2 text-sm font-bold">
+          <Search className="h-4 w-4 text-primary" />
+          انتقال سريع داخل الدليل
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+          {[
+            ['#overview', 'التعريف'],
+            ['#workflow', 'طريقة العمل'],
+            ['#operations', 'العمليات'],
+            ['#monitoring', 'المتابعة'],
+            ['#roles', 'الصلاحيات'],
+          ].map(([href, label]) => (
+            <a
+              key={href}
+              href={href}
+              data-testid={`link-help-section-${href.slice(1)}`}
+              className="rounded-lg border bg-background px-3 py-2 text-center text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+            >
+              {label}
+            </a>
+          ))}
+        </div>
+      </nav>
 
       <section id="overview" className="scroll-mt-6">
         <SectionHeading
