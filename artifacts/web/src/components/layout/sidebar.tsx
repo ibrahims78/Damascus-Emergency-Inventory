@@ -72,7 +72,7 @@ export function Sidebar() {
     <TooltipProvider delayDuration={200}>
       {/* Mobile Toggle */}
       <button
-        className="md:hidden fixed bottom-4 right-4 z-50 p-3 bg-primary text-primary-foreground rounded-full shadow-lg"
+        className="md:hidden fixed bottom-4 right-4 z-50 p-3 bg-primary text-primary-foreground rounded-full shadow-lg print:hidden"
         onClick={() => setIsMobileOpen(!isMobileOpen)}
       >
         {isMobileOpen ? <X size={22} /> : <Menu size={22} />}
@@ -81,7 +81,7 @@ export function Sidebar() {
       {/* Mobile Backdrop */}
       {isMobileOpen && (
         <div
-          className="md:hidden fixed inset-0 z-40 bg-background/80 backdrop-blur-sm"
+          className="md:hidden fixed inset-0 z-40 bg-background/80 backdrop-blur-sm print:hidden"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
