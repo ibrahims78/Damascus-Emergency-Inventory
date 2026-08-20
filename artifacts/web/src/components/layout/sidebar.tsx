@@ -19,11 +19,13 @@ import {
   RotateCcw,
   UserRoundCheck,
   Network,
+  ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import logoUrl from '@assets/logo.jpeg';
 import { useSidebar } from './sidebar-context';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Tooltip,
   TooltipContent,
@@ -62,11 +64,13 @@ export function Sidebar() {
   const { data: user } = useGetCurrentUser();
   const { collapsed, toggle } = useSidebar();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [movementOpen, setMovementOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
 
-  const allItems =
-    user?.role === 'admin'
-      ? [...navItems, ...movementItems, ...adminItems]
-      : [...navItems, ...movementItems];
+  const isRouteActive = (href: string) =>
+    href === '/' ? location === '/' : location.startsWith(href);
+  const movementActive = movementItems.some(item => isRouteActive(item.href));
+  const adminActive = adminItems.some(item => isRouteActive(item.href));
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -140,15 +144,10 @@ export function Sidebar() {
         </button>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-          {allItems.map((item) => {
+        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
+          {navItems.map((item) => {
             const Icon = item.icon;
-            const isAdminStart = item.href === '/users';
-            const isMovementStart = item.href === '/custody/out/new';
-            const isActive =
-              item.href === '/'
-                ? location === '/'
-                : location.startsWith(item.href);
+            const isActive = isRouteActive(item.href);
 
             const linkEl = (
               <Link
@@ -171,24 +170,6 @@ export function Sidebar() {
 
             return (
               <div key={item.href}>
-                {isAdminStart && user?.role === 'admin' && (
-                  <div className={cn('pt-3 pb-1', collapsed ? 'px-1' : 'px-3')}>
-                    {collapsed
-                      ? <div className="border-t" />
-                      : (
-                        <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-                          إدارة النظام
-                        </div>
-                      )
-                    }
-                  </div>
-                )}
-                {isMovementStart && (
-                  <div className={cn('pt-3 pb-1', collapsed ? 'px-1' : 'px-3')}>
-                    {collapsed ? <div className="border-t" /> : <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">حركات العهد والأحداث</div>}
-                  </div>
-                )}
-
                 {collapsed ? (
                   <Tooltip>
                     <TooltipTrigger asChild>{linkEl}</TooltipTrigger>
@@ -200,6 +181,120 @@ export function Sidebar() {
               </div>
             );
           })}
+
+          {/* Secondary actions stay available, but do not compete with the
+              daily navigation until the user needs them. */}
+          <Collapsible
+            open={collapsed || movementOpen || movementActive}
+            onOpenChange={setMovementOpen}
+            className="pt-2"
+          >
+            {collapsed ? (
+              <div className="border-t mx-1 mb-2" />
+            ) : (
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    'w-full flex items-center justify-between rounded-md px-3 py-2 text-[11px] font-semibold',
+                    'text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors',
+                    movementActive && 'text-foreground bg-secondary/60',
+                  )}
+                  aria-label="فتح عمليات العهد والأحداث"
+                >
+                  <span className="flex items-center gap-2">
+                    <RotateCcw className="w-4 h-4" />
+                    عمليات العهد والأحداث
+                  </span>
+                  <ChevronDown className={cn('w-4 h-4 transition-transform', (movementOpen || movementActive) && 'rotate-180')} />
+                </button>
+              </CollapsibleTrigger>
+            )}
+            <CollapsibleContent className="space-y-0.5 pt-1">
+              {movementItems.map(item => {
+                const Icon = item.icon;
+                const linkEl = (
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      'flex items-center rounded-md text-sm font-medium transition-colors',
+                      collapsed ? 'justify-center p-2.5' : 'gap-3 px-3 py-2',
+                      isRouteActive(item.href)
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
+                    )}
+                    onClick={() => setIsMobileOpen(false)}
+                  >
+                    <Icon className="w-[18px] h-[18px] flex-shrink-0" />
+                    {!collapsed && <span>{item.label}</span>}
+                  </Link>
+                );
+                return collapsed ? (
+                  <Tooltip key={item.href}>
+                    <TooltipTrigger asChild>{linkEl}</TooltipTrigger>
+                    <TooltipContent side="left" className="font-medium">{item.label}</TooltipContent>
+                  </Tooltip>
+                ) : <div key={item.href}>{linkEl}</div>;
+              })}
+            </CollapsibleContent>
+          </Collapsible>
+
+          {user?.role === 'admin' && (
+            <Collapsible
+              open={collapsed || adminOpen || adminActive}
+              onOpenChange={setAdminOpen}
+              className="pt-1"
+            >
+              {collapsed ? (
+                <div className="border-t mx-1 mb-2" />
+              ) : (
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      'w-full flex items-center justify-between rounded-md px-3 py-2 text-[11px] font-semibold',
+                      'text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors',
+                      adminActive && 'text-foreground bg-secondary/60',
+                    )}
+                    aria-label="فتح إدارة النظام"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Settings className="w-4 h-4" />
+                      إدارة النظام
+                    </span>
+                    <ChevronDown className={cn('w-4 h-4 transition-transform', (adminOpen || adminActive) && 'rotate-180')} />
+                  </button>
+                </CollapsibleTrigger>
+              )}
+              <CollapsibleContent className="space-y-0.5 pt-1">
+                {adminItems.map(item => {
+                  const Icon = item.icon;
+                  const linkEl = (
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        'flex items-center rounded-md text-sm font-medium transition-colors',
+                        collapsed ? 'justify-center p-2.5' : 'gap-3 px-3 py-2',
+                        isRouteActive(item.href)
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
+                      )}
+                      onClick={() => setIsMobileOpen(false)}
+                    >
+                      <Icon className="w-[18px] h-[18px] flex-shrink-0" />
+                      {!collapsed && <span>{item.label}</span>}
+                    </Link>
+                  );
+                  return collapsed ? (
+                    <Tooltip key={item.href}>
+                      <TooltipTrigger asChild>{linkEl}</TooltipTrigger>
+                      <TooltipContent side="left" className="font-medium">{item.label}</TooltipContent>
+                    </Tooltip>
+                  ) : <div key={item.href}>{linkEl}</div>;
+                })}
+              </CollapsibleContent>
+            </Collapsible>
+          )}
         </nav>
 
         {/* Footer: version + designer signature */}
