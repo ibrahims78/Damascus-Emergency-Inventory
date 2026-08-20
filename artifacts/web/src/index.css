@@ -214,6 +214,14 @@
 }
 
 @media print {
+  html,
+  body,
+  #root {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
   @page {
     size: A4;
     margin: 12mm;
@@ -277,6 +285,26 @@
       background-color: white !important;
       -webkit-print-color-adjust: exact;
       color-adjust: exact;
+    }
+    header,
+    aside {
+      display: none !important;
+    }
+    main {
+      height: auto !important;
+      min-height: 0 !important;
+      overflow: visible !important;
+      padding: 0 !important;
+    }
+    .h-screen {
+      height: auto !important;
+      min-height: 0 !important;
+    }
+    .overflow-y-auto {
+      overflow: visible !important;
+    }
+    .flex-1 {
+      flex: none !important;
     }
     thead {
       display: table-header-group;
