@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'wouter';
 import {
   useCreateCentralReturnTransaction,
@@ -336,22 +336,41 @@ export function CustodyReturnForm() {
   const { data: custodies, isLoading } = useListCustodies();
   const mutation = useCreateCustodyReturnTransaction();
   const openCustodies = useMemo(() => (custodies ?? []).filter((custody) => custody.outstandingQuantity > 0), [custodies]);
-  const [custodyId, setCustodyId] = useState<number | null>(null);
+  const [custodyId, setCustodyId] = useState<number | null>(() => {
+    const value = new URLSearchParams(window.location.search).get('custodyId');
+    const parsed = value ? Number(value) : NaN;
+    return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+  });
   const [quantity, setQuantity] = useState(1);
   const [condition, setCondition] = useState<'good' | 'damaged' | 'needs_maintenance' | 'missing'>('good');
   const [date, setDate] = useState(today());
   const [returnedToLocation, setReturnedToLocation] = useState('');
   const [inspectionNotes, setInspectionNotes] = useState('');
   const [confirming, setConfirming] = useState(false);
+  const [validationError, setValidationError] = useState('');
   const selected = openCustodies.find((custody) => custody.id === custodyId);
   const [custodyPickerOpen, setCustodyPickerOpen] = useState(false);
+
+  useEffect(() => {
+    if (custodyId && !selected && !isLoading) {
+      setCustodyId(null);
+      setValidationError('العهدة المطلوبة غير موجودة أو تمت إعادتها بالكامل.');
+    }
+  }, [custodyId, selected, isLoading]);
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!selected || !returnedToLocation.trim() || quantity < 1 || quantity > selected.outstandingQuantity) {
-      toast.error(selected ? `كمية الإعادة يجب ألا تتجاوز ${selected.outstandingQuantity}` : 'اختر عهدة مفتوحة ومكان الإعادة');
+      const message = selected
+        ? !returnedToLocation.trim()
+          ? 'أدخل المكان الذي عادت إليه العهدة'
+          : `كمية الإعادة يجب ألا تتجاوز ${selected.outstandingQuantity}`
+        : 'اختر عهدة مفتوحة ومكان الإعادة';
+      setValidationError(message);
+      toast.error(message);
       return;
     }
+    setValidationError('');
     if (!confirming) { setConfirming(true); return; }
     mutation.mutate(
       { data: { custodyId: selected.id, quantity, returnCondition: condition, returnedToLocation: returnedToLocation.trim(), documentDate: date, inspectionNotes: inspectionNotes.trim() || null } },
@@ -366,11 +385,11 @@ export function CustodyReturnForm() {
     <PageFrame title="إعادة عهدة شخصية" description="إعادة كل العهدة أو جزء منها مع توثيق حالتها" icon={RotateCcw}>
       <FormCard onSubmit={submit} pending={mutation.isPending} confirming={confirming} onCancelConfirm={() => setConfirming(false)} submitLabel="تسجيل إعادة العهدة">
         <Field label="العهدة المفتوحة" required hint={isLoading ? 'جاري تحميل العهد...' : 'تظهر العهد التي ما زال لها رصيد غير معاد فقط'}>
-          <CatalogCombobox
+           <CatalogCombobox
             value={custodyId ? String(custodyId) : ''}
             open={custodyPickerOpen}
             onOpenChange={setCustodyPickerOpen}
-            onValueChange={(value) => { setCustodyId(Number(value)); setQuantity(1); setConfirming(false); }}
+             onValueChange={(value) => { setCustodyId(Number(value)); setQuantity(1); setConfirming(false); setValidationError(''); }}
             placeholder="اختر العهدة..."
             searchPlaceholder="ابحث باسم التجهيز أو اسم المستلم..."
             emptyMessage="لا توجد عهدة مفتوحة"
@@ -382,14 +401,24 @@ export function CustodyReturnForm() {
             }))}
           />
         </Field>
+         {validationError && (
+           <div role="alert" aria-live="polite" className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
+             {validationError}
+           </div>
+         )}
+         {!isLoading && openCustodies.length === 0 && (
+           <div role="status" className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+             لا توجد عهدة مفتوحة قابلة للإعادة حاليًا. يجب تسجيل تسليم عهدة أولًا أو تحديث الصفحة بعد تسجيل التسليم.
+           </div>
+         )}
         {selected && <div className="flex flex-wrap gap-2 rounded-lg bg-muted/40 p-3 text-sm"><Badge variant="outline">السند: {selected.deliveryNoteNumber}</Badge><Badge variant="outline">المكان: {selected.location}</Badge><Badge variant="secondary">المتبقي: {selected.outstandingQuantity}</Badge></div>}
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="الكمية المعادة" required><Input type="number" min={1} max={selected?.outstandingQuantity ?? 1} value={quantity} onChange={(e) => { setQuantity(e.target.valueAsNumber || 1); setConfirming(false); }} /></Field>
           <Field label="حالة الصنف عند الإعادة" required>
             <Select value={condition} onValueChange={(value) => { setCondition(value as typeof condition); setConfirming(false); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="good">جيد</SelectItem><SelectItem value="damaged">تالف</SelectItem><SelectItem value="needs_maintenance">يحتاج صيانة</SelectItem><SelectItem value="missing">مفقود</SelectItem></SelectContent></Select>
           </Field>
-          <Field label="تاريخ الإعادة" required><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-          <Field label="المكان الذي عاد إليه" required><Input value={returnedToLocation} onChange={(e) => { setReturnedToLocation(e.target.value); setConfirming(false); }} placeholder="المستودع أو موقع الفحص" /></Field>
+           <Field label="تاريخ الإعادة" required><Input type="date" value={date} onChange={(e) => { setDate(e.target.value); setConfirming(false); }} /></Field>
+           <Field label="المكان الذي عاد إليه" required><Input value={returnedToLocation} onChange={(e) => { setReturnedToLocation(e.target.value); setConfirming(false); setValidationError(''); }} placeholder="المستودع أو موقع الفحص" /></Field>
         </div>
         <Field label="ملاحظات الفحص"><Textarea value={inspectionNotes} onChange={(e) => setInspectionNotes(e.target.value)} className="min-h-24" /></Field>
       </FormCard>

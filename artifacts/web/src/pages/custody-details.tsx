@@ -60,7 +60,14 @@ export function CustodyDetailsPage({ custodyId: providedId }: { custodyId?: numb
           <Button variant="ghost" onClick={() => setLocation('/reports?tab=custodies')} className="mb-2 -mr-3 gap-2 print:hidden"><ArrowLeft className="h-4 w-4" /> العودة للعهد</Button>
           <div className="flex items-center gap-3"><div className="rounded-xl bg-blue-100 p-3 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"><ShieldCheck className="h-6 w-6" /></div><div><h1 className="text-2xl font-bold tracking-tight">عهدة رقم {custody.id}</h1><p className="mt-1 text-sm text-muted-foreground">بطاقة دورة حياة العهدة وسجل التسليم والإعادة والفحص</p></div></div>
         </div>
-        <Button variant="outline" onClick={() => window.print()} className="gap-2 print:hidden"><Printer className="h-4 w-4" /> طباعة سند التسليم / الإعادة</Button>
+         <div className="flex flex-wrap gap-2 print:hidden">
+           {custody.outstandingQuantity > 0 && (
+             <Button variant="default" onClick={() => setLocation(`/custody/return/new?custodyId=${custody.id}`)} className="gap-2">
+               <RotateCcw className="h-4 w-4" /> إعادة العهدة
+             </Button>
+           )}
+           <Button variant="outline" onClick={() => window.print()} className="gap-2"><Printer className="h-4 w-4" /> طباعة سند التسليم / الإعادة</Button>
+         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2"><Badge variant="outline" className={cn('border text-xs', status.className)}>{status.label}</Badge>{custody.isOverdue && <Badge variant="destructive" className="text-xs">متأخرة ({custody.daysHeld} يوم)</Badge>}<Link href={`/equipment/${equipment.id}`} className="text-sm font-medium text-primary underline-offset-4 hover:underline">فتح بطاقة التجهيز: {equipment.name}</Link></div>

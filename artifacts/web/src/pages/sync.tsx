@@ -45,6 +45,8 @@ export function SyncPage() {
   const [relayPackages, setRelayPackages] = useState<RelayPackage[]>([]);
   const [pairingCode, setPairingCode] = useState("");
   const [consumeCode, setConsumeCode] = useState("");
+  const [pairingTargetNodeId, setPairingTargetNodeId] = useState("");
+  const [consumeNodeId, setConsumeNodeId] = useState("");
   const [targetNodeId, setTargetNodeId] = useState("");
   const [sessionId, setSessionId] = useState("");
   const [manualFile, setManualFile] = useState<File | null>(null);
@@ -73,7 +75,7 @@ export function SyncPage() {
     try {
       const result = await api<{ code: string; expiresAt: string }>("/pairings", {
         method: "POST",
-        body: JSON.stringify({ targetNodeId: targetNodeId || undefined }),
+        body: JSON.stringify({ targetNodeId: pairingTargetNodeId || undefined }),
       });
       setPairingCode(result.code);
       setMessage(`رمز الاقتران صالح حتى ${formatDate(result.expiresAt)} ويُستخدم مرة واحدة.`);
@@ -89,9 +91,10 @@ export function SyncPage() {
     try {
       await api("/pairings/consume", {
         method: "POST",
-        body: JSON.stringify({ code: consumeCode, nodeId: targetNodeId, nodeType: "web", label: "عقدة ويب" }),
+        body: JSON.stringify({ code: consumeCode, nodeId: consumeNodeId, nodeType: "web", label: "عقدة ويب" }),
       });
       setConsumeCode("");
+      setConsumeNodeId("");
       setMessage("تمت إضافة العقدة إلى قائمة الثقة.");
       await refresh();
     } catch (error) {
@@ -195,13 +198,14 @@ export function SyncPage() {
           <CardHeader><CardTitle>اقتران عقدة</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <div className="flex gap-2">
-              <Input value={targetNodeId} onChange={(event) => setTargetNodeId(event.target.value)} placeholder="Node ID اختياري" dir="ltr" />
+              <Input value={pairingTargetNodeId} onChange={(event) => setPairingTargetNodeId(event.target.value)} placeholder="Node ID للوجهة (اختياري)" dir="ltr" />
               <Button onClick={createPairing} disabled={busy}>إنشاء رمز</Button>
             </div>
             {pairingCode && <div className="rounded border border-primary/30 bg-primary/5 p-4 text-center text-2xl font-bold tracking-[0.3em]" dir="ltr">{pairingCode}</div>}
             <div className="flex gap-2">
               <Input value={consumeCode} onChange={(event) => setConsumeCode(event.target.value)} placeholder="إدخال رمز من عقدة أخرى" dir="ltr" />
-              <Button variant="outline" onClick={consumePairing} disabled={busy || !consumeCode || !targetNodeId}>اعتماد</Button>
+              <Input value={consumeNodeId} onChange={(event) => setConsumeNodeId(event.target.value)} placeholder="Node ID للعقدة المصدر" dir="ltr" />
+              <Button variant="outline" onClick={consumePairing} disabled={busy || !consumeCode || !consumeNodeId}>اعتماد</Button>
             </div>
           </CardContent>
         </Card>

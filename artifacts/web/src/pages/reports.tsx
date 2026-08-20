@@ -878,6 +878,7 @@ function StockPositionTab() {
 // ─── tab 7: personal custody report ─────────────────────────────────────────
 
 function CustodiesTab() {
+  const [, setLocation] = useLocation();
   const [status, setStatus] = useState<'all' | 'open' | 'partially_returned' | 'damaged'>('all');
   const [search, setSearch] = useState('');
   const [overdueDays, setOverdueDays] = useState('30');
@@ -957,7 +958,8 @@ function CustodiesTab() {
               <TableHead className="text-center">التاريخ</TableHead>
               <TableHead className="text-right">المكان</TableHead>
               <TableHead className="text-center">المتبقي</TableHead>
-              <TableHead className="text-center">الحالة</TableHead>
+               <TableHead className="text-center">الحالة</TableHead>
+               <TableHead className="text-center print:hidden">إجراء</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -981,6 +983,18 @@ function CustodiesTab() {
                     <Badge variant={record.overdue ? 'destructive' : 'secondary'} className="text-xs">
                       {record.overdue ? 'متأخرة' : record.status === 'partially_returned' ? 'إعادة جزئية' : record.status === 'damaged' ? 'تالف' : 'مفتوحة'}
                     </Badge>
+                  </TableCell>
+                  <TableCell className="text-center print:hidden">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1 text-xs"
+                      onClick={() => setLocation(`/custody/return/new?custodyId=${record.id}`)}
+                      disabled={record.outstandingQuantity <= 0}
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      إعادة عهدة
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
