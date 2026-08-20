@@ -12,5 +12,7 @@ the workspace may have no bound GitHub OAuth connection even when the repository
 publicly readable.
 
 **How to apply:** Keep the local branch tracking `origin/main`. Before promising a
-remote push, verify OAuth is bound or that the secure `GITHUB_TOKEN` exists. Never
-place the token in the remote URL, repository files, or chat messages.
+remote push, verify OAuth is bound or that the secure `GITHUB_TOKEN` exists. This
+workspace uses a Git credential helper that reads the token from the environment
+without embedding it in the remote URL. Never place the token in repository files
+or chat messages.
