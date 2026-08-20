@@ -25,8 +25,7 @@
     "phase13:migration": "tsx ./phase13-migration-smoke.ts",
     "phase14:resilience": "tsx ./phase14-resilience-smoke.ts",
     "migration:baseline-report": "node ./legacy-baseline-report.mjs",
-    "demo:movements": "tsx ./seed-demo-movements.ts",
-    "final:acceptance": "pnpm run demo:movements && pnpm run phase2:movement-unit && pnpm run phase2:movement-smoke && pnpm run phase3:inbound-smoke && pnpm run phase4:consumables-fefo && pnpm run phase5:assets-lifecycle && pnpm run phase6:item-history && pnpm run phase8:acceptance",
+    "final:acceptance": "pnpm run phase2:movement-unit && pnpm run phase2:movement-smoke && pnpm run phase3:inbound-smoke && pnpm run phase4:consumables-fefo && pnpm run phase5:assets-lifecycle && pnpm run phase6:item-history && pnpm run phase8:acceptance",
     "phase8:acceptance": "node ./phase8-acceptance-smoke.mjs"
   },
   "devDependencies": {
