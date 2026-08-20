@@ -89,6 +89,7 @@ export function TransactionInForm() {
     watchItemType === 'equipment' && watchEquipmentId
       ? equipmentData?.equipment.find((e: Equipment) => e.id === Number(watchEquipmentId))
       : null;
+  const equipmentHasSerialNumber = Boolean(selectedEquipment?.serialNumber?.trim());
 
   const handleSubmit = (data: FormValues) => {
     // Validate item/equipment selection
@@ -100,8 +101,12 @@ export function TransactionInForm() {
       form.setError('equipmentId', { message: 'يرجى اختيار التجهيز' });
       return;
     }
-    if (data.itemType === 'item' && (!data.quantity || data.quantity < 1)) {
+    if (!data.quantity || data.quantity < 1) {
       form.setError('quantity', { message: 'الكمية يجب أن تكون 1 على الأقل' });
+      return;
+    }
+    if (data.itemType === 'equipment' && equipmentHasSerialNumber && data.quantity !== 1) {
+      form.setError('quantity', { message: 'التجهيز ذو الرقم التسلسلي يجب أن تكون كميته 1 فقط' });
       return;
     }
 
@@ -194,7 +199,7 @@ export function TransactionInForm() {
                       onClick={() => {
                         field.onChange('equipment');
                         form.setValue('itemId', null);
-                        form.setValue('quantity', null);
+                        form.setValue('quantity', 1);
                         form.clearErrors('itemId');
                         setPendingConfirm(false);
                       }}
@@ -322,8 +327,8 @@ export function TransactionInForm() {
               />
             )}
 
-            {/* Quantity (items only) */}
-            {watchItemType === 'item' && (
+            {/* Quantity */}
+            {(watchItemType === 'item' || watchItemType === 'equipment') && (
               <FormField
                 control={form.control}
                 name="quantity"
@@ -336,11 +341,18 @@ export function TransactionInForm() {
                           ({selectedItem.unit})
                         </span>
                       )}
+                      {watchItemType === 'equipment' && (
+                        <span className="font-normal text-muted-foreground mr-2 text-xs">
+                          (قطعة)
+                        </span>
+                      )}
                     </FormLabel>
                     <FormControl>
                       <Input
                         type="number"
                         min={1}
+                        max={watchItemType === 'equipment' && equipmentHasSerialNumber ? 1 : undefined}
+                        readOnly={watchItemType === 'equipment' && equipmentHasSerialNumber}
                         {...field}
                         value={field.value ?? ''}
                         onChange={(e) => {
@@ -349,9 +361,20 @@ export function TransactionInForm() {
                           );
                           setPendingConfirm(false);
                         }}
-                        className="max-w-[180px]"
+                        className={`max-w-[180px] ${
+                          watchItemType === 'equipment' && equipmentHasSerialNumber
+                            ? 'bg-muted cursor-not-allowed'
+                            : ''
+                        }`}
                       />
                     </FormControl>
+                    {watchItemType === 'equipment' && (
+                      <p className="text-xs text-muted-foreground">
+                        {equipmentHasSerialNumber
+                          ? 'الرقم التسلسلي يعرّف وحدة واحدة — الكمية ثابتة عند 1'
+                          : 'أدخل عدد القطع التي وصلت ضمن هذا التجهيز'}
+                      </p>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -497,7 +520,10 @@ export function TransactionInForm() {
                         </strong>
                       </>
                     ) : (
-                      <strong>{selectedEquipment?.name}</strong>
+                      <>
+                        <strong>{selectedEquipment?.name}</strong> بكمية{' '}
+                        <strong>{watchQuantity} قطعة</strong>
+                      </>
                     )}
                       {form.getValues('expiryDate') ? (
                         <>
