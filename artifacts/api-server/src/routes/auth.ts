@@ -13,6 +13,12 @@ const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 const RATE_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const MAX_ATTEMPTS = 10;
 
+function saveSession(req: Request) {
+  return new Promise<void>((resolve, reject) => {
+    req.session.save((err) => (err ? reject(err) : resolve()));
+  });
+}
+
 function loginRateLimiter(req: Request, res: Response, next: NextFunction) {
   const key = String(req.ip ?? "unknown");
   const now = Date.now();
@@ -99,6 +105,7 @@ router.post("/setup", loginRateLimiter, async (req, res) => {
       req.session.regenerate((err) => (err ? reject(err) : resolve()))
     );
     req.session.userId = user.id;
+    await saveSession(req);
     res.json({ id: user.id, username: user.username, fullName: user.fullName, role: user.role });
   } catch (err: any) {
     if (err?.code === "23505") {
@@ -135,6 +142,7 @@ router.post("/login", loginRateLimiter, async (req, res) => {
       req.session.regenerate((err) => (err ? reject(err) : resolve()))
     );
     req.session.userId = user.id;
+    await saveSession(req);
     await auditLog({ req, action: "login", entityType: "user", entityId: user.id, details: { username: user.username } });
     res.json({
       id: user.id,
