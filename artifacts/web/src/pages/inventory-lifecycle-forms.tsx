@@ -212,7 +212,7 @@ function EntityPicker({
             options={(equipmentData?.equipment ?? []).map((equipment: Equipment) => ({
               value: String(equipment.id),
               searchValue: `${equipment.id} ${equipment.name} ${equipment.serialNumber ?? ''} ${equipment.model ?? ''}`,
-              label: `${equipment.name} — المتاح ${equipment.quantity}${equipment.serialNumber ? ` (S/N: ${equipment.serialNumber})` : ''}`,
+                label: `${equipment.name} — الرصيد المسجل ${equipment.quantity}${equipment.serialNumber ? ` (S/N: ${equipment.serialNumber})` : ''}`,
             }))}
           />
         </Field>
@@ -431,7 +431,7 @@ function MovementEntityForm({
           )}
           <Field label="السبب" required><Input value={reason} onChange={(e) => { setReason(e.target.value); setConfirming(false); }} placeholder="اكتب السبب بالتفصيل" /></Field>
         </div>
-        <Field label="ملاحظات / رقم المحضر"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="min-h-24" /></Field>
+          <Field label="ملاحظات / رقم المحضر"><Textarea value={notes} onChange={(e) => { setNotes(e.target.value); setConfirming(false); }} className="min-h-24" /></Field>
       </FormCard>
     </PageFrame>
   );
