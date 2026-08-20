@@ -30,6 +30,7 @@ import {
   UsersRound,
   ListChecks,
   Power,
+  Wrench,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,6 +54,7 @@ interface SystemSettings {
   orgSubtitle?: string | null;
   expiryAlertDays: number;
   unitsList?: string | null;
+  technicalConditions?: string | null;
   setupCompleted: boolean;
   updatedAt: string;
 }
@@ -66,7 +68,7 @@ async function fetchSettings(): Promise<SystemSettings> {
 }
 
 async function saveSettings(
-  data: Partial<Pick<SystemSettings, 'orgName' | 'orgSubtitle' | 'expiryAlertDays' | 'unitsList'>>,
+  data: Partial<Pick<SystemSettings, 'orgName' | 'orgSubtitle' | 'expiryAlertDays' | 'unitsList' | 'technicalConditions'>>,
 ): Promise<SystemSettings> {
   const res = await fetch('/api/settings', {
     method: 'PUT',
@@ -100,6 +102,14 @@ async function changePassword(data: {
 const DEFAULT_UNITS = [
   'قطعة', 'علبة', 'لتر', 'مل', 'كيس', 'زجاجة', 'برميل',
   'رول', 'كرتون', 'طرد', 'حبة', 'زوج', 'مجموعة', 'جرام', 'كيلوغرام',
+];
+
+const DEFAULT_TECHNICAL_CONDITIONS = [
+  { key: 'good', label: 'جيد' },
+  { key: 'needs_inspection', label: 'يحتاج فحص' },
+  { key: 'maintenance', label: 'تحت الصيانة' },
+  { key: 'broken', label: 'معطل' },
+  { key: 'consumed', label: 'مستهلك / متلف' },
 ];
 
 // ─── Settings Page ────────────────────────────────────────────────────────────
@@ -149,6 +159,11 @@ export function SettingsPage() {
           {isAdmin && (
             <TabsTrigger value="units" className="gap-2">
               <Ruler className="h-4 w-4" />وحدات القياس
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="technical-conditions" className="gap-2">
+              <Wrench className="h-4 w-4" />الحالات الفنية
             </TabsTrigger>
           )}
           {isAdmin && (
@@ -203,6 +218,11 @@ export function SettingsPage() {
         {isAdmin && (
           <TabsContent value="units">
             <UnitsTab />
+          </TabsContent>
+        )}
+        {isAdmin && (
+          <TabsContent value="technical-conditions">
+            <TechnicalConditionsTab />
           </TabsContent>
         )}
         {isAdmin && (
@@ -907,6 +927,217 @@ function UnitsTab() {
 
       <p className="text-xs text-muted-foreground">
         {units.length} وحدة مسجّلة — التغييرات تُحفظ فوراً، ولا يؤثر حذف/تعديل الخيار على المواد المحفوظة سابقاً
+      </p>
+    </div>
+  );
+}
+
+// ─── Technical Conditions Tab ──────────────────────────────────────────────────
+
+interface TechnicalCondition {
+  key: string;
+  label: string;
+}
+
+function TechnicalConditionsTab() {
+  const qc = useQueryClient();
+  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: fetchSettings });
+  const [conditions, setConditions] = useState<TechnicalCondition[]>(DEFAULT_TECHNICAL_CONDITIONS);
+  const [newLabel, setNewLabel] = useState('');
+  const [editKey, setEditKey] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+
+  useEffect(() => {
+    if (settings?.technicalConditions) {
+      try {
+        const parsed = JSON.parse(settings.technicalConditions);
+        if (
+          Array.isArray(parsed) &&
+          parsed.every(
+            (condition) =>
+              condition &&
+              typeof condition.key === 'string' &&
+              typeof condition.label === 'string',
+          )
+        ) {
+          setConditions(parsed);
+        }
+      } catch { /* keep defaults */ }
+    }
+  }, [settings]);
+
+  const mutation = useMutation({
+    mutationFn: (next: TechnicalCondition[]) =>
+      saveSettings({ technicalConditions: JSON.stringify(next) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['settings'] }),
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const persist = (next: TechnicalCondition[], message: string) => {
+    mutation.mutate(next, {
+      onSuccess: () => {
+        setConditions(next);
+        setEditKey(null);
+        setEditValue('');
+        toast.success(message);
+      },
+    });
+  };
+
+  const isDuplicate = (label: string, exceptKey?: string) =>
+    conditions.some(
+      (condition) =>
+        condition.key !== exceptKey &&
+        condition.label.localeCompare(label, 'ar', { sensitivity: 'base' }) === 0,
+    );
+
+  const addCondition = () => {
+    const label = newLabel.trim();
+    if (!label) return;
+    if (isDuplicate(label)) {
+      toast.error('الحالة الفنية موجودة مسبقاً');
+      return;
+    }
+    const key = `technical_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    persist([...conditions, { key, label }], 'تمت إضافة الحالة الفنية');
+    setNewLabel('');
+  };
+
+  const saveEdit = () => {
+    if (!editKey) return;
+    const label = editValue.trim();
+    if (!label) {
+      toast.error('اسم الحالة الفنية مطلوب');
+      return;
+    }
+    if (isDuplicate(label, editKey)) {
+      toast.error('الحالة الفنية موجودة مسبقاً');
+      return;
+    }
+    persist(
+      conditions.map((condition) =>
+        condition.key === editKey ? { ...condition, label } : condition,
+      ),
+      'تم تعديل الحالة الفنية',
+    );
+  };
+
+  const removeCondition = (key: string) => {
+    if (conditions.length <= 1) {
+      toast.error('يجب الإبقاء على حالة فنية واحدة على الأقل');
+      return;
+    }
+    persist(
+      conditions.filter((condition) => condition.key !== key),
+      'تم حذف الحالة الفنية',
+    );
+  };
+
+  return (
+    <div className="bg-card border rounded-lg p-6 space-y-5">
+      <div>
+        <h2 className="font-semibold text-lg">الحالات الفنية</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          الحالات المتاحة عند إضافة أو تعديل التجهيزات
+        </p>
+      </div>
+
+      <div className="flex gap-2 max-w-xl">
+        <Input
+          placeholder="أضف حالة فنية جديدة..."
+          value={newLabel}
+          onChange={(event) => setNewLabel(event.target.value)}
+          onKeyDown={(event) => event.key === 'Enter' && addCondition()}
+        />
+        <Button
+          onClick={addCondition}
+          disabled={!newLabel.trim() || mutation.isPending}
+          className="gap-2 flex-shrink-0"
+        >
+          <Plus className="h-4 w-4" />
+          إضافة
+        </Button>
+      </div>
+
+      <div className="space-y-2">
+        {conditions.map((condition) => (
+          <div
+            key={condition.key}
+            className="flex items-center gap-2 rounded-md border bg-secondary/40 px-3 py-2"
+          >
+            {editKey === condition.key ? (
+              <>
+                <Input
+                  value={editValue}
+                  onChange={(event) => setEditValue(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') saveEdit();
+                    if (event.key === 'Escape') {
+                      setEditKey(null);
+                      setEditValue('');
+                    }
+                  }}
+                  className="h-8 flex-1 bg-background"
+                  autoFocus
+                  aria-label={`تعديل الحالة ${condition.label}`}
+                />
+                <button
+                  type="button"
+                  onClick={saveEdit}
+                  disabled={mutation.isPending}
+                  className="text-primary hover:text-primary/80 disabled:opacity-50"
+                  title="حفظ التعديل"
+                  aria-label="حفظ التعديل"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditKey(null);
+                    setEditValue('');
+                  }}
+                  className="text-muted-foreground hover:text-foreground"
+                  title="إلغاء التعديل"
+                  aria-label="إلغاء التعديل"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="flex-1 font-medium">{condition.label}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditKey(condition.key);
+                    setEditValue(condition.label);
+                  }}
+                  disabled={mutation.isPending}
+                  className="text-muted-foreground hover:text-primary disabled:opacity-50"
+                  title={`تعديل ${condition.label}`}
+                  aria-label={`تعديل ${condition.label}`}
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeCondition(condition.key)}
+                  disabled={mutation.isPending}
+                  className="text-muted-foreground hover:text-destructive disabled:opacity-50"
+                  title={`حذف ${condition.label}`}
+                  aria-label={`حذف ${condition.label}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        {conditions.length} حالات مسجّلة — تعديل الاسم يحدّث العرض، ولا يغيّر السجلات المحفوظة
       </p>
     </div>
   );

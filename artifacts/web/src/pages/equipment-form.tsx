@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useForm, useWatch } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
@@ -72,6 +73,14 @@ const equipmentSchema = z
 
 type EquipmentFormValues = z.infer<typeof equipmentSchema>;
 
+const DEFAULT_TECHNICAL_CONDITIONS = [
+  { key: 'good', label: 'جيد' },
+  { key: 'needs_inspection', label: 'يحتاج فحص' },
+  { key: 'maintenance', label: 'تحت الصيانة' },
+  { key: 'broken', label: 'معطل' },
+  { key: 'consumed', label: 'مستهلك / متلف' },
+];
+
 /* ──────────────────────────── Loading skeleton ──────────────────────────── */
 
 function FormSkeleton() {
@@ -128,6 +137,31 @@ export function EquipmentForm({ equipmentId }: { equipmentId?: number }) {
   const [, setLocation] = useLocation();
 
   const isEditing = !!equipmentId;
+
+  const { data: settings } = useQuery<{ technicalConditions?: string | null }>({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const response = await fetch('/api/settings', { credentials: 'include' });
+      if (!response.ok) throw new Error('فشل جلب الحالات الفنية');
+      return response.json();
+    },
+  });
+
+  let technicalConditions = DEFAULT_TECHNICAL_CONDITIONS;
+  try {
+    const parsed = settings?.technicalConditions ? JSON.parse(settings.technicalConditions) : null;
+    if (
+      Array.isArray(parsed) &&
+      parsed.every(
+        (condition) =>
+          condition &&
+          typeof condition.key === 'string' &&
+          typeof condition.label === 'string',
+      )
+    ) {
+      technicalConditions = parsed;
+    }
+  } catch { /* use defaults */ }
 
   const { data: eq, isLoading } = useGetEquipment(
     equipmentId as number,
@@ -405,11 +439,15 @@ export function EquipmentForm({ equipmentId }: { equipmentId?: number }) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="good">✅ جيد</SelectItem>
-                          <SelectItem value="needs_inspection">🔍 يحتاج فحص</SelectItem>
-                          <SelectItem value="maintenance">🔧 تحت الصيانة</SelectItem>
-                          <SelectItem value="broken">❌ معطل</SelectItem>
-                          <SelectItem value="consumed">🗑️ مستهلك / متلف</SelectItem>
+                          {technicalConditions.map((condition) => (
+                            <SelectItem key={condition.key} value={condition.key}>
+                              {condition.label}
+                            </SelectItem>
+                          ))}
+                          {field.value &&
+                            !technicalConditions.some((condition) => condition.key === field.value) && (
+                              <SelectItem value={field.value}>{field.value}</SelectItem>
+                            )}
                         </SelectContent>
                       </Select>
                       <FormMessage />

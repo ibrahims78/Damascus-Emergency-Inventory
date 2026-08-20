@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useRoute, useLocation } from 'wouter';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   useListEquipment,
   useDeleteEquipment,
@@ -81,6 +81,14 @@ const conditionConfig: Record<ConditionKey, { label: string; className: string }
   broken:           { label: 'معطل',         className: 'bg-red-100    text-red-700    border-red-200    dark:bg-red-900/30    dark:text-red-400    dark:border-red-800' },
   consumed:         { label: 'مستهلك',       className: 'bg-zinc-100   text-zinc-600   border-zinc-200   dark:bg-zinc-800      dark:text-zinc-400   dark:border-zinc-700' },
 };
+
+const DEFAULT_TECHNICAL_CONDITIONS = [
+  { key: 'good', label: 'جيد' },
+  { key: 'needs_inspection', label: 'يحتاج فحص' },
+  { key: 'maintenance', label: 'تحت الصيانة' },
+  { key: 'broken', label: 'معطل' },
+  { key: 'consumed', label: 'مستهلك / متلف' },
+];
 
 /* ──────────────────────────── Page router ───────────────────────────────── */
 
@@ -393,6 +401,33 @@ function EquipmentList() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { data: currentUser } = useGetCurrentUser();
+  const { data: settings } = useQuery<{ technicalConditions?: string | null }>({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const response = await fetch('/api/settings', { credentials: 'include' });
+      if (!response.ok) throw new Error('فشل جلب الحالات الفنية');
+      return response.json();
+    },
+  });
+
+  let technicalConditions = DEFAULT_TECHNICAL_CONDITIONS;
+  try {
+    const parsed = settings?.technicalConditions ? JSON.parse(settings.technicalConditions) : null;
+    if (
+      Array.isArray(parsed) &&
+      parsed.every(
+        (item) =>
+          item &&
+          typeof item.key === 'string' &&
+          typeof item.label === 'string',
+      )
+    ) {
+      technicalConditions = parsed;
+    }
+  } catch { /* use defaults */ }
+  const conditionLabels = Object.fromEntries(
+    technicalConditions.map((item) => [item.key, item.label]),
+  );
 
   const [search, setSearch]               = useState('');
   const [condition, setCondition]         = useState<string>('');
@@ -548,11 +583,9 @@ function EquipmentList() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">جميع الحالات</SelectItem>
-                    <SelectItem value="good">جيد</SelectItem>
-                    <SelectItem value="needs_inspection">يحتاج فحص</SelectItem>
-                    <SelectItem value="maintenance">تحت الصيانة</SelectItem>
-                    <SelectItem value="broken">معطل</SelectItem>
-                    <SelectItem value="consumed">مستهلك</SelectItem>
+                    {technicalConditions.map((item) => (
+                      <SelectItem key={item.key} value={item.key}>{item.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -638,9 +671,10 @@ function EquipmentList() {
                 ) : (
                   equipment.map((eq: Equipment) => {
                     const cond = conditionConfig[eq.condition as ConditionKey] ?? {
-                      label: eq.condition,
+                      label: conditionLabels[eq.condition] ?? eq.condition,
                       className: '',
                     };
+                    const conditionLabel = conditionLabels[eq.condition] ?? cond.label;
                     const qty    = eq.quantity ?? 1;
                     const minQty = eq.minQuantity ?? 0;
                     const isLow  = minQty > 0 && qty <= minQty;
@@ -697,7 +731,7 @@ function EquipmentList() {
                         {/* Condition badge */}
                         <TableCell>
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${cond.className}`}>
-                            {cond.label}
+                          {conditionLabel}
                           </span>
                           {eq.condition === 'maintenance' && eq.maintenanceSentAt && (
                             <p className="text-[10px] text-muted-foreground mt-1">

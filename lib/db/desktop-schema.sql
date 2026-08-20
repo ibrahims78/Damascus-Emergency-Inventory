@@ -17,6 +17,7 @@ CREATE TABLE "system_settings" (
 	"org_subtitle" text,
 	"expiry_alert_days" integer DEFAULT 30 NOT NULL,
 	"units_list" text,
+"technical_conditions" text,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
