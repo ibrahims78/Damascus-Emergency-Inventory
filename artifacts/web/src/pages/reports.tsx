@@ -82,6 +82,24 @@ function columnName(index: number) {
   return name;
 }
 
+function printCurrentPage() {
+  window.focus();
+  window.setTimeout(() => window.print(), 0);
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = objectUrl;
+  anchor.download = filename;
+  anchor.rel = 'noopener';
+  anchor.style.display = 'none';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+}
+
 async function exportXlsx(filename: string, headers: string[], rows: ExcelCell[][]) {
   if (rows.length === 0) {
     toast({ description: 'لا توجد بيانات لتصديرها' });
@@ -105,7 +123,13 @@ async function exportXlsx(filename: string, headers: string[], rows: ExcelCell[]
       CreatedDate: new Date(),
     };
     XLSX.utils.book_append_sheet(wb, ws, 'البيانات');
-    XLSX.writeFile(wb, filename);
+    const workbookBytes = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    downloadBlob(
+      new Blob([workbookBytes], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      }),
+      filename,
+    );
     toast({ description: `تم تصدير ${rows.length.toLocaleString('ar')} سجل بنجاح` });
   } catch (error) {
     console.error('Report export failed:', error);
@@ -248,7 +272,7 @@ function StockTab() {
       </div>
 
       <div className="flex justify-end gap-2 mb-4 print:hidden">
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => window.print()}>
+        <Button type="button" variant="outline" size="sm" className="gap-2" onClick={printCurrentPage}>
           <Printer className="w-4 h-4" />
           طباعة
         </Button>
@@ -406,7 +430,7 @@ function MovementsTab() {
       </div>
 
       <div className="flex justify-end gap-2 mb-4 print:hidden">
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => window.print()}>
+        <Button type="button" variant="outline" size="sm" className="gap-2" onClick={printCurrentPage}>
           <Printer className="w-4 h-4" />طباعة
         </Button>
         <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>
@@ -506,7 +530,7 @@ function ExpiryTab() {
       </div>
 
       <div className="flex justify-end gap-2 mb-4 print:hidden">
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => window.print()}>
+        <Button type="button" variant="outline" size="sm" className="gap-2" onClick={printCurrentPage}>
           <Printer className="w-4 h-4" />طباعة
         </Button>
         <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>
@@ -600,7 +624,7 @@ function BelowMinTab() {
       </div>
 
       <div className="flex justify-end gap-2 mb-4 print:hidden">
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => window.print()}>
+        <Button type="button" variant="outline" size="sm" className="gap-2" onClick={printCurrentPage}>
           <Printer className="w-4 h-4" />طباعة
         </Button>
         <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>
@@ -705,7 +729,7 @@ function EquipmentTab() {
       </div>
 
       <div className="flex justify-end gap-2 mb-4 print:hidden">
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => window.print()}>
+        <Button type="button" variant="outline" size="sm" className="gap-2" onClick={printCurrentPage}>
           <Printer className="w-4 h-4" />طباعة
         </Button>
         <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>
@@ -808,7 +832,7 @@ function StockPositionTab() {
         <SummaryCard label="التالف" value={totalDamaged.toLocaleString('ar')} accent="danger" />
       </div>
       <div className="flex justify-end gap-2 mb-4 print:hidden">
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => window.print()}>
+        <Button type="button" variant="outline" size="sm" className="gap-2" onClick={printCurrentPage}>
           <Printer className="w-4 h-4" />طباعة
         </Button>
         <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>
@@ -953,7 +977,7 @@ function CustodiesTab() {
         · البحث: {search || 'بدون بحث'} · اعتبار العهدة متأخرة بعد {overdueDays} يومًا
       </div>
       <div className="flex justify-end gap-2 mb-4 print:hidden">
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => window.print()}>
+        <Button type="button" variant="outline" size="sm" className="gap-2" onClick={printCurrentPage}>
           <Printer className="w-4 h-4" />طباعة
         </Button>
         <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>

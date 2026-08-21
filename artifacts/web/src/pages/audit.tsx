@@ -172,7 +172,6 @@ export function AuditPage() {
         return;
       }
 
-      const bom = '\uFEFF';
       const headers = ['التاريخ والوقت', 'المستخدم', 'الإجراء', 'نوع البيانات', 'رقم السجل', 'عنوان IP'];
       const rows = allEntries.map((e) => [
         formatDateTime(e.createdAt),
@@ -182,15 +181,39 @@ export function AuditPage() {
         String(e.entityId ?? '—'),
         e.ipAddress ?? '—',
       ]);
-      const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
-      const csv = [headers.map(escape).join(','), ...rows.map((r) => r.map(escape).join(','))].join('\n');
-      const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+      const XLSX = await import('xlsx');
+      const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      worksheet['!cols'] = headers.map((header, index) => {
+        const longestValue = rows.reduce(
+          (max, row) => Math.max(max, String(row[index] ?? '').length),
+          header.length,
+        );
+        return { wch: Math.min(42, Math.max(14, longestValue + 2)) };
+      });
+      worksheet['!autofilter'] = { ref: `A1:F${rows.length + 1}` };
+      worksheet['!views'] = [{ RTL: true }];
+      const workbook = XLSX.utils.book_new();
+      workbook.Props = {
+        Title: 'سجل التدقيق',
+        Subject: 'سجل التدقيق — منظومة مستودع الإسعاف والطوارئ',
+        Author: 'منظومة مستودع الإسعاف والطوارئ',
+        CreatedDate: new Date(),
+      };
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'سجل التدقيق');
+      const workbookBytes = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([workbookBytes], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
       const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = objectUrl;
-      a.download = `سجل-التدقيق-${new Date().toISOString().split('T')[0]}.csv`;
+      a.download = `سجل-التدقيق-${new Date().toISOString().split('T')[0]}.xlsx`;
+      a.rel = 'noopener';
+      a.style.display = 'none';
+      document.body.appendChild(a);
       a.click();
-      setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
       toast({ description: `تم تصدير ${allEntries.length.toLocaleString('ar')} سجل بنجاح` });
     } catch (error) {
       console.error('Audit export failed:', error);
@@ -215,9 +238,9 @@ export function AuditPage() {
             </p>
           </div>
         </div>
-        <Button variant="outline" size="sm" className="gap-2" onClick={handleExport} disabled={!data?.total || exporting}>
+        <Button type="button" variant="outline" size="sm" className="gap-2" onClick={handleExport} disabled={!data?.total || exporting}>
           <Download className="w-4 h-4" />
-          {exporting ? 'جاري التصدير...' : 'تصدير CSV'}
+          {exporting ? 'جاري التصدير...' : 'تصدير Excel'}
         </Button>
       </div>
 

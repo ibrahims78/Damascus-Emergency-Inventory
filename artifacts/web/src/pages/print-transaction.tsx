@@ -60,7 +60,8 @@ export function PrintTransactionPage() {
   const itemUnit  = tx.itemUnit;
 
   const handlePdf = () => {
-    window.print();
+    window.focus();
+    window.setTimeout(() => window.print(), 0);
   };
 
   return (
@@ -74,11 +75,11 @@ export function PrintTransactionPage() {
         </Button>
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-500">سند رقم: {tx.documentNumber}</span>
-          <Button variant="outline" onClick={handlePdf} className="gap-2" title="يفتح نافذة الطباعة لاختيار حفظ كـ PDF">
+          <Button type="button" variant="outline" onClick={handlePdf} className="gap-2" title="يفتح نافذة الطباعة لاختيار حفظ كـ PDF">
             <FileDown className="h-4 w-4" />
             حفظ كـ PDF
           </Button>
-          <Button onClick={() => window.print()} className="gap-2">
+          <Button type="button" onClick={handlePdf} className="gap-2">
             <Printer className="h-4 w-4" />
             طباعة السند
           </Button>
