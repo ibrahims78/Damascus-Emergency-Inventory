@@ -989,7 +989,12 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
         return result;
       }, {});
       pendingDmePreview = { token, packageHash: pkg.packageHash, mode: text(body.mode) === 'full' ? 'full' : 'merge', pkg };
-      await savePendingPreview(pendingDmePreview);
+      // IndexedDB persistence is only a recovery aid. Do not hold the Dry Run
+      // response on a WebView structured-clone transaction; some Android
+      // WebViews can keep that transaction pending for large packages.
+      void savePendingPreview(pendingDmePreview).catch((error) => {
+        console.warn('Could not persist offline restore preview:', error);
+      });
       return json({ token, report: { mode: pendingDmePreview.mode, packageHash: pkg.packageHash, packageType: pkg.manifest.packageType, counts: { total: records.length, applied: counts.applied ?? 0, duplicate: 0, rejected: 0, conflict: 0, skipped: counts.skipped ?? 0 }, records }, summary: dmePackageSummary(pkg) });
     } catch (error) {
       return failure(400, error instanceof Error ? error.message : 'تعذر تنفيذ المعاينة');
@@ -1062,8 +1067,12 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
        if (restoredIds.length) state.nextId = Math.max(state.nextId, Math.max(...restoredIds) + 1);
        pendingDmePreview = null;
       return json({ counts: { total: preview.pkg.records.length, applied, duplicate: 0, rejected: 0, conflict: 0, skipped }, restorePointId: null });
-    }).then(async (response) => {
-      await clearPendingPreview();
+    }).then((response) => {
+      // The restore has already been committed to the state store. Clearing
+      // the recovery copy must never keep the UI spinner active.
+      void clearPendingPreview().catch((error) => {
+        console.warn('Could not clear offline restore preview:', error);
+      });
       return response;
     });
   }
