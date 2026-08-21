@@ -119,7 +119,7 @@ export function PrintTransactionPage() {
               <div style={{ textAlign: 'center', flex: '0 0 auto' }}>
                 <img
                   src={logoUrl}
-                  alt="شعار المنظومة"
+                  alt="شعار منظومة الإحالة والإسعاف والطوارئ"
                   style={{ width: '72px', height: '72px', objectFit: 'contain', borderRadius: '50%' }}
                 />
               </div>

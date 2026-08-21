@@ -94,7 +94,7 @@ export function SetupPage() {
         <div className="p-8 pb-6 text-center bg-muted/50 border-b">
           <img
             src={logoUrl}
-            alt="Logo"
+            alt="شعار منظومة الإحالة والإسعاف والطوارئ"
             className="w-24 h-24 mx-auto object-contain rounded-full shadow-md bg-white p-2 mb-4"
           />
           <h1 className="text-2xl font-bold text-foreground">منظومة الاحالة و الاسعاف و الطوارئ - دمشق</h1>

@@ -50,6 +50,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatDateTime, formatDate } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import logoUrl from '@assets/logo.jpeg';
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 
@@ -83,11 +84,13 @@ function columnName(index: number) {
 }
 
 function printCurrentPage() {
+  // Keep this call in the button's click stack. Android WebView and some
+  // embedded browsers ignore print requests scheduled with setTimeout.
   window.focus();
-  window.setTimeout(() => window.print(), 0);
+  window.print();
 }
 
-function downloadBlob(blob: Blob, filename: string) {
+async function downloadBlob(blob: Blob, filename: string) {
   const objectUrl = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = objectUrl;
@@ -95,9 +98,17 @@ function downloadBlob(blob: Blob, filename: string) {
   anchor.rel = 'noopener';
   anchor.style.display = 'none';
   document.body.appendChild(anchor);
-  anchor.click();
+  // dispatchEvent is more reliable than HTMLElement.click() in the Replit
+  // preview iframe and Capacitor's Android WebView.
+  anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
   anchor.remove();
-  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+
+  // WebViews that do not implement the download attribute can still open the
+  // generated workbook for the system share/download handler.
+  if (/Android/i.test(navigator.userAgent) && !('download' in anchor)) {
+    window.open(objectUrl, '_blank', 'noopener,noreferrer');
+  }
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000);
 }
 
 async function exportXlsx(filename: string, headers: string[], rows: ExcelCell[][]) {
@@ -124,7 +135,7 @@ async function exportXlsx(filename: string, headers: string[], rows: ExcelCell[]
     };
     XLSX.utils.book_append_sheet(wb, ws, 'البيانات');
     const workbookBytes = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    downloadBlob(
+    await downloadBlob(
       new Blob([workbookBytes], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       }),
@@ -190,8 +201,13 @@ function ReportErrorState() {
 function PrintHeader({ title }: { title: string }) {
   return (
     <div className="hidden print:block mb-6 text-center border-b-2 border-[#1e3a5f] pb-4">
+      <img
+        src={logoUrl}
+        alt="شعار منظومة الإحالة والإسعاف والطوارئ"
+        className="mx-auto mb-2 h-20 w-20 object-contain"
+      />
       <div className="text-xs text-muted-foreground">الجمهورية العربية السورية — وزارة الصحة</div>
-      <div className="text-lg font-bold text-[#1e3a5f]">منظومة الإسعاف والطوارئ — دمشق</div>
+      <div className="text-lg font-bold text-[#1e3a5f]">منظومة الإحالة والإسعاف والطوارئ — دمشق</div>
       <div className="text-base font-semibold mt-1">{title}</div>
       <div className="text-xs text-muted-foreground mt-1">
         تاريخ الطباعة: {new Date().toLocaleDateString('ar-SY')}
