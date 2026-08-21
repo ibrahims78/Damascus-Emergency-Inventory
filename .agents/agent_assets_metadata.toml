@@ -14,3 +14,17 @@ mtime_ms = 1787314871554
 storage_uri = "gcs://replit-rams-assets-janeway/rams/assets/repl:850144ed-ed66-4efc-8843-dd9b8e830b60/3114a1c0-32d5-484d-9274-b4f0529af44a/79d27f10-06d4-40b4-bdfd-96f71754ae00"
 storage_version_token = "1787315068255063"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "2N0uPhEtPCxTy0h0Rpnen"
+uri = "file://releases/android/v2.0.6/Damascus-Emergency-Inventory-v2.0.6-offline.apk"
+type = "unspecified"
+title = "Damascus Emergency Inventory Android v2.0.6 Offline APK"
+description = "APK release جاهز للتثبيت، SHA-256: 69cef4f7862d322a34dd95fd4765913fe05019b3beee5bd27cb0f9311af11536"
+logical_id = "8c8c4d58-c86b-4710-8fe2-37e2f9e1ee6a"
+content_hash = "sha256:69cef4f7862d322a34dd95fd4765913fe05019b3beee5bd27cb0f9311af11536"
+size = 4282013
+mtime_ms = 1787323659723
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:b7f56f5b-1ef7-4790-b0b8-585af7e90315/8c8c4d58-c86b-4710-8fe2-37e2f9e1ee6a/1eaad00b-b83d-4c84-ae29-2a52b6f65037"
+storage_version_token = "1787323705679262"
+content_type = "application/octet-stream"
