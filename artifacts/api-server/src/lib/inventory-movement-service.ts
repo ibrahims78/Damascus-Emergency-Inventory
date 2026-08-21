@@ -11,6 +11,7 @@ import {
   itemsTable,
   personalCustodiesTable,
   recipientsTable,
+  systemSettingsTable,
   transactionBatchAllocationsTable,
   transactionsTable,
   type TransactionType,
@@ -36,6 +37,30 @@ import {
 } from "./sync-service";
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+const DEFAULT_RETURN_CONDITION_BEHAVIORS = new Map([
+  ["good", "good"],
+  ["damaged", "damaged"],
+  ["needs_maintenance", "needs_maintenance"],
+  ["missing", "missing"],
+]);
+
+async function resolveReturnCondition(value: string) {
+  const settings = await db.query.systemSettingsTable.findFirst({
+    columns: { returnConditions: true },
+  });
+  try {
+    const parsed = settings?.returnConditions ? JSON.parse(settings.returnConditions) : [];
+    const configured = Array.isArray(parsed) ? parsed.find((item) => item?.key === value) : null;
+    const behavior = configured?.behavior ?? DEFAULT_RETURN_CONDITION_BEHAVIORS.get(value);
+    if (typeof behavior === "string" && DEFAULT_RETURN_CONDITION_BEHAVIORS.has(behavior)) {
+      return { key: value, behavior: behavior as "good" | "damaged" | "needs_maintenance" | "missing" };
+    }
+  } catch {
+    // Fall through to the stable legacy keys.
+  }
+  throw new InventoryMovementError("INVALID_RETURN_CONDITION", "حالة الإعادة غير صالحة");
+}
 
 export type MovementContext = {
   userId: number;
@@ -755,9 +780,7 @@ async function createCustodyReturn(
   }
   const quantity = assertPositiveInteger(input.quantity, "الكمية");
   const condition = assertNonEmpty(input.returnCondition, "حالة الصنف عند الإعادة");
-  if (!["good", "damaged", "needs_maintenance", "missing"].includes(condition)) {
-    throw new InventoryMovementError("INVALID_RETURN_CONDITION", "حالة الإعادة غير صالحة");
-  }
+  const resolvedCondition = await resolveReturnCondition(condition);
   const returnDate = assertIsoDate(input.documentDate ?? today(), "تاريخ الإعادة", true)!;
   const returnedToLocation = assertNonEmpty(
     input.returnedToLocation ?? input.custodyLocation,
@@ -811,7 +834,7 @@ async function createCustodyReturn(
     quantity,
     returnDate,
     documentNumber,
-    condition: condition as "good" | "damaged" | "needs_maintenance" | "missing",
+    condition: resolvedCondition.behavior,
     returnedToLocation,
     inspectionNotes: textOrNull(input.inspectionNotes),
     createdBy: context.userId,
@@ -820,9 +843,9 @@ async function createCustodyReturn(
   const nextReturned = Number(custody.returned_quantity) + quantity;
   const nextStatus =
     nextReturned === Number(custody.quantity)
-      ? condition === "good"
+        ? resolvedCondition.behavior === "good"
         ? "returned"
-        : condition === "damaged"
+        : resolvedCondition.behavior === "damaged"
           ? "damaged"
           : "closed"
       : "partially_returned";
@@ -835,12 +858,12 @@ async function createCustodyReturn(
     })
     .where(eq(personalCustodiesTable.id, custodyId));
 
-  if (condition !== "good") {
+   if (resolvedCondition.behavior !== "good") {
     const updated = await tx
       .update(equipmentTable)
       .set({
         quantity: sql`${equipmentTable.quantity} - ${quantity}`,
-        condition: condition === "needs_maintenance" ? "maintenance" : "broken",
+         condition: resolvedCondition.behavior === "needs_maintenance" ? "maintenance" : "broken",
         updatedAt: new Date(),
       })
       .where(
@@ -870,9 +893,7 @@ async function createCentralReturn(
   const quantity = assertPositiveInteger(input.quantity, "الكمية");
   const reason = assertNonEmpty(input.reason, "سبب المرتجع");
   const condition = assertNonEmpty(input.returnCondition, "حالة المرتجع");
-  if (!["good", "damaged", "needs_maintenance", "missing"].includes(condition)) {
-    throw new InventoryMovementError("INVALID_RETURN_CONDITION", "حالة المرتجع غير صالحة");
-  }
+  const resolvedCondition = await resolveReturnCondition(condition);
 
   if (entity.itemType === "item") await lockItem(tx, entity.itemId!);
   else {
@@ -929,7 +950,7 @@ async function createCentralReturn(
     returnDate: assertIsoDate(input.documentDate ?? today(), "تاريخ المرتجع", true)!,
     documentNumber,
     receivingPartySnap: "central_warehouses",
-    condition: condition as "good" | "damaged" | "needs_maintenance" | "missing",
+     condition: resolvedCondition.behavior,
     reason,
     notes: textOrNull(input.notes),
     createdBy: context.userId,

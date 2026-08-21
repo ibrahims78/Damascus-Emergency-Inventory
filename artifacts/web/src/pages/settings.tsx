@@ -55,6 +55,7 @@ interface SystemSettings {
   expiryAlertDays: number;
   unitsList?: string | null;
   technicalConditions?: string | null;
+  returnConditions?: string | null;
   setupCompleted: boolean;
   updatedAt: string;
 }
@@ -68,7 +69,7 @@ async function fetchSettings(): Promise<SystemSettings> {
 }
 
 async function saveSettings(
-  data: Partial<Pick<SystemSettings, 'orgName' | 'orgSubtitle' | 'expiryAlertDays' | 'unitsList' | 'technicalConditions'>>,
+  data: Partial<Pick<SystemSettings, 'orgName' | 'orgSubtitle' | 'expiryAlertDays' | 'unitsList' | 'technicalConditions' | 'returnConditions'>>,
 ): Promise<SystemSettings> {
   const res = await fetch('/api/settings', {
     method: 'PUT',
@@ -110,6 +111,13 @@ const DEFAULT_TECHNICAL_CONDITIONS = [
   { key: 'maintenance', label: 'تحت الصيانة' },
   { key: 'broken', label: 'معطل' },
   { key: 'consumed', label: 'مستهلك / متلف' },
+];
+
+const DEFAULT_RETURN_CONDITIONS = [
+  { key: 'good', label: 'جيد', behavior: 'good' },
+  { key: 'damaged', label: 'تالف', behavior: 'damaged' },
+  { key: 'needs_maintenance', label: 'يحتاج صيانة', behavior: 'needs_maintenance' },
+  { key: 'missing', label: 'مفقود', behavior: 'missing' },
 ];
 
 // ─── Settings Page ────────────────────────────────────────────────────────────
@@ -946,6 +954,12 @@ function TechnicalConditionsTab() {
   const [newLabel, setNewLabel] = useState('');
   const [editKey, setEditKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [returnConditions, setReturnConditions] = useState(DEFAULT_RETURN_CONDITIONS);
+  const [newReturnLabel, setNewReturnLabel] = useState('');
+  const [newReturnBehavior, setNewReturnBehavior] = useState('damaged');
+  const [editReturnKey, setEditReturnKey] = useState<string | null>(null);
+  const [editReturnLabel, setEditReturnLabel] = useState('');
+  const [editReturnBehavior, setEditReturnBehavior] = useState('damaged');
 
   useEffect(() => {
     if (settings?.technicalConditions) {
@@ -964,11 +978,25 @@ function TechnicalConditionsTab() {
         }
       } catch { /* keep defaults */ }
     }
+    if (settings?.returnConditions) {
+      try {
+        const parsed = JSON.parse(settings.returnConditions);
+        if (Array.isArray(parsed) && parsed.every((item) => item && typeof item.key === 'string' && typeof item.label === 'string' && typeof item.behavior === 'string')) {
+          setReturnConditions(parsed);
+        }
+      } catch { /* keep defaults */ }
+    }
   }, [settings]);
 
   const mutation = useMutation({
     mutationFn: (next: TechnicalCondition[]) =>
       saveSettings({ technicalConditions: JSON.stringify(next) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['settings'] }),
+    onError: (error: Error) => toast.error(error.message),
+  });
+  const returnMutation = useMutation({
+    mutationFn: (next: typeof DEFAULT_RETURN_CONDITIONS) =>
+      saveSettings({ returnConditions: JSON.stringify(next) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['settings'] }),
     onError: (error: Error) => toast.error(error.message),
   });
@@ -1030,6 +1058,37 @@ function TechnicalConditionsTab() {
     persist(
       conditions.filter((condition) => condition.key !== key),
       'تم حذف الحالة الفنية',
+    );
+  };
+
+  const saveReturnConditions = (next: typeof DEFAULT_RETURN_CONDITIONS, message: string) => {
+    returnMutation.mutate(next, {
+      onSuccess: () => {
+        setReturnConditions(next);
+        setEditReturnKey(null);
+        toast.success(message);
+      },
+    });
+  };
+  const addReturnCondition = () => {
+    const label = newReturnLabel.trim();
+    if (!label || returnConditions.some((item) => item.label.localeCompare(label, 'ar', { sensitivity: 'base' }) === 0)) {
+      toast.error(label ? 'حالة الإعادة موجودة مسبقاً' : 'اسم الحالة مطلوب');
+      return;
+    }
+    const key = `return_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    saveReturnConditions([...returnConditions, { key, label, behavior: newReturnBehavior }], 'تمت إضافة حالة الإعادة');
+    setNewReturnLabel('');
+  };
+  const saveReturnEdit = () => {
+    if (!editReturnKey || !editReturnLabel.trim()) return;
+    if (returnConditions.some((item) => item.key !== editReturnKey && item.label.localeCompare(editReturnLabel.trim(), 'ar', { sensitivity: 'base' }) === 0)) {
+      toast.error('حالة الإعادة موجودة مسبقاً');
+      return;
+    }
+    saveReturnConditions(
+      returnConditions.map((item) => item.key === editReturnKey ? { ...item, label: editReturnLabel.trim(), behavior: editReturnBehavior } : item),
+      'تم تعديل حالة الإعادة',
     );
   };
 
@@ -1139,6 +1198,55 @@ function TechnicalConditionsTab() {
       <p className="text-xs text-muted-foreground">
         {conditions.length} حالات مسجّلة — تعديل الاسم يحدّث العرض، ولا يغيّر السجلات المحفوظة
       </p>
+
+      <div className="border-t pt-6 space-y-4">
+        <div>
+          <h3 className="font-semibold">حالات الصنف عند الإعادة والمرتجع</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            هذه القائمة تظهر في خانتي «حالة الصنف عند الإعادة» و«حالة المرتجع». التأثير التشغيلي يحدد كيفية معالجة الرصيد.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2 items-end">
+          <div className="flex-1 min-w-[200px] space-y-1">
+            <Label>اسم الحالة</Label>
+            <Input value={newReturnLabel} onChange={(e) => setNewReturnLabel(e.target.value)} placeholder="مثال: يحتاج تنظيف" />
+          </div>
+          <div className="w-52 space-y-1">
+            <Label>التأثير التشغيلي</Label>
+            <Select value={newReturnBehavior} onValueChange={setNewReturnBehavior}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="good">جيد</SelectItem>
+                <SelectItem value="damaged">تالف</SelectItem>
+                <SelectItem value="needs_maintenance">يحتاج صيانة</SelectItem>
+                <SelectItem value="missing">مفقود</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button onClick={addReturnCondition} disabled={!newReturnLabel.trim() || returnMutation.isPending} className="gap-2"><Plus className="h-4 w-4" />إضافة</Button>
+        </div>
+        <div className="space-y-2">
+          {returnConditions.map((item) => (
+            <div key={item.key} className="flex flex-wrap items-center gap-2 rounded-md border bg-secondary/40 px-3 py-2">
+              {editReturnKey === item.key ? (
+                <>
+                  <Input className="h-8 flex-1 min-w-[180px]" value={editReturnLabel} onChange={(e) => setEditReturnLabel(e.target.value)} />
+                  <Select value={editReturnBehavior} onValueChange={setEditReturnBehavior}><SelectTrigger className="h-8 w-52"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="good">جيد</SelectItem><SelectItem value="damaged">تالف</SelectItem><SelectItem value="needs_maintenance">يحتاج صيانة</SelectItem><SelectItem value="missing">مفقود</SelectItem></SelectContent></Select>
+                  <Button size="sm" onClick={saveReturnEdit} disabled={returnMutation.isPending}><Save className="h-3.5 w-3.5" />حفظ</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditReturnKey(null)}><X className="h-3.5 w-3.5" /></Button>
+                </>
+              ) : (
+                <>
+                  <span className="flex-1 font-medium text-sm">{item.label}</span>
+                  <Badge variant="outline">{item.behavior === 'good' ? 'جيد' : item.behavior === 'damaged' ? 'تالف' : item.behavior === 'needs_maintenance' ? 'يحتاج صيانة' : 'مفقود'}</Badge>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" title="تعديل" onClick={() => { setEditReturnKey(item.key); setEditReturnLabel(item.label); setEditReturnBehavior(item.behavior); }}><Pencil className="h-3.5 w-3.5" /></Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" title="حذف" disabled={returnConditions.length <= 1} onClick={() => saveReturnConditions(returnConditions.filter((entry) => entry.key !== item.key), 'تم حذف حالة الإعادة')}><Trash2 className="h-3.5 w-3.5" /></Button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1495,6 +1603,7 @@ function BackupTab() {
            <li>كل استعادة تنشئ نقطة تراجع وتقريراً قابلاً للمراجعة</li>
         </ul>
       </div>
+
     </div>
   );
 }

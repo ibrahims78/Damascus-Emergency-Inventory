@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import {
   useCreateCentralReturnTransaction,
@@ -37,6 +38,29 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
 const today = () => new Date().toISOString().slice(0, 10);
+const DEFAULT_RETURN_CONDITIONS = [
+  { key: 'good', label: 'جيد', behavior: 'good' },
+  { key: 'damaged', label: 'تالف', behavior: 'damaged' },
+  { key: 'needs_maintenance', label: 'يحتاج صيانة', behavior: 'needs_maintenance' },
+  { key: 'missing', label: 'مفقود', behavior: 'missing' },
+];
+
+function useReturnConditions() {
+  const { data } = useQuery<{ returnConditions?: string | null }>({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const response = await fetch('/api/settings', { credentials: 'include' });
+      if (!response.ok) throw new Error('فشل جلب حالات الإعادة');
+      return response.json();
+    },
+  });
+  try {
+    const parsed = data?.returnConditions ? JSON.parse(data.returnConditions) : null;
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_RETURN_CONDITIONS;
+  } catch {
+    return DEFAULT_RETURN_CONDITIONS;
+  }
+}
 
 function errorMessage(error: unknown) {
   const response = (error as { response?: { data?: { error?: string } } })?.response;
@@ -335,6 +359,7 @@ export function CustodyReturnForm() {
   const [, setLocation] = useLocation();
   const { data: custodies, isLoading } = useListCustodies();
   const mutation = useCreateCustodyReturnTransaction();
+  const returnConditions = useReturnConditions();
   const openCustodies = useMemo(() => (custodies ?? []).filter((custody) => custody.outstandingQuantity > 0), [custodies]);
   const [custodyId, setCustodyId] = useState<number | null>(() => {
     const value = new URLSearchParams(window.location.search).get('custodyId');
@@ -342,7 +367,7 @@ export function CustodyReturnForm() {
     return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
   });
   const [quantity, setQuantity] = useState(1);
-  const [condition, setCondition] = useState<'good' | 'damaged' | 'needs_maintenance' | 'missing'>('good');
+  const [condition, setCondition] = useState('good');
   const [date, setDate] = useState(today());
   const [returnedToLocation, setReturnedToLocation] = useState('');
   const [inspectionNotes, setInspectionNotes] = useState('');
@@ -373,7 +398,7 @@ export function CustodyReturnForm() {
     setValidationError('');
     if (!confirming) { setConfirming(true); return; }
     mutation.mutate(
-      { data: { custodyId: selected.id, quantity, returnCondition: condition, returnedToLocation: returnedToLocation.trim(), documentDate: date, inspectionNotes: inspectionNotes.trim() || null } },
+      { data: { custodyId: selected.id, quantity, returnCondition: condition as 'good' | 'damaged' | 'needs_maintenance' | 'missing', returnedToLocation: returnedToLocation.trim(), documentDate: date, inspectionNotes: inspectionNotes.trim() || null } },
       {
         onSuccess: (transaction) => { toast.success('تم تسجيل إعادة العهدة'); setLocation(`/print/${transaction.id}`); },
         onError: (error) => { toast.error(errorMessage(error)); setConfirming(false); },
@@ -415,7 +440,7 @@ export function CustodyReturnForm() {
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="الكمية المعادة" required><Input type="number" min={1} max={selected?.outstandingQuantity ?? 1} value={quantity} onChange={(e) => { setQuantity(e.target.valueAsNumber || 1); setConfirming(false); }} /></Field>
           <Field label="حالة الصنف عند الإعادة" required>
-            <Select value={condition} onValueChange={(value) => { setCondition(value as typeof condition); setConfirming(false); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="good">جيد</SelectItem><SelectItem value="damaged">تالف</SelectItem><SelectItem value="needs_maintenance">يحتاج صيانة</SelectItem><SelectItem value="missing">مفقود</SelectItem></SelectContent></Select>
+            <Select value={condition} onValueChange={(value) => { setCondition(value); setConfirming(false); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{returnConditions.map((item) => <SelectItem key={item.key} value={item.key}>{item.label}</SelectItem>)}</SelectContent></Select>
           </Field>
            <Field label="تاريخ الإعادة" required><Input type="date" value={date} onChange={(e) => { setDate(e.target.value); setConfirming(false); }} /></Field>
            <Field label="المكان الذي عاد إليه" required><Input value={returnedToLocation} onChange={(e) => { setReturnedToLocation(e.target.value); setConfirming(false); setValidationError(''); }} placeholder="المستودع أو موقع الفحص" /></Field>
@@ -440,11 +465,12 @@ function MovementEntityForm({
   const [, setLocation] = useLocation();
   const damageMutation = useCreateDamageTransaction();
   const returnMutation = useCreateCentralReturnTransaction();
+  const returnConditions = useReturnConditions();
   const [type, setType] = useState<'item' | 'equipment'>('equipment');
   const [itemId, setItemId] = useState<number | null>(null);
   const [equipmentId, setEquipmentId] = useState<number | null>(null);
   const [quantity, setQuantity] = useState(1);
-  const [condition, setCondition] = useState<'good' | 'damaged' | 'needs_maintenance' | 'missing'>('damaged');
+  const [condition, setCondition] = useState('damaged');
   const [reason, setReason] = useState('');
   const [date, setDate] = useState(today());
   const [notes, setNotes] = useState('');
@@ -479,7 +505,7 @@ function MovementEntityForm({
     if (kind === 'damage') {
       damageMutation.mutate({ data: { itemType: type, itemId: type === 'item' ? itemId : null, equipmentId: type === 'equipment' ? equipmentId : null, quantity, reason: reason.trim(), damageDate: date, notes: notes.trim() || null } }, callbacks);
     } else {
-      returnMutation.mutate({ data: { itemType: type, itemId: type === 'item' ? itemId : null, equipmentId: type === 'equipment' ? equipmentId : null, quantity, returnCondition: condition, reason: reason.trim(), documentDate: date, notes: notes.trim() || null } }, callbacks);
+      returnMutation.mutate({ data: { itemType: type, itemId: type === 'item' ? itemId : null, equipmentId: type === 'equipment' ? equipmentId : null, quantity, returnCondition: condition as 'good' | 'damaged' | 'needs_maintenance' | 'missing', reason: reason.trim(), documentDate: date, notes: notes.trim() || null } }, callbacks);
     }
   };
 
@@ -504,7 +530,7 @@ function MovementEntityForm({
           <Field label="الكمية" required><Input type="number" min={1} value={quantity} onChange={(e) => { setQuantity(e.target.valueAsNumber || 1); setConfirming(false); setValidationError(''); }} /></Field>
           <Field label={kind === 'damage' ? 'تاريخ التلف' : 'تاريخ المرتجع'} required><Input type="date" value={date} onChange={(e) => { setDate(e.target.value); setConfirming(false); setValidationError(''); }} /></Field>
           {kind === 'central-return' && (
-            <Field label="حالة المرتجع" required><Select value={condition} onValueChange={(value) => { setCondition(value as typeof condition); setConfirming(false); setValidationError(''); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="good">جيد</SelectItem><SelectItem value="damaged">تالف</SelectItem><SelectItem value="needs_maintenance">يحتاج صيانة</SelectItem><SelectItem value="missing">مفقود</SelectItem></SelectContent></Select></Field>
+            <Field label="حالة المرتجع" required><Select value={condition} onValueChange={(value) => { setCondition(value); setConfirming(false); setValidationError(''); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{returnConditions.map((item) => <SelectItem key={item.key} value={item.key}>{item.label}</SelectItem>)}</SelectContent></Select></Field>
           )}
           <Field label="السبب" required><Input value={reason} onChange={(e) => { setReason(e.target.value); setConfirming(false); setValidationError(''); }} placeholder="اكتب السبب بالتفصيل" /></Field>
         </div>

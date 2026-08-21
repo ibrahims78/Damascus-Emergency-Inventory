@@ -11,6 +11,7 @@ export const systemSettingsTable = pgTable("system_settings", {
   expiryAlertDays: integer("expiry_alert_days").notNull().default(30),
   unitsList: text("units_list"), // JSON array of unit strings e.g. '["قطعة","علبة","لتر"]'
   technicalConditions: text("technical_conditions"), // JSON array of { key, label } objects
+  returnConditions: text("return_conditions"), // JSON array of { key, label, behavior } objects
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

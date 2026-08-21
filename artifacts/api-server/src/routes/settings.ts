@@ -38,6 +38,13 @@ const DEFAULT_TECHNICAL_CONDITIONS = [
   { key: "consumed", label: "مستهلك / متلف" },
 ];
 
+const DEFAULT_RETURN_CONDITIONS = [
+  { key: "good", label: "جيد", behavior: "good" },
+  { key: "damaged", label: "تالف", behavior: "damaged" },
+  { key: "needs_maintenance", label: "يحتاج صيانة", behavior: "needs_maintenance" },
+  { key: "missing", label: "مفقود", behavior: "missing" },
+];
+
 async function getOrCreateSettings() {
   let settings = await db.query.systemSettingsTable.findFirst();
   if (!settings) {
@@ -55,6 +62,7 @@ router.get("/", requireAuth, async (_req, res) => {
       ...settings,
       unitsList: settings.unitsList ?? JSON.stringify(DEFAULT_UNITS),
       technicalConditions: settings.technicalConditions ?? JSON.stringify(DEFAULT_TECHNICAL_CONDITIONS),
+      returnConditions: settings.returnConditions ?? JSON.stringify(DEFAULT_RETURN_CONDITIONS),
     });
   } catch (err) {
     console.error(err);
@@ -119,7 +127,7 @@ function validateSystemSettingsInput(input: {
 // PUT /api/settings
 router.put("/", requireAuth, requireRole("admin"), async (req, res) => {
   try {
-    const { orgName, orgSubtitle, expiryAlertDays, unitsList, technicalConditions } = req.body;
+    const { orgName, orgSubtitle, expiryAlertDays, unitsList, technicalConditions, returnConditions } = req.body;
     const validated = validateSystemSettingsInput({ orgName, orgSubtitle, expiryAlertDays });
     if ("error" in validated) {
       res.status(400).json({ error: validated.error });
@@ -129,6 +137,7 @@ router.put("/", requireAuth, requireRole("admin"), async (req, res) => {
 
     let normalizedUnitsList: string | undefined;
     let normalizedTechnicalConditions: string | undefined;
+    let normalizedReturnConditions: string | undefined;
 
     // Validate and normalize unitsList if provided
     if (unitsList !== undefined) {
@@ -193,6 +202,47 @@ router.put("/", requireAuth, requireRole("admin"), async (req, res) => {
       }
     }
 
+    if (returnConditions !== undefined) {
+      if (typeof returnConditions !== "string") {
+        res.status(400).json({ error: "returnConditions must be a JSON string" });
+        return;
+      }
+      try {
+        const parsed = JSON.parse(returnConditions);
+        const behaviors = new Set(["good", "damaged", "needs_maintenance", "missing"]);
+        if (
+          !Array.isArray(parsed) ||
+          parsed.length === 0 ||
+          parsed.length > 100 ||
+          parsed.some(
+            (condition) =>
+              !condition ||
+              typeof condition !== "object" ||
+              typeof condition.key !== "string" ||
+              !/^[a-z0-9_:-]+$/.test(condition.key.trim()) ||
+              typeof condition.label !== "string" ||
+              condition.label.trim().length === 0 ||
+              condition.label.trim().length > 100 ||
+              !behaviors.has(condition.behavior),
+          )
+        ) {
+          throw new Error();
+        }
+        const normalized = parsed.map((condition: { key: string; label: string; behavior: string }) => ({
+          key: condition.key.trim(),
+          label: condition.label.trim(),
+          behavior: condition.behavior,
+        }));
+        const keys = new Set(normalized.map((condition) => condition.key));
+        const labels = new Set(normalized.map((condition) => condition.label.toLocaleLowerCase()));
+        if (keys.size !== normalized.length || labels.size !== normalized.length) throw new Error();
+        normalizedReturnConditions = JSON.stringify(normalized);
+      } catch {
+        res.status(400).json({ error: "يجب أن تكون حالات الإعادة قائمة فريدة بعناوين وتأثيرات صحيحة" });
+        return;
+      }
+    }
+
     const [updated] = await db
       .update(systemSettingsTable)
       .set({
@@ -203,6 +253,7 @@ router.put("/", requireAuth, requireRole("admin"), async (req, res) => {
         }),
         ...(normalizedUnitsList !== undefined && { unitsList: normalizedUnitsList }),
         ...(normalizedTechnicalConditions !== undefined && { technicalConditions: normalizedTechnicalConditions }),
+        ...(normalizedReturnConditions !== undefined && { returnConditions: normalizedReturnConditions }),
         updatedAt: new Date(),
       })
       .where(eq(systemSettingsTable.id, settings.id))
