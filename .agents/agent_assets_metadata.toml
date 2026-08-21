@@ -42,3 +42,17 @@ mtime_ms = 1787338463788
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:0756a57b-cc73-4610-8f96-fc3c2538a22a/417d9a3b-76ed-4604-91b4-d780dc5693d0/32c988d0-0670-4e73-9b7e-cde8872eedfe"
 storage_version_token = "1787338486005672"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "AwX6V9GT4WFK5n9pwq1P2"
+uri = "file://releases/android/v2.1.0/Damascus-Emergency-Inventory-v2.1.0-offline.apk"
+type = "unspecified"
+title = "Damascus Emergency Inventory Android v2.1.0"
+description = "APK Offline بعد إصلاح اشتقاق مفتاح scrypt واستعادة النسخ الاحتياطية على Android WebView، مع أيقونة شعار المنظومة. SHA256: 3976d8e7e92c82d6f05c841456f25f49aa115f100812ee9b1475877614b24fa6"
+logical_id = "7dc4741b-8c5a-431e-a959-49495c2e865f"
+content_hash = "sha256:3976d8e7e92c82d6f05c841456f25f49aa115f100812ee9b1475877614b24fa6"
+size = 4645583
+mtime_ms = 1787339492904
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:0756a57b-cc73-4610-8f96-fc3c2538a22a/7dc4741b-8c5a-431e-a959-49495c2e865f/78aede33-356b-4b8a-ad6b-e28a03a94304"
+storage_version_token = "1787339510815693"
+content_type = "application/octet-stream"
