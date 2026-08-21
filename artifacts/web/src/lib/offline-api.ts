@@ -1,4 +1,4 @@
-import { dmePackageSummary, readDmeSyncPackage } from './dme-sync-browser';
+import { dmePackageSummary, readDmeSyncPackageInWorker } from './dme-sync-browser';
 
 type PublicUser = {
   id: number;
@@ -66,7 +66,7 @@ let pendingDmePreview: {
   token: string;
   packageHash: string;
   mode: 'full' | 'merge';
-  pkg: Awaited<ReturnType<typeof readDmeSyncPackage>>;
+  pkg: Awaited<ReturnType<typeof readDmeSyncPackageInWorker>>;
 } | null = null;
 
 function now() {
@@ -951,7 +951,7 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
   if (pathname === '/api/backups/inspect' && method === 'POST') {
     const body = readBody(init);
     try {
-      const pkg = await readDmeSyncPackage(Uint8Array.from(atob(text(body.packageBase64)), (character) => character.charCodeAt(0)), text(body.password));
+      const pkg = await readDmeSyncPackageInWorker(Uint8Array.from(atob(text(body.packageBase64)), (character) => character.charCodeAt(0)), text(body.password));
       return json(dmePackageSummary(pkg));
     } catch (error) {
       return failure(400, error instanceof Error ? error.message : 'تعذر فحص الحزمة');
@@ -960,7 +960,7 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
   if (pathname === '/api/backups/dry-run' && method === 'POST') {
     const body = readBody(init);
     try {
-      const pkg = await readDmeSyncPackage(Uint8Array.from(atob(text(body.packageBase64)), (character) => character.charCodeAt(0)), text(body.password));
+      const pkg = await readDmeSyncPackageInWorker(Uint8Array.from(atob(text(body.packageBase64)), (character) => character.charCodeAt(0)), text(body.password));
       const token = crypto.randomUUID();
        const supported = new Set([
          'categories',

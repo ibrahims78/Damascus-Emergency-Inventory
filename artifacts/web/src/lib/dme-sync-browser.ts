@@ -133,6 +133,24 @@ export async function readDmeSyncPackage(input: Uint8Array, password: string): P
   }
 }
 
+export async function readDmeSyncPackageInWorker(input: Uint8Array, password: string): Promise<SyncPackage> {
+  const worker = new Worker(new URL('./dme-sync-worker.ts', import.meta.url), { type: 'module' });
+  const transferableInput = input.slice();
+  return new Promise<SyncPackage>((resolve, reject) => {
+    const finish = () => worker.terminate();
+    worker.onmessage = (event: MessageEvent<{ ok: true; value: SyncPackage } | { ok: false; message: string }>) => {
+      finish();
+      if (event.data.ok) resolve(event.data.value);
+      else reject(new Error(event.data.message));
+    };
+    worker.onerror = (event) => {
+      finish();
+      reject(new Error(event.message || 'تعذر تشغيل عامل فحص النسخة الاحتياطية'));
+    };
+    worker.postMessage({ input: transferableInput, password }, [transferableInput.buffer]);
+  });
+}
+
 export function dmePackageSummary(pkg: SyncPackage) {
   return {
     packageHash: pkg.packageHash,
