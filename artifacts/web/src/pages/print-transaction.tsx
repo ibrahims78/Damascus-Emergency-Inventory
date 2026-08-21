@@ -4,13 +4,8 @@ import { Printer, ArrowRight, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatDateTime } from '@/lib/utils';
 import logoUrl from '@assets/logo.jpeg';
-import { Capacitor, registerPlugin } from '@capacitor/core';
-
-type NativeFileActionsPlugin = {
-  print(options: { title: string }): Promise<void>;
-};
-
-const nativeFileActions = registerPlugin<NativeFileActionsPlugin>('NativeFileActions');
+import { Capacitor } from '@capacitor/core';
+import { nativeFileActions } from '@/lib/native-file-actions';
 
 export function PrintTransactionPage() {
   const [, params] = useRoute('/print/:id');

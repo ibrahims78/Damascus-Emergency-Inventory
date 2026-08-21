@@ -51,22 +51,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatDateTime, formatDate } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import logoUrl from '@assets/logo.jpeg';
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Capacitor } from '@capacitor/core';
+import { nativeFileActions } from '@/lib/native-file-actions';
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 
 type ExcelCell = string | number | boolean | null;
-
-type NativeFileActionsPlugin = {
-  print(options: { title: string }): Promise<void>;
-  saveFile(options: { filename: string; base64: string }): Promise<{
-    filename: string;
-    uri: string;
-    location?: string;
-  }>;
-};
-
-const nativeFileActions = registerPlugin<NativeFileActionsPlugin>('NativeFileActions');
 
 function exportFilename(baseName: string, qualifier?: string) {
   const date = new Date().toISOString().slice(0, 10);
