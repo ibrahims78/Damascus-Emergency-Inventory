@@ -51,10 +51,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatDateTime, formatDate } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import logoUrl from '@assets/logo.jpeg';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 
 type ExcelCell = string | number | boolean | null;
+
+type NativeFileActionsPlugin = {
+  print(options: { title: string }): Promise<void>;
+  saveFile(options: { filename: string; base64: string }): Promise<{ filename: string; uri: string }>;
+};
+
+const nativeFileActions = registerPlugin<NativeFileActionsPlugin>('NativeFileActions');
 
 function exportFilename(baseName: string, qualifier?: string) {
   const date = new Date().toISOString().slice(0, 10);
@@ -83,14 +91,37 @@ function columnName(index: number) {
   return name;
 }
 
-function printCurrentPage() {
-  // Keep this call in the button's click stack. Android WebView and some
-  // embedded browsers ignore print requests scheduled with setTimeout.
+async function printCurrentPage() {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      await nativeFileActions.print({ title: 'تقرير منظومة الإسعاف والطوارئ' });
+      return;
+    } catch (error) {
+      console.error('Native print failed, falling back to browser print:', error);
+    }
+  }
+
+  // Keep this call in the button's click stack for regular browsers.
   window.focus();
   window.print();
 }
 
+function bytesToBase64(bytes: Uint8Array) {
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  }
+  return btoa(binary);
+}
+
 async function downloadBlob(blob: Blob, filename: string) {
+  if (Capacitor.isNativePlatform()) {
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    await nativeFileActions.saveFile({ filename, base64: bytesToBase64(bytes) });
+    return;
+  }
+
   const objectUrl = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = objectUrl;
@@ -98,16 +129,8 @@ async function downloadBlob(blob: Blob, filename: string) {
   anchor.rel = 'noopener';
   anchor.style.display = 'none';
   document.body.appendChild(anchor);
-  // dispatchEvent is more reliable than HTMLElement.click() in the Replit
-  // preview iframe and Capacitor's Android WebView.
-  anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+  anchor.click();
   anchor.remove();
-
-  // WebViews that do not implement the download attribute can still open the
-  // generated workbook for the system share/download handler.
-  if (/Android/i.test(navigator.userAgent) && !('download' in anchor)) {
-    window.open(objectUrl, '_blank', 'noopener,noreferrer');
-  }
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000);
 }
 
