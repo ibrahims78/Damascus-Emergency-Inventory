@@ -62141,9 +62141,15 @@ var db = isDesktopMode ? drizzle(desktopClient, { schema: schema_exports }) : po
 async function initializeDesktopDatabase() {
   if (!desktopClient) return;
   const existing = await desktopClient.query(
-    `select to_regclass('public.users') as "tableName"`
+    `select
+       to_regclass('public.users') as "usersTable",
+       to_regclass('public.transactions') as "transactionsTable",
+       to_regclass('public.node_identity') as "nodeIdentityTable"`
   );
-  if (existing.rows[0]?.tableName) return;
+  const currentSchema = existing.rows[0];
+  if (currentSchema?.usersTable && currentSchema.transactionsTable && currentSchema.nodeIdentityTable) {
+    return;
+  }
   const schemaPath = process.env.DAMASCUS_SCHEMA_PATH;
   if (!schemaPath) {
     throw new Error(
@@ -62152,8 +62158,24 @@ async function initializeDesktopDatabase() {
   }
   const schemaSql = await readFile(schemaPath, "utf8");
   const statements = schemaSql.split("--> statement-breakpoint").map((statement) => statement.trim()).filter(Boolean);
-  for (const statement of statements) {
-    await desktopClient.exec(statement);
+  const createTables = statements.filter(
+    (statement) => /^\s*CREATE TABLE\b/i.test(statement)
+  );
+  const remainingStatements = statements.filter(
+    (statement) => !/^\s*CREATE TABLE\b/i.test(statement)
+  );
+  for (const statement of [...createTables, ...remainingStatements]) {
+    const idempotentStatement = statement.replace(
+      /^\s*CREATE TABLE\s+/i,
+      (prefix) => `${prefix}IF NOT EXISTS `
+    ).replace(
+      /^\s*CREATE UNIQUE INDEX\s+/i,
+      (prefix) => `${prefix}IF NOT EXISTS `
+    ).replace(
+      /^\s*CREATE INDEX\s+/i,
+      (prefix) => `${prefix}IF NOT EXISTS `
+    ).replace(/\bADD COLUMN\s+"/gi, 'ADD COLUMN IF NOT EXISTS "');
+    await desktopClient.exec(idempotentStatement);
   }
 }
 var databaseReady = isDesktopMode ? initializeDesktopDatabase() : Promise.resolve();
