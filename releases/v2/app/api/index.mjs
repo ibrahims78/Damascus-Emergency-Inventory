@@ -75230,6 +75230,22 @@ function decodePackage(packageBase64, password) {
   }
   return readSyncPackage(buffer, password, { maxBytes: MAX_PACKAGE_BYTES });
 }
+async function ensureBackupPreviewSchema() {
+  await db.execute(sql.raw(`
+    CREATE TABLE IF NOT EXISTS "backup_restore_previews" (
+      "token" text PRIMARY KEY NOT NULL,
+      "package_hash" text NOT NULL,
+      "mode" text NOT NULL,
+      "report" jsonb NOT NULL,
+      "expires_at" timestamptz NOT NULL,
+      "created_at" timestamptz DEFAULT now() NOT NULL
+    )
+  `));
+  await db.execute(sql.raw(`
+    CREATE INDEX IF NOT EXISTS "backup_restore_previews_expires_idx"
+      ON "backup_restore_previews" ("expires_at")
+  `));
+}
 var USER_REFERENCE_COLUMNS = /* @__PURE__ */ new Set([
   "created_by",
   "user_id"
@@ -75407,6 +75423,7 @@ async function createRestorePoint(userId, packageBuffer, report) {
   return id;
 }
 async function createPreview(pkg, mode) {
+  await ensureBackupPreviewSchema();
   const report = previewRestore(pkg, mode);
   const token = randomUUID4();
   await db.insert(backupRestorePreviewTable).values({
@@ -75419,6 +75436,7 @@ async function createPreview(pkg, mode) {
   return { token, report, summary: packageSummary(pkg) };
 }
 async function consumePreview(token, packageHash2, mode) {
+  await ensureBackupPreviewSchema();
   const [preview] = await db.select().from(backupRestorePreviewTable).where(
     and(
       eq(backupRestorePreviewTable.token, token),

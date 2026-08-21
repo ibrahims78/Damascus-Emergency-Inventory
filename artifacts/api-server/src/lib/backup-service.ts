@@ -404,6 +404,26 @@ export type RestoreReport = {
   records: RestoreRecordResult[];
 };
 
+async function ensureBackupPreviewSchema() {
+  // Older hosted and desktop databases may predate the preview migration.
+  // Keep the restore flow self-healing and idempotent instead of turning a
+  // successful dry run into a generic "restore failed" response.
+  await db.execute(sql.raw(`
+    CREATE TABLE IF NOT EXISTS "backup_restore_previews" (
+      "token" text PRIMARY KEY NOT NULL,
+      "package_hash" text NOT NULL,
+      "mode" text NOT NULL,
+      "report" jsonb NOT NULL,
+      "expires_at" timestamptz NOT NULL,
+      "created_at" timestamptz DEFAULT now() NOT NULL
+    )
+  `));
+  await db.execute(sql.raw(`
+    CREATE INDEX IF NOT EXISTS "backup_restore_previews_expires_idx"
+      ON "backup_restore_previews" ("expires_at")
+  `));
+}
+
 const USER_REFERENCE_COLUMNS = new Set([
   "created_by",
   "user_id",
@@ -612,6 +632,7 @@ export async function createRestorePoint(userId: number | null, packageBuffer: B
 }
 
 export async function createPreview(pkg: SyncPackage, mode: RestoreMode) {
+  await ensureBackupPreviewSchema();
   const report = previewRestore(pkg, mode);
   const token = randomUUID();
   await db.insert(backupRestorePreviewTable).values({
@@ -625,6 +646,7 @@ export async function createPreview(pkg: SyncPackage, mode: RestoreMode) {
 }
 
 export async function consumePreview(token: string, packageHash: string, mode: RestoreMode) {
+  await ensureBackupPreviewSchema();
   const [preview] = await db
     .select()
     .from(backupRestorePreviewTable)
