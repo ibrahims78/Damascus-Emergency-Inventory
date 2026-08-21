@@ -134,18 +134,40 @@ export async function readDmeSyncPackage(input: Uint8Array, password: string): P
 }
 
 export async function readDmeSyncPackageInWorker(input: Uint8Array, password: string): Promise<SyncPackage> {
+  // Capacitor's Android WebView does not consistently support module workers
+  // for bundled local assets. Keep the worker for regular browsers, but never
+  // leave an Android restore request pending when the worker cannot start.
+  const nativeCapacitor = typeof window !== 'undefined' && Boolean(
+    (window as Window & { Capacitor?: unknown }).Capacitor,
+  );
+  if (nativeCapacitor || typeof Worker === 'undefined') {
+    return readDmeSyncPackage(input, password);
+  }
   const worker = new Worker(new URL('./dme-sync-worker.ts', import.meta.url), { type: 'module' });
   const transferableInput = input.slice();
   return new Promise<SyncPackage>((resolve, reject) => {
+    let settled = false;
+    const fallbackTimer = window.setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      worker.terminate();
+      void readDmeSyncPackage(input, password).then(resolve, reject);
+    }, 8_000);
     const finish = () => worker.terminate();
     worker.onmessage = (event: MessageEvent<{ ok: true; value: SyncPackage } | { ok: false; message: string }>) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(fallbackTimer);
       finish();
       if (event.data.ok) resolve(event.data.value);
       else reject(new Error(event.data.message));
     };
     worker.onerror = (event) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(fallbackTimer);
       finish();
-      reject(new Error(event.message || 'تعذر تشغيل عامل فحص النسخة الاحتياطية'));
+      void readDmeSyncPackage(input, password).then(resolve, reject);
     };
     worker.postMessage({ input: transferableInput, password }, [transferableInput.buffer]);
   });
