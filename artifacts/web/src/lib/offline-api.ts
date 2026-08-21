@@ -1,3 +1,5 @@
+import { dmePackageSummary, readDmeSyncPackage } from './dme-sync-browser';
+
 type PublicUser = {
   id: number;
   username: string;
@@ -53,6 +55,12 @@ const OFFLINE_HEADER = 'X-Damascus-Offline';
 
 let statePromise: Promise<OfflineState> | undefined;
 let writeQueue = Promise.resolve();
+let pendingDmePreview: {
+  token: string;
+  packageHash: string;
+  mode: 'full' | 'merge';
+  pkg: Awaited<ReturnType<typeof readDmeSyncPackage>>;
+} | null = null;
 
 function now() {
   return new Date().toISOString();
@@ -887,7 +895,85 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
     status: 200,
     headers: { 'content-type': 'application/json', 'content-disposition': 'attachment; filename="damascus-backup.json"', [OFFLINE_HEADER]: '1' },
   }));
-  if (pathname === '/api/backup/restore' && method === 'POST') return failure(400, 'استخدم استيراد النسخة الاحتياطية من داخل التطبيق');
+  if (pathname === '/api/backups/inspect' && method === 'POST') {
+    const body = readBody(init);
+    try {
+      const pkg = await readDmeSyncPackage(Uint8Array.from(atob(text(body.packageBase64)), (character) => character.charCodeAt(0)), text(body.password));
+      return json(dmePackageSummary(pkg));
+    } catch (error) {
+      return failure(400, error instanceof Error ? error.message : 'تعذر فحص الحزمة');
+    }
+  }
+  if (pathname === '/api/backups/dry-run' && method === 'POST') {
+    const body = readBody(init);
+    try {
+      const pkg = await readDmeSyncPackage(Uint8Array.from(atob(text(body.packageBase64)), (character) => character.charCodeAt(0)), text(body.password));
+      const token = crypto.randomUUID();
+      const supported = new Set(['categories', 'items', 'equipment', 'recipients', 'exit_reasons', 'system_settings', 'transactions', 'audit_log']);
+      const records = pkg.records.map((record) => ({
+        entityType: record.entityType,
+        localId: record.localId ?? null,
+        status: record.entityType === 'users' || !supported.has(record.entityType) ? 'skipped' : 'applied',
+        ...(record.entityType === 'users' ? { code: 'users-not-restored' } : {}),
+      }));
+      const counts = records.reduce<Record<string, number>>((result, record) => {
+        result[record.status] = (result[record.status] ?? 0) + 1;
+        return result;
+      }, {});
+      pendingDmePreview = { token, packageHash: pkg.packageHash, mode: text(body.mode) === 'full' ? 'full' : 'merge', pkg };
+      return json({ token, report: { mode: pendingDmePreview.mode, packageHash: pkg.packageHash, packageType: pkg.manifest.packageType, counts: { total: records.length, applied: counts.applied ?? 0, duplicate: 0, rejected: 0, conflict: 0, skipped: counts.skipped ?? 0 }, records }, summary: dmePackageSummary(pkg) });
+    } catch (error) {
+      return failure(400, error instanceof Error ? error.message : 'تعذر تنفيذ المعاينة');
+    }
+  }
+  if (pathname === '/api/backups/restore' && method === 'POST') {
+    const body = readBody(init);
+    if (body.confirm !== true) return failure(400, 'يجب تأكيد الاستعادة بعد المعاينة');
+    if (!pendingDmePreview || pendingDmePreview.token !== text(body.previewToken)) return failure(400, 'المعاينة غير موجودة أو منتهية');
+    const preview = pendingDmePreview;
+    if (preview.mode !== (text(body.mode) === 'full' ? 'full' : 'merge')) return failure(400, 'نمط الاستعادة لا يطابق المعاينة');
+    return mutate((state) => {
+      const entities: Record<string, keyof OfflineState> = {
+        categories: 'categories',
+        items: 'items',
+        equipment: 'equipment',
+        recipients: 'recipients',
+        exit_reasons: 'exitReasons',
+        transactions: 'transactions',
+        audit_log: 'auditLog',
+      };
+      const camelize = (value: Record<string, unknown>) =>
+        Object.fromEntries(Object.entries(value).map(([key, entry]) => [key.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase()), entry]));
+      if (preview.mode === 'full') {
+        for (const key of Object.values(entities)) {
+          if (key !== 'auditLog') (state[key] as unknown[]) = [];
+        }
+      }
+      let applied = 0;
+      let skipped = 0;
+      for (const record of preview.pkg.records) {
+        if (record.entityType === 'system_settings') {
+          Object.assign(state.settings, camelize(record.data));
+          applied += 1;
+          continue;
+        }
+        const key = entities[record.entityType];
+        if (!key || record.entityType === 'users') {
+          skipped += 1;
+          continue;
+        }
+        const rows = state[key] as unknown[];
+        const value = camelize(record.data);
+        const index = rows.findIndex((row) => (row as Record<string, unknown>).id === value.id);
+        if (preview.mode === 'merge' && index >= 0) rows[index] = { ...(rows[index] as object), ...value };
+        else if (index >= 0) rows[index] = value;
+        else rows.push(value);
+        applied += 1;
+      }
+      pendingDmePreview = null;
+      return json({ counts: { total: preview.pkg.records.length, applied, duplicate: 0, rejected: 0, conflict: 0, skipped }, restorePointId: null });
+    });
+  }
 
   return failure(404, 'المسار غير موجود في الوضع المحلي');
 }
