@@ -5,7 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { URL, pathToFileURL } = require("node:url");
 
-const RELEASE_VERSION = "2.0.1";
+const RELEASE_VERSION = "2.0.2";
 const EXTERNAL_API_BASE_URL = process.env.DAMASCUS_API_URL;
 const WEB_ROOT = path.resolve(__dirname, "../app/web");
 const API_ENTRY = path.resolve(__dirname, "../app/api/index.mjs");

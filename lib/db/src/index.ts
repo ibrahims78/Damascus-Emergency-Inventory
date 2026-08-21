@@ -50,18 +50,33 @@ async function initializeDesktopDatabase(): Promise<void> {
     usersTable: string | null;
     transactionsTable: string | null;
     nodeIdentityTable: string | null;
+    backupRestorePointsTable: string | null;
+    backupRestorePreviewsTable: string | null;
+    backupCatalogTable: string | null;
+    backupRetentionPolicyTable: string | null;
   }>(
     `select
        to_regclass('public.users') as "usersTable",
        to_regclass('public.transactions') as "transactionsTable",
-       to_regclass('public.node_identity') as "nodeIdentityTable"`,
+       to_regclass('public.node_identity') as "nodeIdentityTable",
+       to_regclass('public.backup_restore_points') as "backupRestorePointsTable",
+       to_regclass('public.backup_restore_previews') as "backupRestorePreviewsTable",
+       to_regclass('public.backup_catalog') as "backupCatalogTable",
+       to_regclass('public.backup_retention_policy') as "backupRetentionPolicyTable"`,
   );
   const currentSchema = existing.rows[0];
-  if (
+  const coreSchemaReady = Boolean(
     currentSchema?.usersTable &&
-    currentSchema.transactionsTable &&
-    currentSchema.nodeIdentityTable
-  ) {
+      currentSchema.transactionsTable &&
+      currentSchema.nodeIdentityTable,
+  );
+  const backupSchemaReady = Boolean(
+    currentSchema?.backupRestorePointsTable &&
+      currentSchema.backupRestorePreviewsTable &&
+      currentSchema.backupCatalogTable &&
+      currentSchema.backupRetentionPolicyTable,
+  );
+  if (coreSchemaReady && backupSchemaReady) {
     return;
   }
 
@@ -89,8 +104,25 @@ async function initializeDesktopDatabase(): Promise<void> {
   const remainingStatements = statements.filter(
     (statement) => !/^\s*CREATE TABLE\b/i.test(statement),
   );
+  // Existing desktop installations may already have the core schema but were
+  // created before backup previews/rollback points were introduced. In that
+  // case, only add the missing backup tables; replaying all foreign-key
+  // statements would fail on an otherwise healthy database.
+  const statementsToApply =
+    coreSchemaReady && !backupSchemaReady
+      ? [
+          ...createTables.filter((statement) =>
+            /\bbackup_(?:restore_points|restore_previews|catalog|retention_policy)\b/i.test(
+              statement,
+            ),
+          ),
+          ...remainingStatements.filter((statement) =>
+            /backup_restore_previews_expires_idx/i.test(statement),
+          ),
+        ]
+      : [...createTables, ...remainingStatements];
 
-  for (const statement of [...createTables, ...remainingStatements]) {
+  for (const statement of statementsToApply) {
     const idempotentStatement = statement
       .replace(
         /^\s*CREATE TABLE\s+/i,

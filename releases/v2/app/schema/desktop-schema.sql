@@ -521,3 +521,51 @@ CREATE INDEX "custody_returns_custody_date_idx" ON "custody_returns" USING btree
 CREATE INDEX "damage_records_entity_idx" ON "damage_records" USING btree ("item_type","item_id","equipment_id");
 --> statement-breakpoint
 CREATE INDEX "damage_records_damage_date_idx" ON "damage_records" USING btree ("damage_date");
+--> statement-breakpoint
+CREATE TABLE "backup_restore_points" (
+  "id" text PRIMARY KEY NOT NULL,
+  "package_hash" text NOT NULL,
+  "encrypted_package" text NOT NULL,
+  "created_by" integer,
+  "status" text DEFAULT 'available' NOT NULL,
+  "summary" jsonb NOT NULL,
+  "created_at" timestamptz DEFAULT now() NOT NULL,
+  "rolled_back_at" timestamptz
+);
+--> statement-breakpoint
+CREATE TABLE "backup_restore_previews" (
+  "token" text PRIMARY KEY NOT NULL,
+  "package_hash" text NOT NULL,
+  "mode" text NOT NULL,
+  "report" jsonb NOT NULL,
+  "expires_at" timestamptz NOT NULL,
+  "created_at" timestamptz DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "backup_catalog" (
+  "id" text PRIMARY KEY NOT NULL,
+  "package_hash" text NOT NULL,
+  "package_type" text NOT NULL,
+  "source_node_id" text NOT NULL,
+  "base_vector" jsonb DEFAULT '{}'::jsonb NOT NULL,
+  "last_vector" jsonb DEFAULT '{}'::jsonb NOT NULL,
+  "retention_class" text DEFAULT 'manual' NOT NULL,
+  "record_count" integer DEFAULT 0 NOT NULL,
+  "change_count" integer DEFAULT 0 NOT NULL,
+  "byte_size" integer NOT NULL,
+  "encrypted_package" text NOT NULL,
+  "status" text DEFAULT 'available' NOT NULL,
+  "last_verified_at" timestamptz,
+  "created_at" timestamptz DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "backup_retention_policy" (
+  "id" integer PRIMARY KEY DEFAULT 1 NOT NULL,
+  "daily_limit" integer DEFAULT 30 NOT NULL,
+  "weekly_limit" integer DEFAULT 12 NOT NULL,
+  "monthly_limit" integer DEFAULT 12 NOT NULL,
+  "updated_at" timestamptz DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE INDEX "backup_restore_previews_expires_idx"
+  ON "backup_restore_previews" USING btree ("expires_at");
