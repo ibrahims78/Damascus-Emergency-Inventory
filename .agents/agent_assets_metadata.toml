@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "pBCaoeqZoaYnbe2eh_8dP"
+uri = "file://releases/android/v2.0.4/Damascus-Emergency-Inventory-v2.0.4-offline.apk"
+type = "unspecified"
+title = "Damascus Emergency Inventory Android Offline v2.0.4"
+description = "ملف APK Offline بصيغة Release بعد إصلاح استعادة DME-SYNC، مع SHA256 في المجلد نفسه."
+logical_id = "3114a1c0-32d5-484d-9274-b4f0529af44a"
+content_hash = "sha256:640cfa2f5ad553cdfa9f061706fb86d993172cbd28361d32c21364414697e1ae"
+size = 3726409
+mtime_ms = 1787314871554
+storage_uri = "gcs://replit-rams-assets-janeway/rams/assets/repl:850144ed-ed66-4efc-8843-dd9b8e830b60/3114a1c0-32d5-484d-9274-b4f0529af44a/79d27f10-06d4-40b4-bdfd-96f71754ae00"
+storage_version_token = "1787315068255063"
+content_type = "application/octet-stream"
