@@ -1254,6 +1254,7 @@ function TechnicalConditionsTab() {
 // ─── Backup Tab ───────────────────────────────────────────────────────────────
 
 function BackupTab() {
+  const RESTORE_TIMEOUT_MS = 120_000;
   const [downloading, setDownloading] = useState(false);
   const [exportPassword, setExportPassword] = useState('');
   const [restorePassword, setRestorePassword] = useState('');
@@ -1271,6 +1272,12 @@ function BackupTab() {
     report: {
       counts: Record<string, number>;
       records: Array<{ entityType: string; status: string; code?: string }>;
+    };
+    summary?: {
+      manifest?: { packageType?: string; createdAt?: string; sourceNodeId?: string };
+      recordCount?: number;
+      changeCount?: number;
+      entityTypes?: string[];
     };
   } | null>(null);
   const [restoring, setRestoring] = useState(false);
@@ -1325,13 +1332,30 @@ function BackupTab() {
   };
 
   const fileToBase64 = async (file: File) => {
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    let binary = '';
-    const chunkSize = 0x8000;
-    for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-      binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ''));
+      reader.onerror = () => reject(reader.error ?? new Error('تعذر قراءة ملف النسخة'));
+      reader.readAsDataURL(file);
+    });
+    const separator = dataUrl.indexOf(',');
+    if (separator < 0) throw new Error('تعذر قراءة محتوى ملف النسخة');
+    return dataUrl.slice(separator + 1);
+  };
+
+  const withRestoreTimeout = async <T,>(promise: Promise<T>) => {
+    let timeoutId: number | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timeoutId = window.setTimeout(
+        () => reject(new Error('استغرق فحص الحزمة وقتاً أطول من المتوقع؛ تحقق من الملف وكلمة المرور ثم أعد المحاولة')),
+        RESTORE_TIMEOUT_MS,
+      );
+    });
+    try {
+      return await Promise.race([promise, timeout]);
+    } finally {
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
     }
-    return btoa(binary);
   };
 
   const inspectAndPreview = async () => {
@@ -1350,17 +1374,9 @@ function BackupTab() {
     try {
       const encoded = await fileToBase64(restoreFile);
       setPackageBase64(encoded);
-      const inspectResponse = await fetch('/api/backups/inspect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ packageBase64: encoded, password: restorePassword }),
-      });
-      const inspected = (await inspectResponse.json()) as typeof packageSummary & { error?: string };
-      if (!inspectResponse.ok) throw new Error(inspected.error || 'تعذر فحص الحزمة');
-      setPackageSummary(inspected);
-
-      const previewResponse = await fetch('/api/backups/dry-run', {
+      // Dry Run already returns the package summary. Avoid decrypting the same
+      // large package twice; this is especially important in Android WebView.
+      const previewResponse = await withRestoreTimeout(fetch('/api/backups/dry-run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -1369,9 +1385,10 @@ function BackupTab() {
           password: restorePassword,
           mode: restoreMode,
         }),
-      });
+      }));
       const previewData = (await previewResponse.json()) as typeof preview & { error?: string };
       if (!previewResponse.ok) throw new Error(previewData.error || 'تعذر تنفيذ المعاينة');
+      setPackageSummary(previewData.summary ?? null);
       setPreview(previewData as NonNullable<typeof preview>);
       toast.success('تم الفحص والمعاينة؛ لا تزال الاستعادة بحاجة إلى تأكيد صريح');
     } catch (err) {
@@ -1538,7 +1555,7 @@ function BackupTab() {
           </Select>
           <Button variant="outline" onClick={inspectAndPreview} disabled={restoring} className="gap-2">
             {restoring ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-            فحص وتنفيذ Dry Run
+            {restoring ? 'جاري فك الحزمة وفحصها...' : 'فحص وتنفيذ Dry Run'}
           </Button>
         </div>
         {packageSummary && (
