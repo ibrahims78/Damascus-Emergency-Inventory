@@ -43,6 +43,12 @@ type OfflineState = {
   recipients: Array<Record<string, unknown>>;
   exitReasons: Array<Record<string, unknown>>;
   transactions: Array<Record<string, unknown>>;
+  inventoryBatches: Array<Record<string, unknown>>;
+  transactionBatchAllocations: Array<Record<string, unknown>>;
+  personalCustodies: Array<Record<string, unknown>>;
+  custodyReturns: Array<Record<string, unknown>>;
+  damageRecords: Array<Record<string, unknown>>;
+  centralReturns: Array<Record<string, unknown>>;
   alerts: Array<Record<string, unknown>>;
   auditLog: Array<Record<string, unknown>>;
 };
@@ -120,6 +126,12 @@ function initialState(): OfflineState {
       { id: 3, name: 'إرجاع مركزي', isSystem: true, isActive: true, createdAt: timestamp },
     ],
     transactions: [],
+    inventoryBatches: [],
+    transactionBatchAllocations: [],
+    personalCustodies: [],
+    custodyReturns: [],
+    damageRecords: [],
+    centralReturns: [],
     alerts: [],
     auditLog: [],
   };
@@ -161,6 +173,12 @@ async function loadState(): Promise<OfflineState> {
       syncCursors: existing.syncCursors ?? [],
       conflictQueue: existing.conflictQueue ?? [],
       tombstones: existing.tombstones ?? [],
+      inventoryBatches: existing.inventoryBatches ?? [],
+      transactionBatchAllocations: existing.transactionBatchAllocations ?? [],
+      personalCustodies: existing.personalCustodies ?? [],
+      custodyReturns: existing.custodyReturns ?? [],
+      damageRecords: existing.damageRecords ?? [],
+      centralReturns: existing.centralReturns ?? [],
     };
   }
   const fresh = initialState();
@@ -909,7 +927,22 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
     try {
       const pkg = await readDmeSyncPackage(Uint8Array.from(atob(text(body.packageBase64)), (character) => character.charCodeAt(0)), text(body.password));
       const token = crypto.randomUUID();
-      const supported = new Set(['categories', 'items', 'equipment', 'recipients', 'exit_reasons', 'system_settings', 'transactions', 'audit_log']);
+       const supported = new Set([
+         'categories',
+         'items',
+         'equipment',
+         'recipients',
+         'exit_reasons',
+         'system_settings',
+         'transactions',
+         'inventory_batches',
+         'transaction_batch_allocations',
+         'personal_custodies',
+         'custody_returns',
+         'damage_records',
+         'central_returns',
+         'audit_log',
+       ]);
       const records = pkg.records.map((record) => ({
         entityType: record.entityType,
         localId: record.localId ?? null,
@@ -933,22 +966,28 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
     const preview = pendingDmePreview;
     if (preview.mode !== (text(body.mode) === 'full' ? 'full' : 'merge')) return failure(400, 'نمط الاستعادة لا يطابق المعاينة');
     return mutate((state) => {
-      const entities: Record<string, keyof OfflineState> = {
+       const entities: Record<string, keyof OfflineState> = {
         categories: 'categories',
         items: 'items',
         equipment: 'equipment',
         recipients: 'recipients',
         exit_reasons: 'exitReasons',
         transactions: 'transactions',
+         inventory_batches: 'inventoryBatches',
+         transaction_batch_allocations: 'transactionBatchAllocations',
+         personal_custodies: 'personalCustodies',
+         custody_returns: 'custodyReturns',
+         damage_records: 'damageRecords',
+         central_returns: 'centralReturns',
         audit_log: 'auditLog',
       };
       const camelize = (value: Record<string, unknown>) =>
         Object.fromEntries(Object.entries(value).map(([key, entry]) => [key.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase()), entry]));
-      if (preview.mode === 'full') {
-        for (const key of Object.values(entities)) {
-          if (key !== 'auditLog') (state[key] as unknown[]) = [];
-        }
-      }
+       if (preview.mode === 'full') {
+         for (const key of Object.values(entities)) {
+           if (key !== 'auditLog') (state[key] as unknown[]) = [];
+         }
+       }
       let applied = 0;
       let skipped = 0;
       for (const record of preview.pkg.records) {
@@ -963,13 +1002,28 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
           continue;
         }
         const rows = state[key] as unknown[];
-        const value = camelize(record.data);
+         const value = camelize(record.data);
+         for (const reference of ['createdBy', 'userId']) {
+           const referencedUser = value[reference];
+           if (
+             referencedUser != null &&
+             !state.users.some((user) => user.id === referencedUser) &&
+             state.currentUserId != null
+           ) {
+             value[reference] = state.currentUserId;
+           }
+         }
         const index = rows.findIndex((row) => (row as Record<string, unknown>).id === value.id);
         if (preview.mode === 'merge' && index >= 0) rows[index] = { ...(rows[index] as object), ...value };
         else if (index >= 0) rows[index] = value;
         else rows.push(value);
         applied += 1;
       }
+       const restoredIds = Object.values(entities)
+         .flatMap((key) => (state[key] as Array<Record<string, unknown>>))
+         .map((row) => Number(row.id))
+         .filter((id) => Number.isInteger(id) && id > 0);
+       if (restoredIds.length) state.nextId = Math.max(state.nextId, Math.max(...restoredIds) + 1);
       pendingDmePreview = null;
       return json({ counts: { total: preview.pkg.records.length, applied, duplicate: 0, rejected: 0, conflict: 0, skipped }, restorePointId: null });
     });
