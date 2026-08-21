@@ -118,7 +118,10 @@ function bytesToBase64(bytes: Uint8Array) {
 async function downloadBlob(blob: Blob, filename: string) {
   if (Capacitor.isNativePlatform()) {
     const bytes = new Uint8Array(await blob.arrayBuffer());
-    await nativeFileActions.saveFile({ filename, base64: bytesToBase64(bytes) });
+    const saved = await nativeFileActions.saveFile({ filename, base64: bytesToBase64(bytes) });
+    if (!saved?.uri) {
+      throw new Error('Native file plugin did not return a saved file URI');
+    }
     return;
   }
 

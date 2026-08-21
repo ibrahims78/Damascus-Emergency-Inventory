@@ -4,6 +4,13 @@ import { Printer, ArrowRight, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatDateTime } from '@/lib/utils';
 import logoUrl from '@assets/logo.jpeg';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+
+type NativeFileActionsPlugin = {
+  print(options: { title: string }): Promise<void>;
+};
+
+const nativeFileActions = registerPlugin<NativeFileActionsPlugin>('NativeFileActions');
 
 export function PrintTransactionPage() {
   const [, params] = useRoute('/print/:id');
@@ -59,9 +66,20 @@ export function PrintTransactionPage() {
   const itemName  = tx.itemType === 'equipment' ? tx.equipmentName : tx.itemName;
   const itemUnit  = tx.itemUnit;
 
-  const handlePdf = () => {
+  const handlePdf = async () => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        await nativeFileActions.print({
+          title: `سند ${tx.documentNumber ?? ''}`.trim(),
+        });
+        return;
+      } catch (error) {
+        console.error('Native transaction print failed:', error);
+      }
+    }
+
     window.focus();
-    window.setTimeout(() => window.print(), 0);
+    window.print();
   };
 
   return (

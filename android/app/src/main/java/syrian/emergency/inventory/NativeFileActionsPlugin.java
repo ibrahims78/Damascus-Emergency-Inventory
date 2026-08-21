@@ -87,14 +87,22 @@ public class NativeFileActionsPlugin extends Plugin {
                     return;
                 }
 
-                try (OutputStream output = resolver.openOutputStream(uri)) {
-                    if (output == null) throw new IllegalStateException("تعذر فتح ملف التصدير");
-                    output.write(bytes);
-                }
+                try {
+                    try (OutputStream output = resolver.openOutputStream(uri)) {
+                        if (output == null) throw new IllegalStateException("تعذر فتح ملف التصدير");
+                        output.write(bytes);
+                        output.flush();
+                    }
 
-                ContentValues completed = new ContentValues();
-                completed.put(MediaStore.Downloads.IS_PENDING, 0);
-                resolver.update(uri, completed, null, null);
+                    ContentValues completed = new ContentValues();
+                    completed.put(MediaStore.Downloads.IS_PENDING, 0);
+                    if (resolver.update(uri, completed, null, null) != 1) {
+                        throw new IllegalStateException("تعذر إنهاء ملف التصدير");
+                    }
+                } catch (Exception error) {
+                    resolver.delete(uri, null, null);
+                    throw error;
+                }
             } else {
                 java.io.File downloads = new java.io.File(
                         getActivity().getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS),
@@ -114,6 +122,7 @@ public class NativeFileActionsPlugin extends Plugin {
             JSObject result = new JSObject();
             result.put("filename", filename);
             result.put("uri", uri.toString());
+            result.put("location", "Downloads/Damascus Emergency Inventory");
             call.resolve(result);
         } catch (Exception error) {
             call.reject("تعذر حفظ ملف Excel في التنزيلات", error);
