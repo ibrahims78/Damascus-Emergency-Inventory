@@ -18,7 +18,7 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 import java.io.OutputStream;
-import java.util.Base64;
+import android.util.Base64;
 
 @CapacitorPlugin(name = "NativeFileActions")
 public class NativeFileActionsPlugin extends Plugin {
@@ -31,7 +31,7 @@ public class NativeFileActionsPlugin extends Plugin {
             return;
         }
 
-        getActivity().runOnUiThread(() -> {
+        getActivity().runOnUiThread(() -> webView.post(() -> {
             try {
                 PrintManager printManager =
                         (PrintManager) getActivity().getSystemService(Context.PRINT_SERVICE);
@@ -43,16 +43,20 @@ public class NativeFileActionsPlugin extends Plugin {
                         .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
                         .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
                         .build();
-                printManager.print(
+                android.print.PrintJob printJob = printManager.print(
                         title,
                         webView.createPrintDocumentAdapter(title),
                         attributes
                 );
+                if (printJob == null) {
+                    call.reject("تعذر إنشاء مهمة الطباعة");
+                    return;
+                }
                 call.resolve();
             } catch (Exception error) {
                 call.reject("تعذر فتح نافذة الطباعة", error);
             }
-        });
+        }));
     }
 
     @PluginMethod
@@ -65,7 +69,12 @@ public class NativeFileActionsPlugin extends Plugin {
         }
 
         try {
-            byte[] bytes = Base64.getDecoder().decode(base64);
+            byte[] bytes = Base64.decode(base64, Base64.DEFAULT);
+            if (bytes.length == 0) {
+                call.reject("ملف Excel فارغ");
+                return;
+            }
+            filename = filename.replaceAll("[\\\\/:*?\"<>|\\r\\n]", "_");
             Uri uri;
             ContentResolver resolver = getActivity().getContentResolver();
 

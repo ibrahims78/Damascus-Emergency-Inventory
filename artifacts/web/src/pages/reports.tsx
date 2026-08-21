@@ -59,7 +59,11 @@ type ExcelCell = string | number | boolean | null;
 
 type NativeFileActionsPlugin = {
   print(options: { title: string }): Promise<void>;
-  saveFile(options: { filename: string; base64: string }): Promise<{ filename: string; uri: string }>;
+  saveFile(options: { filename: string; base64: string }): Promise<{
+    filename: string;
+    uri: string;
+    location?: string;
+  }>;
 };
 
 const nativeFileActions = registerPlugin<NativeFileActionsPlugin>('NativeFileActions');
@@ -115,14 +119,14 @@ function bytesToBase64(bytes: Uint8Array) {
   return btoa(binary);
 }
 
-async function downloadBlob(blob: Blob, filename: string) {
+async function downloadBlob(blob: Blob, filename: string): Promise<string | undefined> {
   if (Capacitor.isNativePlatform()) {
     const bytes = new Uint8Array(await blob.arrayBuffer());
     const saved = await nativeFileActions.saveFile({ filename, base64: bytesToBase64(bytes) });
     if (!saved?.uri) {
       throw new Error('Native file plugin did not return a saved file URI');
     }
-    return;
+    return saved.location;
   }
 
   const objectUrl = URL.createObjectURL(blob);
@@ -135,6 +139,7 @@ async function downloadBlob(blob: Blob, filename: string) {
   anchor.click();
   anchor.remove();
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000);
+  return undefined;
 }
 
 async function exportXlsx(filename: string, headers: string[], rows: ExcelCell[][]) {
@@ -161,13 +166,17 @@ async function exportXlsx(filename: string, headers: string[], rows: ExcelCell[]
     };
     XLSX.utils.book_append_sheet(wb, ws, 'البيانات');
     const workbookBytes = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    await downloadBlob(
+    const location = await downloadBlob(
       new Blob([workbookBytes], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       }),
       filename,
     );
-    toast({ description: `تم تصدير ${rows.length.toLocaleString('ar')} سجل بنجاح` });
+    toast({
+      description: location
+        ? `تم حفظ ملف Excel في مجلد ${location}`
+        : `تم تنزيل ملف Excel (${rows.length.toLocaleString('ar')} سجل) بنجاح`,
+    });
   } catch (error) {
     console.error('Report export failed:', error);
     toast({ variant: 'destructive', description: 'تعذر إنشاء ملف Excel. حاول مرة أخرى' });
