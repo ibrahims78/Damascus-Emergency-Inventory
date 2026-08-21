@@ -54,20 +54,17 @@ async function hmacSha256(key: Uint8Array, value: Uint8Array) {
 
 async function deriveKeys(password: string, salt: Uint8Array) {
   if (password.length < 8) throw new Error('كلمة مرور الحزمة غير صحيحة');
-  const derived = await new Promise<Uint8Array>((resolve, reject) => {
-    SCRYPT(
-      new TextEncoder().encode(password),
-      salt,
-      16384,
-      8,
-      1,
-      64,
-      (progress: number, key?: Uint8Array, error?: Error) => {
-        if (error) reject(error);
-        else if (key) resolve(new Uint8Array(key));
-      },
-    );
-  });
+  // scrypt-js resolves its Promise with the derived key. Its optional
+  // progress callback receives only a number, so waiting for a key in that
+  // callback leaves restore permanently pending.
+  const derived = await SCRYPT(
+    new TextEncoder().encode(password),
+    salt,
+    16384,
+    8,
+    1,
+    64,
+  );
   return { encryptionKey: derived.slice(0, 32), macKey: derived.slice(32) };
 }
 
@@ -140,7 +137,8 @@ export async function readDmeSyncPackageInWorker(input: Uint8Array, password: st
   const nativeCapacitor = typeof window !== 'undefined' && Boolean(
     (window as Window & { Capacitor?: unknown }).Capacitor,
   );
-  if (nativeCapacitor || typeof Worker === 'undefined') {
+  const androidWebView = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
+  if (nativeCapacitor || androidWebView || typeof Worker === 'undefined') {
     return readDmeSyncPackage(input, password);
   }
   const worker = new Worker(new URL('./dme-sync-worker.ts', import.meta.url), { type: 'module' });
