@@ -56,3 +56,17 @@ mtime_ms = 1787343552015
 storage_uri = "gcs://replit-rams-assets-janeway/rams/assets/repl:920a0d49-acc1-4127-8aee-0aa1a42b9c49/7dc4741b-8c5a-431e-a959-49495c2e865f/5b44505d-f9c6-42bd-a343-54972b42a9d1"
 storage_version_token = "1787343560083044"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "CWcWzdaowOIS87nJlJKP8"
+uri = "file://releases/android/v2.1.1/Damascus-Emergency-Inventory-v2.1.1-offline.apk"
+type = "unspecified"
+title = "Damascus Emergency Inventory v2.1.1 Offline APK"
+description = "نسخة Android Offline محدثة تتضمن الشعار الرسمي وإصلاحات الطباعة وتصدير Excel. الإصدار 2.1.1، موقعة Release وقابلة للتثبيت."
+logical_id = "7fc602c1-6468-4ec1-88dd-72bcbf9d832e"
+content_hash = "sha256:18e329ba84709f784247f03b45444f0e7c3f745c79e3644ccd9ddcbbc95e5799"
+size = 4783095
+mtime_ms = 1787347761272
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:ec482d40-8253-446d-a086-5d46ca776e85/7fc602c1-6468-4ec1-88dd-72bcbf9d832e/84ae86d2-bc14-4899-b4b5-75468203e2bc"
+storage_version_token = "1787347797334612"
+content_type = "application/octet-stream"
