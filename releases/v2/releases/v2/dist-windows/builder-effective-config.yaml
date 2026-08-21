@@ -1,0 +1,25 @@
+directories:
+  output: releases/v2/dist-windows
+  buildResources: build
+appId: syrian.emergency.inventory.desktop
+productName: Damascus Emergency Inventory
+asar: true
+files:
+  - filter:
+      - electron/**/*
+      - app/web/**/*
+      - app/api/**/*
+      - app/schema/**/*
+      - package.json
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Office
+win:
+  target:
+    - portable
+mac:
+  target:
+    - dmg
+electronVersion: 39.8.10

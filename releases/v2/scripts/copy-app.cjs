@@ -4,7 +4,11 @@ const path = require("node:path");
 const webSource = path.resolve(__dirname, "../../../artifacts/web/dist/public");
 const apiSource = path.resolve(__dirname, "../../../artifacts/api-server/dist");
 const schemaSource = path.resolve(__dirname, "../../../lib/db/desktop-schema.sql");
-const pgliteSource = path.resolve(__dirname, "../node_modules/@electric-sql/pglite");
+const bundledPgliteSource = path.resolve(__dirname, "../node_modules/@electric-sql/pglite");
+const workspacePgliteSource = path.resolve(__dirname, "../../../node_modules/.pnpm/@electric-sql+pglite@0.3.16/node_modules/@electric-sql/pglite");
+const pgliteSource = fs.existsSync(path.join(bundledPgliteSource, "dist", "pglite.wasm"))
+  ? bundledPgliteSource
+  : workspacePgliteSource;
 const pgliteDist = path.join(pgliteSource, "dist");
 const appRoot = path.resolve(__dirname, "../app");
 

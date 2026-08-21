@@ -37,34 +37,42 @@ function fromBase64(value: string) {
 }
 
 function toHex(value: ArrayBuffer | Uint8Array) {
-  return Array.from(new Uint8Array(value instanceof ArrayBuffer ? value : value.buffer, value.byteOffset, value.byteLength))
+  const bytes = value instanceof ArrayBuffer ? new Uint8Array(value) : value;
+  return Array.from(bytes)
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('');
 }
 
 async function sha256(value: Uint8Array) {
-  return new Uint8Array(await crypto.subtle.digest('SHA-256', value));
+  return new Uint8Array(await crypto.subtle.digest('SHA-256', value as BufferSource));
 }
 
 async function hmacSha256(key: Uint8Array, value: Uint8Array) {
-  const cryptoKey = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  return new Uint8Array(await crypto.subtle.sign('HMAC', cryptoKey, value));
+  const cryptoKey = await crypto.subtle.importKey('raw', key as BufferSource, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return new Uint8Array(await crypto.subtle.sign('HMAC', cryptoKey, value as BufferSource));
 }
 
 async function deriveKeys(password: string, salt: Uint8Array) {
   if (password.length < 8) throw new Error('كلمة مرور الحزمة غير صحيحة');
   const derived = await new Promise<Uint8Array>((resolve, reject) => {
-    SCRYPT(new TextEncoder().encode(password), salt, 16384, 8, 1, 64, (error, progress, key) => {
-      if (error) reject(error);
-      else if (key) resolve(new Uint8Array(key));
-    });
+    SCRYPT(
+      new TextEncoder().encode(password),
+      salt,
+      16384,
+      8,
+      1,
+      64,
+      (progress: number, key?: Uint8Array, error?: Error) => {
+        if (error) reject(error);
+        else if (key) resolve(new Uint8Array(key));
+      },
+    );
   });
   return { encryptionKey: derived.slice(0, 32), macKey: derived.slice(32) };
 }
 
 function parsePlaintext(value: Uint8Array) {
-  const manifest: SyncPackage['manifest'] | undefined = undefined;
-  let parsedManifest = manifest;
+  let parsedManifest: SyncPackage['manifest'] | undefined;
   const records: SyncRecord[] = [];
   const changes: unknown[] = [];
   for (const line of new TextDecoder().decode(value).split('\n').filter(Boolean)) {
@@ -113,11 +121,11 @@ export async function readDmeSyncPackage(input: Uint8Array, password: string): P
   const actualMac = toHex(await hmacSha256(macKey, macInput));
   if (actualMac !== header.mac) throw new Error('كلمة مرور الحزمة غير صحيحة أو تم تعديل الملف');
   try {
-    const cryptoKey = await crypto.subtle.importKey('raw', encryptionKey, 'AES-GCM', false, ['decrypt']);
+    const cryptoKey = await crypto.subtle.importKey('raw', encryptionKey as BufferSource, 'AES-GCM', false, ['decrypt']);
     const encrypted = new Uint8Array(ciphertext.length + authTag.length);
     encrypted.set(ciphertext);
     encrypted.set(authTag, ciphertext.length);
-    const compressed = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, cryptoKey, encrypted));
+    const compressed = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, cryptoKey, encrypted as BufferSource));
     const parsed = parsePlaintext(gunzipSync(compressed));
     return { ...parsed, packageHash: toHex(await sha256(input)) };
   } catch {
