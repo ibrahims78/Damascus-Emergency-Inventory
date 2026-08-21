@@ -1,3 +1,4 @@
+- [Android build environment](android-build-environment.md) — Release APK assembly requires an Android SDK path; web assets and Gradle sync can succeed without it.
  - [Backup restore user references](backup-restore-user-references.md) — cross-environment restores must remap missing user IDs because users are intentionally not restored.
 - [Sync safety guards](sync-safety-guards.md) — pairing claims are atomic and legacy baseline IDs are deterministic, reviewed, and never auto-applied.
 - [Project overview & run commands](project-overview.md) — warehouse mgmt app for Damascus EMS; pnpm monorepo, Express + Drizzle + React/Vite; SESSION_SECRET required

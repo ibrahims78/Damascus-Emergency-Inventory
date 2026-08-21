@@ -337,7 +337,7 @@ function recordOfflineChange(
   return { changeId, operationId, globalId };
 }
 
-function readBody(init?: RequestInit) {
+function readBody(init?: RequestInit): any {
   const body = init?.body;
   if (!body || typeof body !== 'string') return {};
   try {
@@ -563,10 +563,15 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
     return read((state) => {
       let rows = state.items.filter((item) => item.isActive !== false).map((item) => itemWithCategory(state, item));
       const search = text(searchParams.get('search'));
-      if (search) rows = rows.filter((item) => `${item.name} ${item.code ?? ''}`.includes(search));
+      if (search) rows = rows.filter((item) => `${item.name} ${item.code ?? ''} ${item.location ?? ''} ${item.supplier ?? ''} ${item.batchNumber ?? ''}`.includes(search));
       if (searchParams.get('categoryId')) rows = rows.filter((item) => item.categoryId === Number(searchParams.get('categoryId')));
       if (searchParams.get('belowMin') === 'true') rows = rows.filter((item) => numberValue(item.currentStock) <= numberValue(item.minStock));
-      return json(paged(sortRows(rows, searchParams.get('sortBy'), searchParams.get('sortDir')), searchParams));
+      if (searchParams.get('nearExpiry') === 'true') {
+        const until = Date.now() + numberValue(state.settings.expiryAlertDays, 30) * 86_400_000;
+        rows = rows.filter((item) => item.expiryDate && new Date(String(item.expiryDate)).getTime() <= until);
+      }
+      const page = paged(sortRows(rows, searchParams.get('sortBy'), searchParams.get('sortDir')), searchParams);
+      return json({ items: page.rows, total: page.total, page: page.page, limit: page.limit });
     });
   }
   if (pathname === '/api/items' && method === 'POST') {
@@ -628,7 +633,38 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
   }
   if (pathname === '/api/items/bulk-import' && method === 'POST') {
     if (!roleAllowed(currentUser, ['admin', 'warehouse_manager'])) return failure(403, 'ليس لديك صلاحية');
-    return json({ inserted: 0, updated: 0, skipped: 0, errors: [] });
+    return mutate((state) => {
+      const body = readBody(init);
+      const input = Array.isArray(body) ? body : Array.isArray((body as { items?: unknown }).items) ? (body as { items: unknown[] }).items : [];
+      let created = 0;
+      let updated = 0;
+      const errors: Array<{ row: number; name: string; error: string }> = [];
+      for (const [index, entry] of input.entries()) {
+        const value = (entry ?? {}) as Record<string, unknown>;
+        const name = text(value.name);
+        if (!name) {
+          errors.push({ row: index + 2, name: '', error: 'اسم المادة مطلوب' });
+          continue;
+        }
+        const existing = value.code
+          ? state.items.find((item) => item.isActive !== false && item.code === value.code)
+          : undefined;
+        const categoryName = text(value.categoryName);
+        if (!value.categoryId && categoryName) {
+          value.categoryId = state.categories.find((category) => category.name === categoryName)?.id ?? 1;
+        }
+        const item = itemFromInput(state, value, existing);
+        if (existing) {
+          Object.assign(existing, item);
+          updated += 1;
+        } else {
+          state.items.push(item);
+          created += 1;
+        }
+        recordOfflineChange(state, 'item', Number(item.id), existing ? 'update' : 'create', { name: item.name, quantity: item.currentStock });
+      }
+      return json({ created, updated, inserted: created, skipped: errors.length, errors });
+    });
   }
 
   if (pathname === '/api/equipment' && method === 'GET') {
@@ -681,7 +717,33 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
   }
   if (pathname === '/api/equipment/bulk-import' && method === 'POST') {
     if (!roleAllowed(currentUser, ['admin', 'warehouse_manager'])) return failure(403, 'ليس لديك صلاحية');
-    return json({ inserted: 0, updated: 0, skipped: 0, errors: [] });
+    return mutate((state) => {
+      const body = readBody(init);
+      const input = Array.isArray(body) ? body : Array.isArray((body as { equipment?: unknown }).equipment) ? (body as { equipment: unknown[] }).equipment : [];
+      let created = 0;
+      let updated = 0;
+      const errors: Array<{ row: number; name: string; error: string }> = [];
+      for (const [index, entry] of input.entries()) {
+        const value = (entry ?? {}) as Record<string, unknown>;
+        const name = text(value.name);
+        if (!name) {
+          errors.push({ row: index + 2, name: '', error: 'اسم التجهيز مطلوب' });
+          continue;
+        }
+        const serial = text(value.serialNumber);
+        const existing = serial ? state.equipment.find((item) => item.serialNumber === serial) : undefined;
+        const equipment = equipmentFromInput(state, value, existing);
+        if (existing) {
+          Object.assign(existing, equipment);
+          updated += 1;
+        } else {
+          state.equipment.push(equipment);
+          created += 1;
+        }
+        recordOfflineChange(state, 'equipment', Number(equipment.id), existing ? 'update' : 'create', { name: equipment.name, serialNumber: equipment.serialNumber });
+      }
+      return json({ created, updated, inserted: created, skipped: errors.length, errors });
+    });
   }
 
   if (pathname === '/api/recipients' && method === 'GET') {
@@ -815,7 +877,25 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
     });
   }
   if (transactionId && pathname === `/api/transactions/${transactionId}/print` && method === 'GET') {
-    return read((state) => json(state.transactions.find((entry) => entry.id === transactionId) ?? null));
+    return read((state) => {
+      const transaction = state.transactions.find((entry) => entry.id === transactionId);
+      if (!transaction) return failure(404, 'السند غير موجود');
+      const item = state.items.find((entry) => entry.id === Number(transaction.itemId));
+      const equipment = state.equipment.find((entry) => entry.id === Number(transaction.equipmentId));
+      return json({
+        transaction: {
+          ...transaction,
+          itemName: item?.name ?? null,
+          itemUnit: item?.unit ?? null,
+          itemType: transaction.itemId != null ? 'item' : 'equipment',
+          equipmentName: equipment?.name ?? null,
+          organizationName: state.settings.orgName,
+        },
+        organizationName: state.settings.orgName,
+        orgSubtitle: state.settings.orgSubtitle,
+        printedAt: now(),
+      });
+    });
   }
 
   if (pathname === '/api/custodies' && method === 'GET') return json([]);
@@ -823,17 +903,78 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
   if (pathname === '/api/dashboard/stats' && method === 'GET') {
     return read((state) => {
       const activeItems = state.items.filter((item) => item.isActive !== false);
-      const belowMin = activeItems.filter((item) => numberValue(item.currentStock) <= numberValue(item.minStock)).length;
+      const today = new Date();
+      const month = today.getMonth();
+      const year = today.getFullYear();
+      const prev = new Date(year, month - 1, 1);
+      const within = (value: unknown, start: Date, end: Date) => {
+        const date = new Date(String(value));
+        return date >= start && date < end;
+      };
+      const belowMin = activeItems.filter((item) => numberValue(item.minStock) > 0 && numberValue(item.currentStock) < numberValue(item.minStock)).length;
+      const zeroStock = activeItems.filter((item) => numberValue(item.currentStock) === 0).length;
+      const expiryDays = numberValue(state.settings.expiryAlertDays, 30);
+      const expiryLimit = Date.now() + expiryDays * 86_400_000;
+      const nearExpiry = activeItems.filter((item) => item.expiryDate && new Date(String(item.expiryDate)).getTime() > Date.now() && new Date(String(item.expiryDate)).getTime() <= expiryLimit).length;
+      const expired = activeItems.filter((item) => item.expiryDate && new Date(String(item.expiryDate)).getTime() <= Date.now()).length;
+      const currentStart = new Date(year, month, 1);
+      const nextStart = new Date(year, month + 1, 1);
+      const previousStart = new Date(prev.getFullYear(), prev.getMonth(), 1);
       return json({
         totalItems: activeItems.length,
         totalEquipment: state.equipment.length,
-        lowStockItems: belowMin,
-        nearExpiryItems: activeItems.filter((item) => item.expiryDate).length,
-        totalTransactions: state.transactions.length,
+        belowMinCount: belowMin,
+        zeroStockCount: zeroStock,
+        nearExpiryCount: nearExpiry,
+        expiredCount: expired,
+        equipmentAlertCount: state.equipment.filter((item) => ['maintenance', 'needs_inspection', 'broken'].includes(String(item.condition))).length,
+        monthlyIn: state.transactions.filter((tx) => tx.type === 'in' && within(tx.createdAt, currentStart, nextStart)).reduce((sum, tx) => sum + numberValue(tx.quantity), 0),
+        monthlyOut: state.transactions.filter((tx) => tx.type === 'out' && within(tx.createdAt, currentStart, nextStart)).reduce((sum, tx) => sum + numberValue(tx.quantity), 0),
+        prevMonthIn: state.transactions.filter((tx) => tx.type === 'in' && within(tx.createdAt, previousStart, currentStart)).reduce((sum, tx) => sum + numberValue(tx.quantity), 0),
+        prevMonthOut: state.transactions.filter((tx) => tx.type === 'out' && within(tx.createdAt, previousStart, currentStart)).reduce((sum, tx) => sum + numberValue(tx.quantity), 0),
+        expiryAlertDays: expiryDays,
+        recentTransactions: state.transactions.slice(0, 10).map((tx) => ({
+          id: Number(tx.id),
+          type: String(tx.type),
+          documentNumber: tx.documentNumber ?? null,
+          name: state.items.find((item) => item.id === Number(tx.itemId))?.name ?? state.equipment.find((item) => item.id === Number(tx.equipmentId))?.name ?? '—',
+          quantity: tx.quantity ?? null,
+          createdAt: tx.createdAt,
+          createdByName: state.users.find((user) => user.id === Number(tx.createdBy))?.fullName ?? null,
+        })),
       });
     });
   }
-  if (pathname === '/api/dashboard/charts' && method === 'GET') return json({ movements: [], stockByCategory: [] });
+  if (pathname === '/api/dashboard/charts' && method === 'GET') {
+    return read((state) => {
+      const stockByCategory = state.categories.map((category) => {
+        const rows = state.items.filter((item) => item.categoryId === category.id && item.isActive !== false);
+        return { category: category.name, totalStock: rows.reduce((sum, item) => sum + numberValue(item.currentStock), 0), itemCount: rows.length };
+      }).filter((row) => row.totalStock > 0);
+      const byItem = new Map<number, { name: string; inQty: number; outQty: number }>();
+      for (const tx of state.transactions) {
+        const id = Number(tx.itemId);
+        if (!id || !['in', 'out'].includes(String(tx.type))) continue;
+        const item = state.items.find((entry) => entry.id === id);
+        if (!item) continue;
+        const row = byItem.get(id) ?? { name: String(item.name), inQty: 0, outQty: 0 };
+        row[tx.type === 'in' ? 'inQty' : 'outQty'] += numberValue(tx.quantity);
+        byItem.set(id, row);
+      }
+      const dailyMovement = Array.from({ length: 30 }, (_, index) => {
+        const date = new Date();
+        date.setHours(0, 0, 0, 0);
+        date.setDate(date.getDate() - (29 - index));
+        const day = date.toISOString().slice(0, 10);
+        return {
+          day,
+          inQty: state.transactions.filter((tx) => String(tx.createdAt ?? '').slice(0, 10) === day && tx.type === 'in').reduce((sum, tx) => sum + numberValue(tx.quantity), 0),
+          outQty: state.transactions.filter((tx) => String(tx.createdAt ?? '').slice(0, 10) === day && tx.type === 'out').reduce((sum, tx) => sum + numberValue(tx.quantity), 0),
+        };
+      });
+      return json({ topItems: [...byItem.values()].sort((a, b) => b.inQty + b.outQty - a.inQty - a.outQty).slice(0, 8), stockByCategory, dailyMovement });
+    });
+  }
 
   if (pathname === '/api/alerts' && method === 'GET') return read((state) => json(state.alerts));
   if (pathname === '/api/alerts/read-all' && method === 'POST') return mutate((state) => {
@@ -860,7 +1001,10 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
       if (pathname === '/api/reports/expiry') return json(state.items.filter((item) => item.expiryDate));
       if (pathname === '/api/reports/below-min') return json(state.items.filter((item) => numberValue(item.currentStock) <= numberValue(item.minStock)));
       if (pathname === '/api/reports/movements') return json(state.transactions);
-      if (pathname === '/api/reports/stock-position') return json(state.items);
+       if (pathname === '/api/reports/stock-position') return json({
+         items: state.items.filter((item) => item.isActive !== false).map((item) => ({ ...item, availableQuantity: numberValue(item.currentStock), custodyQuantity: 0, damagedQuantity: 0, batches: [] })),
+         equipment: state.equipment.map((item) => ({ ...item, availableQuantity: numberValue(item.quantity, 1), custodyQuantity: 0, damagedQuantity: 0 })),
+       });
       if (pathname === '/api/reports/custodies') return json([]);
       return failure(404, 'التقرير غير موجود');
     });
@@ -948,6 +1092,17 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
     status: 200,
     headers: { 'content-type': 'application/json', 'content-disposition': 'attachment; filename="damascus-backup.json"', [OFFLINE_HEADER]: '1' },
   }));
+  if (pathname === '/api/backups/export' && method === 'POST') {
+    if (!roleAllowed(currentUser, ['admin'])) return failure(403, 'ليس لديك صلاحية');
+    return read((state) => new Response(JSON.stringify({ version: 1, exportedAt: now(), data: state }, null, 2), {
+      status: 200,
+      headers: {
+        'content-type': 'application/json',
+        'content-disposition': `attachment; filename="damascus-offline-${now().slice(0, 10)}.json"`,
+        [OFFLINE_HEADER]: '1',
+      },
+    }));
+  }
   if (pathname === '/api/backups/inspect' && method === 'POST') {
     const body = readBody(init);
     try {
