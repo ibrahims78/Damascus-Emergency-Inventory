@@ -97,7 +97,7 @@ export function SetupPage() {
             alt="Logo"
             className="w-24 h-24 mx-auto object-contain rounded-full shadow-md bg-white p-2 mb-4"
           />
-          <h1 className="text-2xl font-bold text-foreground">منظومة الاحالة و الاسعاف و الطوارئ</h1>
+          <h1 className="text-2xl font-bold text-foreground">منظومة الاحالة و الاسعاف و الطوارئ - دمشق</h1>
         </div>
 
         {/* Setup Form */}

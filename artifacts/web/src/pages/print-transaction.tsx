@@ -102,7 +102,7 @@ export function PrintTransactionPage() {
                   الجمهورية العربية السورية
                 </div>
                 <div style={{ fontSize: '10px', color: '#6b7280', marginBottom: '3px' }}>
-                  وزارة الصحة — مديرية الإحالة والإسعاف والطوارئ
+                  وزارة الصحة — منظومة الاحالة و الاسعاف و الطوارئ - دمشق
                 </div>
                 <div style={{ fontSize: '16px', fontWeight: 800, color: '#1e3a5f' }}>
                   {organizationName}

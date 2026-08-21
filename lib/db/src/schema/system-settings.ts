@@ -6,7 +6,7 @@ export const systemSettingsTable = pgTable("system_settings", {
   id: serial("id").primaryKey(),
   setupCompleted: boolean("setup_completed").notNull().default(false),
   setupAt: timestamp("setup_at", { withTimezone: true }),
-  orgName: text("org_name").notNull().default("مديرية الاحالة و الاسعاف و الطوارئ - دمشق"),
+  orgName: text("org_name").notNull().default("منظومة الاحالة و الاسعاف و الطوارئ - دمشق"),
   orgSubtitle: text("org_subtitle"),
   expiryAlertDays: integer("expiry_alert_days").notNull().default(30),
   unitsList: text("units_list"), // JSON array of unit strings e.g. '["قطعة","علبة","لتر"]'
