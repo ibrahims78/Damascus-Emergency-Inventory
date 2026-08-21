@@ -151,6 +151,18 @@ function EmptyState({ message }: { message: string }) {
   );
 }
 
+function ReportErrorState() {
+  return (
+    <TableRow>
+      <TableCell colSpan={99} className="p-4">
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-center text-sm text-destructive">
+          تعذر تحميل بيانات التقرير. تحقق من اتصال الخادم ثم أعد المحاولة.
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
 function PrintHeader({ title }: { title: string }) {
   return (
     <div className="hidden print:block mb-6 text-center border-b-2 border-[#1e3a5f] pb-4">
@@ -882,7 +894,7 @@ function CustodiesTab() {
   const [status, setStatus] = useState<'all' | 'open' | 'partially_returned' | 'damaged'>('all');
   const [search, setSearch] = useState('');
   const [overdueDays, setOverdueDays] = useState('30');
-  const { data, isLoading } = useGetCustodiesReport({
+  const { data, isLoading, isError } = useGetCustodiesReport({
     status: status === 'all' ? undefined : status,
     search: search || undefined,
     overdueDays: Number(overdueDays) || 30,
@@ -963,8 +975,10 @@ function CustodiesTab() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="h-32 text-center text-muted-foreground">جاري التحميل...</TableCell></TableRow>
+            {isError ? (
+              <ReportErrorState />
+            ) : isLoading ? (
+              <TableRow><TableCell colSpan={8} className="h-32 text-center text-muted-foreground">جاري التحميل...</TableCell></TableRow>
             ) : records.length === 0 ? (
               <EmptyState message="لا توجد عهد مفتوحة بهذه المعايير" />
             ) : (

@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/table';
 import { formatDateTime } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -122,7 +123,7 @@ export function AuditPage() {
   const [page, setPage] = useState(1);
   const [exporting, setExporting] = useState(false);
 
-  const { data, isLoading } = useQuery<AuditResponse>({
+  const { data, isLoading, isError } = useQuery<AuditResponse>({
     queryKey: ['audit', { from, to, action, entityType, page }],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -290,7 +291,17 @@ export function AuditPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
+            {isError ? (
+              <TableRow>
+                <TableCell colSpan={6} className="p-4">
+                  <Alert variant="destructive">
+                    <AlertDescription>
+                      تعذر تحميل سجل التدقيق. تحقق من اتصال الخادم ثم أعد المحاولة.
+                    </AlertDescription>
+                  </Alert>
+                </TableCell>
+              </TableRow>
+            ) : isLoading ? (
               <TableRow>
                 <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
                   جاري تحميل السجل...

@@ -335,6 +335,17 @@
     page-break-inside: avoid;
   }
 
+  .print-report .space-y-6 > *,
+  .print-report .space-y-4 > * {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-report .report-table-shell {
+    break-before: auto;
+    break-after: auto;
+  }
+
   .print-report a,
   .print-document a {
     color: inherit !important;
