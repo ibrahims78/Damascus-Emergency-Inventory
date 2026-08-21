@@ -57,6 +57,7 @@ const DB_NAME = 'damascus-emergency-inventory-offline';
 const DB_VERSION = 2;
 const STORE_NAME = 'state';
 const STATE_KEY = 'current';
+const PREVIEW_KEY = 'pending-restore-preview';
 const OFFLINE_HEADER = 'X-Damascus-Offline';
 
 let statePromise: Promise<OfflineState> | undefined;
@@ -191,6 +192,40 @@ async function saveState(state: OfflineState) {
   await new Promise<void>((resolve, reject) => {
     const transaction = db.transaction(STORE_NAME, 'readwrite');
     transaction.objectStore(STORE_NAME).put(state, STATE_KEY);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
+  db.close();
+}
+
+async function savePendingPreview(preview: NonNullable<typeof pendingDmePreview>) {
+  const db = await openDatabase();
+  await new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    transaction.objectStore(STORE_NAME).put(preview, PREVIEW_KEY);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
+  db.close();
+}
+
+async function loadPendingPreview() {
+  const db = await openDatabase();
+  const preview = await new Promise<NonNullable<typeof pendingDmePreview> | null>((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readonly');
+    const request = transaction.objectStore(STORE_NAME).get(PREVIEW_KEY);
+    request.onsuccess = () => resolve((request.result as NonNullable<typeof pendingDmePreview> | undefined) ?? null);
+    request.onerror = () => reject(request.error);
+  });
+  db.close();
+  return preview;
+}
+
+async function clearPendingPreview() {
+  const db = await openDatabase();
+  await new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    transaction.objectStore(STORE_NAME).delete(PREVIEW_KEY);
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error);
   });
@@ -954,6 +989,7 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
         return result;
       }, {});
       pendingDmePreview = { token, packageHash: pkg.packageHash, mode: text(body.mode) === 'full' ? 'full' : 'merge', pkg };
+      await savePendingPreview(pendingDmePreview);
       return json({ token, report: { mode: pendingDmePreview.mode, packageHash: pkg.packageHash, packageType: pkg.manifest.packageType, counts: { total: records.length, applied: counts.applied ?? 0, duplicate: 0, rejected: 0, conflict: 0, skipped: counts.skipped ?? 0 }, records }, summary: dmePackageSummary(pkg) });
     } catch (error) {
       return failure(400, error instanceof Error ? error.message : 'تعذر تنفيذ المعاينة');
@@ -962,8 +998,8 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
   if (pathname === '/api/backups/restore' && method === 'POST') {
     const body = readBody(init);
     if (body.confirm !== true) return failure(400, 'يجب تأكيد الاستعادة بعد المعاينة');
-    if (!pendingDmePreview || pendingDmePreview.token !== text(body.previewToken)) return failure(400, 'المعاينة غير موجودة أو منتهية');
-    const preview = pendingDmePreview;
+    const preview = pendingDmePreview ?? await loadPendingPreview();
+    if (!preview || preview.token !== text(body.previewToken)) return failure(400, 'المعاينة غير موجودة أو منتهية');
     if (preview.mode !== (text(body.mode) === 'full' ? 'full' : 'merge')) return failure(400, 'نمط الاستعادة لا يطابق المعاينة');
     return mutate((state) => {
        const entities: Record<string, keyof OfflineState> = {
@@ -1024,8 +1060,11 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
          .map((row) => Number(row.id))
          .filter((id) => Number.isInteger(id) && id > 0);
        if (restoredIds.length) state.nextId = Math.max(state.nextId, Math.max(...restoredIds) + 1);
-      pendingDmePreview = null;
+       pendingDmePreview = null;
       return json({ counts: { total: preview.pkg.records.length, applied, duplicate: 0, rejected: 0, conflict: 0, skipped }, restorePointId: null });
+    }).then(async (response) => {
+      await clearPendingPreview();
+      return response;
     });
   }
 
