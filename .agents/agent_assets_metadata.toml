@@ -84,3 +84,17 @@ mtime_ms = 1787383815990
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:b8262db0-7446-4f5f-871d-654d828bd039/929a780d-2b3e-41ca-bed3-4b18123a52d1/e4cd362a-5788-4dfb-be6a-f7136dee6353"
 storage_version_token = "1787383844627816"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "idQCe5mKBPawNGsBNgZbI"
+uri = "file://Damascus-Emergency-Inventory-offline-2.1.3.apk"
+type = "unspecified"
+title = "Damascus Emergency Inventory — APK Offline 2.1.3"
+description = "نسخة Android Offline محدثة لإصلاح إنشاء ملف Excel داخل مجلد التنزيل العام Downloads/Damascus Emergency Inventory، مع طلب صلاحية التخزين عند الحاجة والتحقق من نجاح الحفظ. SHA-256: b1d06ce7fa166497e16942224b8ea3a0c7caf15329b1a0e74cdeee5d009e5e3"
+logical_id = "fb0afba2-8e4c-4335-b6d7-ca1e249c40b3"
+content_hash = "sha256:b1d06ce7fa166497e16942224b8ea3a0c7caf15329b1a0e74cdeee5d009e5e3e"
+size = 4788142
+mtime_ms = 1787385421145
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:b8262db0-7446-4f5f-871d-654d828bd039/fb0afba2-8e4c-4335-b6d7-ca1e249c40b3/d9c215e8-c607-43dd-bccd-145583bb9b59"
+storage_version_token = "1787385441468191"
+content_type = "application/octet-stream"
