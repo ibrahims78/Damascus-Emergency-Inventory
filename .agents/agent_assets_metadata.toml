@@ -70,3 +70,17 @@ mtime_ms = 1787347761272
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:ec482d40-8253-446d-a086-5d46ca776e85/7fc602c1-6468-4ec1-88dd-72bcbf9d832e/84ae86d2-bc14-4899-b4b5-75468203e2bc"
 storage_version_token = "1787347797334612"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "bd0mol5ertL-nZ5IYPxFh"
+uri = "file://Damascus-Emergency-Inventory-offline.apk"
+type = "unspecified"
+title = "Damascus Emergency Inventory — APK Offline"
+description = "نسخة Android Offline Release تتضمن إصلاح الطباعة وتصدير Excel وجميع تعديلات المستودع. SHA-256: 784289da98e09741203457506b7fe7e5766290178f1f49148204c32795ac5843"
+logical_id = "929a780d-2b3e-41ca-bed3-4b18123a52d1"
+content_hash = "sha256:784289da98e09741203457506b7fe7e5766290178f1f49148204c32795ac5843"
+size = 4787934
+mtime_ms = 1787383815990
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:b8262db0-7446-4f5f-871d-654d828bd039/929a780d-2b3e-41ca-bed3-4b18123a52d1/e4cd362a-5788-4dfb-be6a-f7136dee6353"
+storage_version_token = "1787383844627816"
+content_type = "application/octet-stream"
