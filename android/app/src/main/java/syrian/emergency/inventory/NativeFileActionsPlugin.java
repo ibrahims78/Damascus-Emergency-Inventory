@@ -1,8 +1,10 @@
 package syrian.emergency.inventory;
 
+import android.Manifest;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
@@ -113,8 +115,22 @@ public class NativeFileActionsPlugin extends Plugin {
                     throw error;
                 }
             } else {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                        && getActivity().checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                        != PackageManager.PERMISSION_GRANTED) {
+                    getActivity().requestPermissions(
+                            new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                            2103
+                    );
+                    call.reject("يرجى السماح للتطبيق بالوصول إلى الملفات ثم إعادة التصدير");
+                    return;
+                }
+
+                // Android 9 and earlier do not support MediaStore.RELATIVE_PATH.
+                // The app-specific external directory is not visible in the
+                // user's Downloads app, so write to the public Downloads folder.
                 java.io.File downloads = new java.io.File(
-                        getActivity().getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS),
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
                         "Damascus Emergency Inventory"
                 );
                 if (!downloads.exists() && !downloads.mkdirs()) {
@@ -124,6 +140,10 @@ public class NativeFileActionsPlugin extends Plugin {
                 java.io.File file = new java.io.File(downloads, filename);
                 try (OutputStream output = new java.io.FileOutputStream(file)) {
                     output.write(bytes);
+                    output.flush();
+                }
+                if (!file.isFile() || file.length() != bytes.length) {
+                    throw new IllegalStateException("تعذر التحقق من ملف التصدير");
                 }
                 uri = Uri.fromFile(file);
             }
