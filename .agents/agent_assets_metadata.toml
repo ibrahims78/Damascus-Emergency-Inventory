@@ -112,3 +112,17 @@ mtime_ms = 1787386201714
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:b8262db0-7446-4f5f-871d-654d828bd039/21f446a3-b103-4c65-b113-ea5d327887a4/cf76b190-1b59-49a3-b550-e7535b110dde"
 storage_version_token = "1787386219694694"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "zFarbL8RvBfBugpaalwxL"
+uri = "file://android/app/build/outputs/apk/release/app-release.apk"
+type = "unspecified"
+title = "Damascus Emergency Inventory Android 2.1.4"
+description = "أحدث نسخة Release مبنية من الفرع main، Offline، موقعة وقابلة للتثبيت. SHA-256: 27d30390465c6a32ba61effbd94e2961f53451eab53b6cb19c1e25a6e784dcca"
+logical_id = "4f0ee511-0c23-460c-ab55-bd3e23150d1b"
+content_hash = "sha256:27d30390465c6a32ba61effbd94e2961f53451eab53b6cb19c1e25a6e784dcca"
+size = 4790224
+mtime_ms = 1787391049372
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:db9e87f2-cc9c-47c3-a841-396fc3050e42/4f0ee511-0c23-460c-ab55-bd3e23150d1b/9cc750cf-97ba-4add-b427-ad90976134c8"
+storage_version_token = "1787391064880605"
+content_type = "application/octet-stream"
