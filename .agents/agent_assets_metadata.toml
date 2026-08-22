@@ -126,3 +126,17 @@ mtime_ms = 1787392304811
 storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:db9e87f2-cc9c-47c3-a841-396fc3050e42/4f0ee511-0c23-460c-ab55-bd3e23150d1b/f4874a8c-6754-45d6-9f04-749879ba9ebe"
 storage_version_token = "1787392318387374"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "lOnI4wpjD4G1wkzrlMp0i"
+uri = "file://releases/v3.0.1/damascus-emergency-inventory-offline-v3.0.1.apk"
+type = "unspecified"
+title = "Damascus Emergency Inventory Offline v3.0.1 APK"
+description = "حزمة Android Offline مبنية من الفرع main، مع ملف SHA-256 للتحقق داخل مجلد الإصدار."
+logical_id = "c0e464a8-d14d-49a8-b5a6-c68f53c232b2"
+content_hash = "sha256:89ec828da4874f3fb685d4dcd0606e43b6165bc527ab609aed50f7295eb56e78"
+size = 4791820
+mtime_ms = 1787398584649
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:5b735dcc-040e-4d6f-94a9-ef0290075a09/c0e464a8-d14d-49a8-b5a6-c68f53c232b2/868f93e4-39e7-42d8-8f58-5f9d7e719b5c"
+storage_version_token = "1787398666105045"
+content_type = "application/octet-stream"
