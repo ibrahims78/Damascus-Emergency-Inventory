@@ -690,6 +690,8 @@ importers:
         specifier: ^0.31.10
         version: 0.31.10
 
+  lib/license-core: {}
+
   lib/sync-contract: {}
 
   scripts:

@@ -4,7 +4,7 @@ import {
   getInstallDeviceId,
   verifyLicense,
   type LicenseResult,
-} from "../../../lib/license-core/src/index";
+} from "../../../../lib/license-core/src/index";
 
 const DEVICE_STORAGE_KEY = "damascus-ems.protected.device-id";
 const LICENSE_STORAGE_KEY = "damascus-ems.protected.license";
