@@ -5,6 +5,8 @@
   "scripts": {
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
+    "build:standard": "pnpm --filter @workspace/web run build:standard && pnpm --filter @workspace/api-server run build:standard",
+    "build:protected": "pnpm --filter @workspace/web run build:protected && pnpm --filter @workspace/api-server run build:protected",
     "build:android:offline": "VITE_OFFLINE_MODE=1 BASE_PATH=/ pnpm --filter @workspace/web run build && pnpm exec cap sync android && cd android && ./gradlew assembleRelease --no-daemon",
     "protected:keygen": "node scripts/generate-protected-key.mjs",
     "typecheck:libs": "tsc --build",

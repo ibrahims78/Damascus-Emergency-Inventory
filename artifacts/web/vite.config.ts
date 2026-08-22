@@ -9,6 +9,7 @@ const rawPort = process.env.PORT;
 // During `vite build` PORT/BASE_PATH are not required; use sensible defaults.
 const port = rawPort ? Number(rawPort) : 3000;
 const basePath = process.env.BASE_PATH ?? '/';
+const outputDir = process.env.VITE_OUTPUT_DIR ?? 'dist/public';
 
 export default defineConfig({
   base: basePath,
@@ -26,7 +27,7 @@ export default defineConfig({
   },
   root: path.resolve(import.meta.dirname),
   build: {
-    outDir: path.resolve(import.meta.dirname, 'dist/public'),
+    outDir: path.resolve(import.meta.dirname, outputDir),
     emptyOutDir: true,
   },
   server: {

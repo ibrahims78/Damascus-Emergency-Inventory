@@ -11,7 +11,10 @@ globalThis.require = createRequire(import.meta.url);
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
 
 async function buildAll() {
-  const distDir = path.resolve(artifactDir, "dist");
+  const distDir = path.resolve(
+    artifactDir,
+    process.env.API_BUILD_OUTPUT_DIR ?? "dist",
+  );
   await rm(distDir, { recursive: true, force: true });
 
   await esbuild({
@@ -126,7 +129,11 @@ async function copySessionTableSql() {
   const { createRequire } = await import("node:module");
   const req = createRequire(import.meta.url);
   const pgSimplePkg = req.resolve("connect-pg-simple/table.sql");
-  await copyFile(pgSimplePkg, path.resolve(artifactDir, "dist", "table.sql"));
+  const outputDir = path.resolve(
+    artifactDir,
+    process.env.API_BUILD_OUTPUT_DIR ?? "dist",
+  );
+  await copyFile(pgSimplePkg, path.resolve(outputDir, "table.sql"));
 }
 
 buildAll()

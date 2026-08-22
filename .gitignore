@@ -48,6 +48,20 @@ Thumbs.db
 .cache/
 .local/
 
+# Release credentials and signing material
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+*private*key*
+release-secrets/
+release-staging/
+
 # Workspace-only attachments and agent-generated previews
 attached_assets/
 /.agents/outputs/

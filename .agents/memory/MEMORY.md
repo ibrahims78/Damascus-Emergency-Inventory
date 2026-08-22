@@ -19,3 +19,4 @@
 - [Android restore WebView fallback](android-restore-webview-fallback.md) — Capacitor WebViews may stall module workers, so restore parsing needs a native/direct fallback.
 - [Offline lifecycle parity](offline-lifecycle-parity.md) — offline movement handlers must persist both the transaction and its domain lifecycle record.
 - [Android storage permission continuation](android-storage-permission.md) — legacy Android file requests must resume the retained native call after storage permission is granted.
+- [Protected release build boundaries](protected-release-phase1-boundaries.md) — standard and protected outputs must use separate directories and secret scanning must avoid weak keyword false positives.
