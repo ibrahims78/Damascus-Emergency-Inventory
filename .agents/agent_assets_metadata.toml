@@ -98,3 +98,17 @@ mtime_ms = 1787385421145
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:b8262db0-7446-4f5f-871d-654d828bd039/fb0afba2-8e4c-4335-b6d7-ca1e249c40b3/d9c215e8-c607-43dd-bccd-145583bb9b59"
 storage_version_token = "1787385441468191"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "NDVb1a18ZFHnnO6JXdzRi"
+uri = "file://Damascus-Emergency-Inventory-offline-2.1.4.apk"
+type = "unspecified"
+title = "Damascus Emergency Inventory — APK Offline 2.1.4"
+description = "نسخة Android Offline محدثة: تصحيح مسار رسالة تصدير Excel إلى Download/Damascus Emergency Inventory، وإصلاح انهيار تبويب العهد المفتوحة وإظهار بياناته بشكل آمن. SHA-256: 5141f103578a863aed0ca83491fa0f5c3ec46bdad62ece561520e2fa76cebf06"
+logical_id = "21f446a3-b103-4c65-b113-ea5d327887a4"
+content_hash = "sha256:5141f103578a863aed0ca83491fa0f5c3ec46bdad62ece561520e2fa76cebf06"
+size = 4788628
+mtime_ms = 1787386201714
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:b8262db0-7446-4f5f-871d-654d828bd039/21f446a3-b103-4c65-b113-ea5d327887a4/cf76b190-1b59-49a3-b550-e7535b110dde"
+storage_version_token = "1787386219694694"
+content_type = "application/octet-stream"
