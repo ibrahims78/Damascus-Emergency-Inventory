@@ -17,3 +17,4 @@
  - [Backup preview schema recovery](backup-preview-schema.md) — make preview-token storage idempotent so older databases can complete restore flows
 - [Android build environment](android-build-environment.md) — Gradle is available, but this workspace lacks an Android SDK/platforms directory for release APK builds.
 - [Android restore WebView fallback](android-restore-webview-fallback.md) — Capacitor WebViews may stall module workers, so restore parsing needs a native/direct fallback.
+- [Android storage permission continuation](android-storage-permission.md) — legacy Android file requests must resume the retained native call after storage permission is granted.
