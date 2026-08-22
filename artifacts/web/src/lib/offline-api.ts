@@ -618,12 +618,70 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
   }
   if (pathname === '/api/items/history' && method === 'GET') {
     const historyItemId = Number(searchParams.get('itemId'));
-    return read((state) => json({
-      item: state.items.find((item) => item.id === historyItemId) ?? null,
-      movements: state.transactions.filter((transaction) => transaction.itemId === historyItemId),
-      batches: [],
-      allocations: [],
-    }));
+    return read((state) => {
+      const rawItem = state.items.find((item) => numberValue(item.id) === historyItemId && item.isActive !== false);
+      if (!rawItem) return failure(404, 'المادة غير موجودة');
+      const item = itemWithCategory(state, rawItem);
+      const allMovements = state.transactions
+        .filter((transaction) => numberValue(transaction.itemId) === historyItemId)
+        .map((transaction) => ({
+          id: numberValue(transaction.id),
+          type: text(transaction.type, 'adjust'),
+          quantity: transaction.quantity == null ? null : numberValue(transaction.quantity),
+          partyName: text(transaction.partyName, text(transaction.recipientName)) || null,
+          documentNumber: text(transaction.documentNumber, `OFF-${transaction.id}`),
+          documentDate: text(transaction.transactionDate, text(transaction.createdAt)) || null,
+          createdAt: text(transaction.createdAt, now()),
+          operatorName: text(transaction.operatorName, text(state.users.find((user) => user.id === numberValue(transaction.createdBy))?.fullName)) || null,
+          expiryDate: text(transaction.expiryDate) || null,
+          batchNumber: text(transaction.batchNumber) || null,
+          reason: text(transaction.reason) || null,
+          notes: text(transaction.notes) || null,
+          isHistoricalIncomplete: false,
+          allocations: [],
+        }));
+      const typeFilter = text(searchParams.get('type'));
+      const from = text(searchParams.get('from'));
+      const to = text(searchParams.get('to'));
+      const document = text(searchParams.get('document')).toLocaleLowerCase();
+      const movements = allMovements.filter((movement) =>
+        (!typeFilter || movement.type === typeFilter) &&
+        (!from || String(movement.documentDate ?? '').slice(0, 10) >= from) &&
+        (!to || String(movement.documentDate ?? '').slice(0, 10) <= to) &&
+        (!document || movement.documentNumber.toLocaleLowerCase().includes(document)),
+      );
+      const page = paged(movements, searchParams);
+      return json({
+        item: {
+          id: historyItemId,
+          code: text(item.code) || null,
+          name: text(item.name, '—'),
+          categoryName: text(item.categoryName) || null,
+          itemType: text(item.itemType, 'item'),
+          unit: text(item.unit, 'قطعة'),
+          currentStock: numberValue(item.currentStock),
+          minStock: numberValue(item.minStock),
+          expiryDate: text(item.expiryDate) || null,
+          location: text(item.location) || null,
+          supplier: text(item.supplier) || null,
+          notes: text(item.notes) || null,
+          isActive: item.isActive !== false,
+        },
+        batches: item.batchNumber ? [{
+          id: historyItemId,
+          batchNumber: text(item.batchNumber) || null,
+          receivedQuantity: numberValue(item.currentStock),
+          remainingQuantity: numberValue(item.currentStock),
+          expiryDate: text(item.expiryDate) || null,
+          deliveryNoteNumber: null,
+          deliveryNoteDate: null,
+        }] : [],
+        movements: page.rows,
+        total: page.total,
+        page: page.page,
+        limit: page.limit,
+      });
+    });
   }
   if (pathname === '/api/items/fefo-preview' && method === 'GET') {
     return read((state) => {
@@ -898,7 +956,81 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
     });
   }
 
-  if (pathname === '/api/custodies' && method === 'GET') return json([]);
+  if (pathname === '/api/custodies' && method === 'GET') {
+    return read((state) => json(state.personalCustodies));
+  }
+
+  if (pathname.match(/^\/api\/equipment\/\d+\/history$/) && method === 'GET') {
+    const historyEquipmentId = Number(pathname.split('/')[3]);
+    return read((state) => {
+      const rawEquipment = state.equipment.find((entry) => numberValue(entry.id) === historyEquipmentId);
+      if (!rawEquipment) return failure(404, 'التجهيز غير موجود');
+      const equipmentCustodies = state.personalCustodies.filter((entry) => numberValue(entry.equipmentId) === historyEquipmentId);
+      const typeFilter = text(searchParams.get('type'));
+      const from = text(searchParams.get('from'));
+      const to = text(searchParams.get('to'));
+      const document = text(searchParams.get('document')).toLocaleLowerCase();
+      const movements = state.transactions
+        .filter((transaction) => numberValue(transaction.equipmentId) === historyEquipmentId)
+        .map((transaction) => ({
+          id: numberValue(transaction.id),
+          type: text(transaction.type, 'adjust'),
+          quantity: transaction.quantity == null ? null : numberValue(transaction.quantity),
+          partyName: text(transaction.partyName) || null,
+          holderName: text(transaction.holderName) || null,
+          documentNumber: text(transaction.documentNumber, `OFF-${transaction.id}`),
+          documentDate: text(transaction.transactionDate, text(transaction.createdAt)) || null,
+          custodyNoteNumber: text(transaction.custodyNoteNumber) || null,
+          custodyDate: text(transaction.custodyDate) || null,
+          custodyLocation: text(transaction.custodyLocation) || null,
+          reason: text(transaction.reason) || null,
+          notes: text(transaction.notes) || null,
+          createdAt: text(transaction.createdAt, now()),
+          operatorName: text(transaction.operatorName, text(state.users.find((user) => user.id === numberValue(transaction.createdBy))?.fullName)) || null,
+        }))
+        .filter((movement) =>
+          (!typeFilter || movement.type === typeFilter) &&
+          (!from || String(movement.documentDate ?? '').slice(0, 10) >= from) &&
+          (!to || String(movement.documentDate ?? '').slice(0, 10) <= to) &&
+          (!document || movement.documentNumber.toLocaleLowerCase().includes(document)),
+        );
+      const quantity = numberValue(rawEquipment.quantity, 1);
+      const custodyRows = equipmentCustodies.map((custody) => {
+        const total = numberValue(custody.quantity);
+        const returned = numberValue(custody.returnedQuantity);
+        return {
+          id: numberValue(custody.id),
+          holderName: text(custody.holderName, text(custody.holderNameSnap, '—')),
+          recipientName: text(custody.recipientName) || null,
+          quantity: total,
+          returnedQuantity: returned,
+          outstandingQuantity: Math.max(0, total - returned),
+          deliveryNoteNumber: text(custody.deliveryNoteNumber, '—'),
+          deliveryDate: text(custody.deliveryDate, text(custody.custodyDate)),
+          location: text(custody.location, '—'),
+          status: text(custody.status, 'open'),
+        };
+      });
+      return json({
+        equipment: {
+          ...rawEquipment,
+          id: historyEquipmentId,
+          name: text(rawEquipment.name, '—'),
+          equipmentType: text(rawEquipment.equipmentType) || null,
+          model: text(rawEquipment.model) || null,
+          serialNumber: text(rawEquipment.serialNumber) || null,
+          condition: text(rawEquipment.condition, 'good'),
+          quantity,
+          minQuantity: numberValue(rawEquipment.minQuantity),
+          custodyQuantity: custodyRows.reduce((sum, row) => sum + row.outstandingQuantity, 0),
+          availableQuantity: Math.max(0, quantity - custodyRows.reduce((sum, row) => sum + row.outstandingQuantity, 0)),
+        },
+        custodies: custodyRows,
+        movements,
+        total: movements.length,
+      });
+    });
+  }
 
   if (pathname === '/api/dashboard/stats' && method === 'GET') {
     return read((state) => {
@@ -976,7 +1108,47 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
     });
   }
 
-  if (pathname === '/api/alerts' && method === 'GET') return read((state) => json(state.alerts));
+  if (pathname === '/api/alerts' && method === 'GET') {
+    return read((state) => {
+      const generated: Array<Record<string, unknown>> = [];
+      for (const item of state.items) {
+        const current = numberValue(item.currentStock);
+        const minimum = numberValue(item.minStock);
+        if (item.isActive !== false && minimum > 0 && current <= minimum) {
+          generated.push({
+            id: `below_min-${item.id}`, dbId: numberValue(item.id), type: 'below_min',
+            entityId: numberValue(item.id), entityType: 'item', entityName: text(item.name, '—'),
+            itemName: text(item.name, '—'), message: `الرصيد ${current} أقل من أو يساوي الحد الأدنى ${minimum}`,
+            severity: current === 0 ? 'critical' : 'warning', isRead: false, createdAt: now(), updatedAt: now(),
+          });
+        }
+        if (item.isActive !== false && item.expiryDate) {
+          const expiry = new Date(String(item.expiryDate));
+          if (!Number.isNaN(expiry.getTime()) && expiry.getTime() <= Date.now() + numberValue(state.settings.expiryAlertDays, 30) * 86_400_000) {
+            const expired = expiry.getTime() <= Date.now();
+            generated.push({
+              id: `near_expiry-${item.id}`, dbId: numberValue(item.id), type: 'near_expiry',
+              entityId: numberValue(item.id), entityType: 'item', entityName: text(item.name, '—'),
+              itemName: text(item.name, '—'), message: expired ? 'المادة منتهية الصلاحية' : `تنتهي الصلاحية في ${String(item.expiryDate).slice(0, 10)}`,
+              severity: expired ? 'critical' : 'warning', isRead: false, createdAt: now(), updatedAt: now(),
+            });
+          }
+        }
+      }
+      for (const equipment of state.equipment) {
+        const condition = text(equipment.condition);
+        if (['maintenance', 'broken', 'needs_inspection'].includes(condition)) {
+          generated.push({
+            id: `equipment_maintenance-${equipment.id}`, dbId: numberValue(equipment.id), type: 'equipment_maintenance',
+            entityId: numberValue(equipment.id), entityType: 'equipment', entityName: text(equipment.name, '—'),
+            message: condition === 'broken' ? 'التجهيز معطل ويحتاج إلى معالجة' : 'التجهيز يحتاج إلى صيانة أو فحص',
+            severity: condition === 'broken' ? 'critical' : 'warning', isRead: false, createdAt: now(), updatedAt: now(),
+          });
+        }
+      }
+      return json([...state.alerts, ...generated]);
+    });
+  }
   if (pathname === '/api/alerts/read-all' && method === 'POST') return mutate((state) => {
     state.alerts.forEach((alert) => { alert.isRead = true; });
     return json({ ok: true });
@@ -1144,7 +1316,25 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
   if (pathname === '/api/settings/my-activity' && method === 'GET') return read((state) => json(state.auditLog.filter((entry) => entry.userId === currentUser.id)));
   if (pathname === '/api/audit' && method === 'GET') {
     if (!roleAllowed(currentUser, ['admin'])) return failure(403, 'ليس لديك صلاحية');
-    return read((state) => json(paged(state.auditLog, searchParams)));
+    return read((state) => {
+      const from = text(searchParams.get('from'));
+      const to = text(searchParams.get('to'));
+      const action = text(searchParams.get('action'));
+      const entityType = text(searchParams.get('entityType'));
+      const filtered = state.auditLog.filter((entry) =>
+        (!from || String(entry.createdAt ?? '').slice(0, 10) >= from) &&
+        (!to || String(entry.createdAt ?? '').slice(0, 10) <= to) &&
+        (!action || entry.action === action) &&
+        (!entityType || entry.entityType === entityType)
+      );
+      const page = paged(filtered, searchParams);
+      return json({
+        data: page.rows,
+        total: page.total,
+        page: page.page,
+        totalPages: Math.max(1, Math.ceil(page.total / page.limit)),
+      });
+    });
   }
   if (pathname === '/api/backup/info' && method === 'GET') return read((state) => json({ version: 1, size: JSON.stringify(state).length, updatedAt: state.settings.updatedAt }));
   if (pathname === '/api/backup/export' && method === 'GET') return read((state) => new Response(JSON.stringify({ version: 1, exportedAt: now(), data: state }), {
