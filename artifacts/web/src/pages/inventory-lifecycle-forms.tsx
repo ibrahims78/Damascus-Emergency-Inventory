@@ -63,8 +63,18 @@ function useReturnConditions() {
 }
 
 function errorMessage(error: unknown) {
-  const response = (error as { response?: { data?: { error?: string } } })?.response;
-  return response?.data?.error || 'تعذر حفظ الحركة، يرجى مراجعة البيانات والمحاولة مرة أخرى';
+  const typedError = error as {
+    data?: { error?: string; message?: string } | string | null;
+    response?: { data?: { error?: string; message?: string } | string | null };
+    message?: string;
+  };
+  const body = typedError.data ?? typedError.response?.data;
+  if (typeof body === 'string' && body.trim()) return body;
+  if (body && typeof body === 'object' && (body.error || body.message)) {
+    return body.error || body.message || 'تعذر حفظ الحركة';
+  }
+  if (typedError.message && !typedError.message.startsWith('HTTP ')) return typedError.message;
+  return 'تعذر حفظ الحركة، يرجى مراجعة البيانات والمحاولة مرة أخرى';
 }
 
 function PageFrame({

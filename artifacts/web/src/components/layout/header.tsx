@@ -280,6 +280,7 @@ export function Header() {
   const [location, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const markAllRead = useMarkAllAlertsRead();
+  const logoutStarted = useRef(false);
   const { data: systemSettings } = useQuery({
     queryKey: ['settings'],
     queryFn: async () => {
@@ -305,17 +306,26 @@ export function Header() {
   );
 
   const handleLogout = () => {
+    if (logoutStarted.current) return;
+    logoutStarted.current = true;
     // Clear auth-scoped state immediately so the login page can render without
     // retaining the previous user in the query cache.
-    queryClient.removeQueries({ queryKey: getGetCurrentUserQueryKey(), exact: true });
-    queryClient.removeQueries({ queryKey: getListAlertsQueryKey() });
+    queryClient.clear();
     // Complete the server request when possible, then perform a real document
     // navigation. This clears any mounted auth-scoped React state and avoids
     // redirect loops while the protected tree is being unmounted.
+    let redirected = false;
+    const redirect = () => {
+      if (redirected) return;
+      redirected = true;
+      window.location.replace('/login');
+    };
+    const timeout = window.setTimeout(redirect, 1500);
     void logout.mutateAsync()
       .catch(() => undefined)
       .finally(() => {
-        window.location.replace('/login');
+        window.clearTimeout(timeout);
+        redirect();
       });
   };
 

@@ -181,6 +181,10 @@ function KpiCard({ title, value, icon, sub, variant = 'default', href, loading }
 const TX_TYPE_META = {
   in:     { label: 'إدخال',    icon: <ArrowDownToLine className="w-3 h-3" />, color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' },
   out:    { label: 'إخراج',    icon: <ArrowUpFromLine className="w-3 h-3" />, color: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300' },
+  custody_out: { label: 'تسليم عهدة', icon: <ArrowUpFromLine className="w-3 h-3" />, color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' },
+  custody_return: { label: 'إعادة عهدة', icon: <ArrowDownToLine className="w-3 h-3" />, color: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300' },
+  damage: { label: 'تلف', icon: <ShieldAlert className="w-3 h-3" />, color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300' },
+  central_return: { label: 'مرتجع مركزي', icon: <ArrowUpFromLine className="w-3 h-3" />, color: 'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300' },
   init:   { label: 'افتتاحي', icon: <Package className="w-3 h-3" />,          color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' },
   adjust: { label: 'تسوية',   icon: <RefreshCw className="w-3 h-3" />,        color: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' },
 } as const;
@@ -221,7 +225,7 @@ function RecentTransactionsTable({ transactions, loading }: { transactions: Rece
         ) : (
           <div className="divide-y">
             {transactions.map(tx => {
-              const meta = TX_TYPE_META[tx.type] ?? TX_TYPE_META.adjust;
+              const meta = TX_TYPE_META[tx.type as keyof typeof TX_TYPE_META] ?? TX_TYPE_META.adjust;
               return (
                 <div
                   key={tx.id}
@@ -402,18 +406,18 @@ export function DashboardPage() {
         <KpiCard
           loading={statsLoading}
           title={`عمليات ${monthName}`}
-          value={(stats?.monthlyIn ?? 0) + (stats?.monthlyOut ?? 0)}
+           value={Number(stats?.monthlyIn ?? 0) + Number(stats?.monthlyOut ?? 0)}
           icon={<ArrowRightLeft className="h-4 w-4" />}
           sub={stats ? (() => {
-            const curr = stats.monthlyIn + stats.monthlyOut;
-            const prev = (stats.prevMonthIn ?? 0) + (stats.prevMonthOut ?? 0);
+             const curr = Number(stats.monthlyIn ?? 0) + Number(stats.monthlyOut ?? 0);
+             const prev = Number(stats.prevMonthIn ?? 0) + Number(stats.prevMonthOut ?? 0);
             const diff = curr - prev;
             const pct = prev > 0 ? Math.round(Math.abs(diff) / prev * 100) : null;
             return (
               <span className="flex flex-col gap-0.5">
                 <span className="flex gap-2">
-                  <span className="text-emerald-600">↓ {stats.monthlyIn} إدخال</span>
-                  <span className="text-red-500">↑ {stats.monthlyOut} إخراج</span>
+                   <span className="text-emerald-600">↓ {Number(stats.monthlyIn ?? 0)} إدخال</span>
+                   <span className="text-red-500">↑ {Number(stats.monthlyOut ?? 0)} إخراج</span>
                 </span>
                 {pct !== null && (
                   <span className={diff >= 0 ? 'text-emerald-600' : 'text-red-500'}>

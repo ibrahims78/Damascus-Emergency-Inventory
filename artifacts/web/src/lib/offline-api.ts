@@ -921,8 +921,10 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
         ...body,
       };
       const target = state.items.find((item) => item.id === Number(body.itemId));
-      if (target && ['in', 'central-return', 'central_return'].includes(type)) target.currentStock = numberValue(target.currentStock) + numberValue(body.quantity);
-      if (target && ['out', 'damage'].includes(type)) target.currentStock = Math.max(0, numberValue(target.currentStock) - numberValue(body.quantity));
+      if (target && ['in'].includes(type)) target.currentStock = numberValue(target.currentStock) + numberValue(body.quantity);
+      if (target && ['out', 'damage', 'central-return', 'central_return'].includes(type)) {
+        target.currentStock = Math.max(0, numberValue(target.currentStock) - numberValue(body.quantity));
+      }
       state.transactions.unshift(transaction);
       const transactionIdentity = recordOfflineChange(
         state,
