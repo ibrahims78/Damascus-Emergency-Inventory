@@ -885,7 +885,28 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
     if (!roleAllowed(currentUser, ['admin', 'warehouse_manager'])) return failure(403, 'ليس لديك صلاحية');
     return mutate((state) => {
       const body = readBody(init);
-      const type = pathname.split('/').pop() ?? 'adjust';
+      const requestedType = pathname.split('/').pop() ?? 'adjust';
+      const type = requestedType.replace(/-/g, '_');
+      const custodyEquipment = type === 'custody_out'
+        ? state.equipment.find((entry) => entry.id === Number(body.equipmentId))
+        : undefined;
+      const custodyReturn = type === 'custody_return'
+        ? state.personalCustodies.find((entry) => numberValue(entry.id) === numberValue(body.custodyId))
+        : undefined;
+      if (type === 'custody_out') {
+        const requestedQuantity = numberValue(body.quantity, 1);
+        if (!custodyEquipment) return failure(404, 'التجهيز غير موجود');
+        if (requestedQuantity < 1 || requestedQuantity > numberValue(custodyEquipment.quantity, 1)) {
+          return failure(400, 'كمية العهدة غير صالحة');
+        }
+      }
+      if (type === 'custody_return') {
+        const requestedQuantity = numberValue(body.quantity);
+        if (!custodyReturn) return failure(404, 'العهدة غير موجودة');
+        if (requestedQuantity < 1 || requestedQuantity > numberValue(custodyReturn.quantity) - numberValue(custodyReturn.returnedQuantity)) {
+          return failure(400, 'كمية الإعادة تتجاوز المتبقي في العهدة');
+        }
+      }
       const transaction = {
         id: nextId(state),
         type,
@@ -901,7 +922,7 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
       };
       const target = state.items.find((item) => item.id === Number(body.itemId));
       if (target && ['in', 'central-return', 'central_return'].includes(type)) target.currentStock = numberValue(target.currentStock) + numberValue(body.quantity);
-      if (target && ['out', 'custody-out', 'custody_out', 'damage'].includes(type)) target.currentStock = Math.max(0, numberValue(target.currentStock) - numberValue(body.quantity));
+      if (target && ['out', 'damage'].includes(type)) target.currentStock = Math.max(0, numberValue(target.currentStock) - numberValue(body.quantity));
       state.transactions.unshift(transaction);
       const transactionIdentity = recordOfflineChange(
         state,
@@ -923,6 +944,88 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
         originSequence: state.nodeIdentity.originSequence,
         documentNumberScope: `offline:${type}`,
       });
+
+      // Equipment custody is a separate lifecycle record. The online service
+      // creates it in the same transaction as the movement; doing only the
+      // generic transaction here made Android custody deliveries disappear
+      // from the custody report.
+      if (type === 'custody_out') {
+        const equipment = custodyEquipment;
+        const quantity = numberValue(body.quantity, 1);
+        if (!equipment) return failure(404, 'التجهيز غير موجود');
+        const custody = {
+          id: nextId(state),
+          equipmentId: equipment.id,
+          sourceTransactionId: transaction.id,
+          recipientId: body.recipientId ?? null,
+          holderNameSnap: text(body.holderName, text(body.recipientPerson)),
+          deliveryNoteNumber: text(body.custodyNoteNumber, text(body.deliveryNoteNumber)),
+          deliveryDate: text(body.custodyDate, text(body.deliveryNoteDate, text(body.documentDate, now().slice(0, 10)))),
+          quantity,
+          returnedQuantity: 0,
+          location: text(body.custodyLocation),
+          status: 'open',
+          createdBy: currentUser.id,
+          createdAt: now(),
+          updatedAt: now(),
+        };
+        state.personalCustodies.unshift(custody);
+        recordOfflineChange(state, 'personal_custody', custody.id, 'create', {
+          equipmentId: custody.equipmentId,
+          sourceTransactionId: custody.sourceTransactionId,
+          quantity: custody.quantity,
+          holderNameSnap: custody.holderNameSnap,
+          deliveryNoteNumber: custody.deliveryNoteNumber,
+          deliveryDate: custody.deliveryDate,
+          location: custody.location,
+        });
+        if (quantity === 1) equipment.currentHolder = custody.holderNameSnap;
+      }
+
+      if (type === 'custody_return') {
+        const custodyId = numberValue(body.custodyId);
+        const custody = custodyReturn;
+        if (!custody) return failure(404, 'العهدة غير موجودة');
+        const quantity = numberValue(body.quantity);
+        const outstanding = numberValue(custody.quantity) - numberValue(custody.returnedQuantity);
+        if (quantity < 1 || quantity > outstanding) return failure(400, `كمية الإعادة تتجاوز المتبقي في العهدة (${outstanding})`);
+        const condition = text(body.returnCondition, 'good');
+        const returnRecord = {
+          id: nextId(state),
+          custodyId,
+          transactionId: transaction.id,
+          quantity,
+          returnDate: text(body.documentDate, now().slice(0, 10)),
+          documentNumber: transaction.documentNumber,
+          condition,
+          returnedToLocation: text(body.returnedToLocation, text(body.custodyLocation)),
+          inspectionNotes: body.inspectionNotes ?? null,
+          createdBy: currentUser.id,
+          createdAt: now(),
+        };
+        state.custodyReturns.unshift(returnRecord);
+        recordOfflineChange(state, 'custody_return', returnRecord.id, 'create', {
+          custodyId,
+          transactionId: transaction.id,
+          quantity,
+          condition,
+        });
+        const equipment = state.equipment.find((entry) => entry.id === numberValue(custody.equipmentId));
+        const nextReturned = numberValue(custody.returnedQuantity) + quantity;
+        custody.returnedQuantity = nextReturned;
+        custody.status = nextReturned === numberValue(custody.quantity)
+          ? (condition === 'good' ? 'returned' : condition === 'damaged' ? 'damaged' : 'closed')
+          : 'partially_returned';
+        custody.updatedAt = now();
+        recordOfflineChange(state, 'personal_custody', numberValue(custody.id), 'update', {
+          returnedQuantity: custody.returnedQuantity,
+          status: custody.status,
+        });
+        if (equipment && condition !== 'good') {
+          equipment.quantity = Math.max(0, numberValue(equipment.quantity, 1) - quantity);
+          equipment.updatedAt = now();
+        }
+      }
       addAudit(state, currentUser, 'create', 'transaction', transaction.id);
       return json(transaction, 201);
     });
@@ -957,7 +1060,104 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
   }
 
   if (pathname === '/api/custodies' && method === 'GET') {
-    return read((state) => json(state.personalCustodies));
+    return read((state) => {
+      const status = text(searchParams.get('status'));
+      const search = text(searchParams.get('search')).toLocaleLowerCase();
+      const rows = state.personalCustodies
+        .map((raw) => {
+          const equipment = state.equipment.find((entry) => numberValue(entry.id) === numberValue(raw.equipmentId));
+          const quantity = numberValue(raw.quantity);
+          const returnedQuantity = numberValue(raw.returnedQuantity);
+          return {
+            id: numberValue(raw.id),
+            equipmentId: numberValue(raw.equipmentId),
+            equipmentName: text(raw.equipmentName, text(equipment?.name, '—')),
+            serialNumber: text(raw.serialNumber, text(equipment?.serialNumber)) || null,
+            quantity,
+            returnedQuantity,
+            outstandingQuantity: Math.max(0, quantity - returnedQuantity),
+            recipientId: raw.recipientId ?? null,
+            holderName: text(raw.holderName, text(raw.holderNameSnap, '—')),
+            deliveryNoteNumber: text(raw.deliveryNoteNumber, '—'),
+            deliveryDate: text(raw.deliveryDate, text(raw.custodyDate, now().slice(0, 10))),
+            location: text(raw.location, text(raw.custodyLocation, '—')),
+            status: text(raw.status, returnedQuantity >= quantity ? 'returned' : 'open'),
+          };
+        })
+        .filter((row) => !status || row.status === status)
+        .filter((row) => !search || `${row.equipmentName} ${row.serialNumber ?? ''} ${row.holderName} ${row.deliveryNoteNumber}`.toLocaleLowerCase().includes(search));
+      return json(rows);
+    });
+  }
+  const custodyId = idFrom(pathname, 'custodies');
+  if (custodyId && pathname === `/api/custodies/${custodyId}` && method === 'GET') {
+    return read((state) => {
+      const raw = state.personalCustodies.find((entry) => numberValue(entry.id) === custodyId);
+      const equipment = raw && state.equipment.find((entry) => numberValue(entry.id) === numberValue(raw.equipmentId));
+      if (!raw || !equipment) return failure(404, 'العهدة غير موجودة');
+      const quantity = numberValue(raw.quantity);
+      const returnedQuantity = numberValue(raw.returnedQuantity);
+      const outstandingQuantity = Math.max(0, quantity - returnedQuantity);
+      const returns: Array<Record<string, unknown>> = state.custodyReturns
+        .filter((entry) => numberValue(entry.custodyId) === custodyId)
+        .sort((a, b) => String(a.returnDate ?? '').localeCompare(String(b.returnDate ?? '')))
+        .map((entry) => ({ ...entry, operatorName: state.users.find((user) => user.id === numberValue(entry.createdBy))?.fullName ?? null }));
+      const source = state.transactions.find((entry) => numberValue(entry.id) === numberValue(raw.sourceTransactionId));
+      const deliveryDate = new Date(`${text(raw.deliveryDate, now().slice(0, 10))}T00:00:00Z`);
+      const endDate = outstandingQuantity > 0 ? new Date() : new Date(`${String(returns.at(-1)?.returnDate ?? raw.deliveryDate)}T00:00:00Z`);
+      const daysHeld = Math.max(0, Math.floor((endDate.getTime() - deliveryDate.getTime()) / 86_400_000));
+      let returnedSoFar = 0;
+      const events = [
+        {
+          id: `transaction-${source?.id ?? raw.id}`,
+          kind: 'created',
+          label: 'إنشاء العهدة وتسليم التجهيز',
+          date: source?.transactionDate ?? raw.deliveryDate,
+          quantity,
+          documentNumber: raw.deliveryNoteNumber,
+          location: raw.location,
+          condition: null,
+          notes: source?.notes ?? null,
+          operatorName: state.users.find((user) => user.id === numberValue(source?.createdBy))?.fullName ?? null,
+        },
+        ...returns.map((entry) => {
+          returnedSoFar += numberValue(entry.quantity);
+          return {
+            id: `return-${entry.id}`,
+            kind: entry.condition === 'damaged' ? 'damaged' : 'returned',
+            label: returnedSoFar >= quantity ? 'إعادة كاملة' : 'إعادة جزئية',
+            date: entry.returnDate,
+            quantity: numberValue(entry.quantity),
+            documentNumber: entry.documentNumber,
+            location: entry.returnedToLocation,
+            condition: entry.condition,
+            notes: entry.inspectionNotes,
+            operatorName: entry.operatorName,
+          };
+        }),
+      ];
+      return json({
+        custody: {
+          ...raw,
+          id: custodyId,
+          holderName: text(raw.holderName, text(raw.holderNameSnap, '—')),
+          recipientName: null,
+          equipmentName: equipment.name,
+          quantity,
+          returnedQuantity,
+          outstandingQuantity,
+          deliveryNoteNumber: raw.deliveryNoteNumber,
+          deliveryDate: raw.deliveryDate,
+          location: raw.location,
+          status: text(raw.status, 'open'),
+          isOverdue: outstandingQuantity > 0 && daysHeld > 30,
+          daysHeld,
+        },
+        equipment: { id: equipment.id, name: equipment.name, equipmentType: equipment.equipmentType ?? null, model: equipment.model ?? null, serialNumber: equipment.serialNumber ?? null },
+        returns,
+        events,
+      });
+    });
   }
 
   if (pathname.match(/^\/api\/equipment\/\d+\/history$/) && method === 'GET') {
