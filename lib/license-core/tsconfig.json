@@ -3,6 +3,10 @@
   "include": ["src/**/*"],
   "compilerOptions": {
     "lib": ["es2022", "dom"],
-    "noEmit": true
+    "composite": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "dist",
+    "rootDir": "src"
   }
 }
