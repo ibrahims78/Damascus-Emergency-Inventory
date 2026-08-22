@@ -47,3 +47,7 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Workspace-only attachments and agent-generated previews
+attached_assets/
+/.agents/outputs/
