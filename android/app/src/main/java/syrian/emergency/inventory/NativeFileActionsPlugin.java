@@ -14,15 +14,26 @@ import android.print.PrintManager;
 import android.webkit.WebView;
 
 import com.getcapacitor.JSObject;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 
 import java.io.OutputStream;
 import android.util.Base64;
 
-@CapacitorPlugin(name = "NativeFileActions")
+@CapacitorPlugin(
+        name = "NativeFileActions",
+        permissions = {
+                @Permission(
+                        alias = "storage",
+                        strings = { Manifest.permission.WRITE_EXTERNAL_STORAGE }
+                )
+        }
+)
 public class NativeFileActionsPlugin extends Plugin {
     @PluginMethod
     public void print(PluginCall call) {
@@ -63,6 +74,28 @@ public class NativeFileActionsPlugin extends Plugin {
 
     @PluginMethod
     public void saveFile(PluginCall call) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+                && getActivity().checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissionForAlias("storage", call, "storagePermissionCallback");
+            return;
+        }
+
+        saveFileToDownloads(call);
+    }
+
+    @PermissionCallback
+    private void storagePermissionCallback(PluginCall call) {
+        if (getPermissionState("storage") != PermissionState.GRANTED) {
+            call.reject("لم يتم السماح للتطبيق بالوصول إلى الملفات");
+            return;
+        }
+
+        // Continue the original request after the user grants permission.
+        saveFileToDownloads(call);
+    }
+
+    private void saveFileToDownloads(PluginCall call) {
         String filename = call.getString("filename");
         String base64 = call.getString("base64");
         if (filename == null || filename.trim().isEmpty() || base64 == null || base64.isEmpty()) {
@@ -118,10 +151,8 @@ public class NativeFileActionsPlugin extends Plugin {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
                         && getActivity().checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
                         != PackageManager.PERMISSION_GRANTED) {
-                    getActivity().requestPermissions(
-                            new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
-                            2103
-                    );
+                    // The permission is requested before entering this method.
+                    // Keep this guard for defensive handling of activity state.
                     call.reject("يرجى السماح للتطبيق بالوصول إلى الملفات ثم إعادة التصدير");
                     return;
                 }
