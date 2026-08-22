@@ -140,3 +140,17 @@ mtime_ms = 1787398584649
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:5b735dcc-040e-4d6f-94a9-ef0290075a09/c0e464a8-d14d-49a8-b5a6-c68f53c232b2/868f93e4-39e7-42d8-8f58-5f9d7e719b5c"
 storage_version_token = "1787398666105045"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "3uFTn10ZiI4Dj8R6DdOTg"
+uri = "file://docs/protected-releases-work-plan-ar.html"
+type = "text"
+title = "خطة إنشاء النسخ المحمية — Windows وAndroid"
+description = "وثيقة عربية RTL جاهزة للمراجعة قبل التنفيذ، تشمل المراحل، اختبارات كل مرحلة، التوثيق، المخاطر، ومعايير الاعتماد."
+logical_id = "229e437e-695e-4de9-9ad9-2e84abf0f83f"
+content_hash = "sha256:f08e3e15dff82f6e0627220a93f15044f9d7673e16483c3592a3a98bd956b116"
+size = 34836
+mtime_ms = 1787406622835
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:489345e9-85ab-4737-833c-73b8aa635957/229e437e-695e-4de9-9ad9-2e84abf0f83f/bacd2593-2a56-4698-a583-285aa0dd0a15"
+storage_version_token = "1787406637855021"
+content_type = "text/html"
