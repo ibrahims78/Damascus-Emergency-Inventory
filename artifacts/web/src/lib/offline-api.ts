@@ -1005,7 +1005,66 @@ async function route(pathname: string, searchParams: URLSearchParams, method: st
          items: state.items.filter((item) => item.isActive !== false).map((item) => ({ ...item, availableQuantity: numberValue(item.currentStock), custodyQuantity: 0, damagedQuantity: 0, batches: [] })),
          equipment: state.equipment.map((item) => ({ ...item, availableQuantity: numberValue(item.quantity, 1), custodyQuantity: 0, damagedQuantity: 0 })),
        });
-      if (pathname === '/api/reports/custodies') return json([]);
+       if (pathname === '/api/reports/custodies') {
+         const statusFilter = text(searchParams.get('status'));
+         const search = text(searchParams.get('search')).toLocaleLowerCase();
+         const overdueDaysRaw = Number.parseInt(text(searchParams.get('overdueDays'), '30'), 10);
+         const overdueDays = Number.isSafeInteger(overdueDaysRaw)
+           ? Math.min(3650, Math.max(1, overdueDaysRaw))
+           : 30;
+         const cutoff = new Date();
+         cutoff.setDate(cutoff.getDate() - overdueDays);
+         const records = state.personalCustodies
+           .map((raw) => {
+             const equipmentId = numberValue(raw.equipmentId);
+             const equipment = state.equipment.find((item) => numberValue(item.id) === equipmentId);
+             const quantity = numberValue(raw.quantity);
+             const returnedQuantity = numberValue(raw.returnedQuantity);
+             const outstandingQuantity = Math.max(0, quantity - returnedQuantity);
+             const deliveryDate = text(raw.deliveryDate, text(raw.custodyDate)) || null;
+             const status = text(raw.status, outstandingQuantity < quantity ? 'partially_returned' : 'open');
+             const overdue = Boolean(
+               outstandingQuantity > 0 &&
+               deliveryDate &&
+               !Number.isNaN(new Date(deliveryDate).getTime()) &&
+               new Date(deliveryDate) < cutoff,
+             );
+             return {
+               id: numberValue(raw.id),
+               equipmentId,
+               equipmentName: text(raw.equipmentName, text(equipment?.name, '—')),
+               serialNumber: text(raw.serialNumber, text(equipment?.serialNumber)) || null,
+               holderName: text(raw.holderName, text(raw.holderNameSnap, '—')),
+               quantity,
+               returnedQuantity,
+               outstandingQuantity,
+               deliveryNoteNumber: text(raw.deliveryNoteNumber, '—'),
+               deliveryDate,
+               location: text(raw.location, text(raw.custodyLocation, '—')),
+               status,
+               overdue,
+             };
+           })
+           .filter((record) => ['open', 'partially_returned', 'damaged'].includes(record.status))
+           .filter((record) => !statusFilter || record.status === statusFilter)
+           .filter((record) => !search || [
+             record.equipmentName,
+             record.serialNumber,
+             record.holderName,
+             record.deliveryNoteNumber,
+           ].some((value) => String(value ?? '').toLocaleLowerCase().includes(search)));
+         return json({
+           overdueDays,
+           generatedAt: now(),
+           records,
+           totals: {
+             open: records.filter((record) => record.status === 'open').length,
+             partial: records.filter((record) => record.status === 'partially_returned').length,
+             overdue: records.filter((record) => record.overdue).length,
+             outstandingQuantity: records.reduce((sum, record) => sum + record.outstandingQuantity, 0),
+           },
+         });
+       }
       return failure(404, 'التقرير غير موجود');
     });
   }

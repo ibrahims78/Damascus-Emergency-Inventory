@@ -164,7 +164,7 @@ async function exportXlsx(filename: string, headers: string[], rows: ExcelCell[]
     );
     toast({
       description: location
-        ? `تم حفظ ملف Excel في مجلد ${location}`
+        ? `تم حفظ ملف Excel في مجلد Download/Damascus Emergency Inventory`
         : `تم تنزيل ملف Excel (${rows.length.toLocaleString('ar')} سجل) بنجاح`,
     });
   } catch (error) {
