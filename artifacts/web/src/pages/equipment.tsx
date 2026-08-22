@@ -69,6 +69,7 @@ import {
 import { toast } from 'sonner';
 import { EquipmentForm } from './equipment-form';
 import { EquipmentDetailsPage } from './equipment-details';
+import { downloadFile } from '@/lib/file-download';
 
 /* ─────────────────────────── Condition config ───────────────────────────── */
 
@@ -209,7 +210,13 @@ function ExportButton() {
       ws['!cols'] = headers.map((_, i) => ({ wch: [20, 15, 15, 18, 14, 8, 10, 10, 14, 18, 25][i] }));
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'التجهيزات');
-      XLSX.writeFile(wb, `التجهيزات-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      const workbookBytes = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      await downloadFile(
+        new Blob([workbookBytes], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        }),
+        `التجهيزات-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      );
       toast.success(`تم تصدير ${data.length} تجهيز بنجاح`);
     } catch {
       toast.error('حدث خطأ أثناء التصدير');

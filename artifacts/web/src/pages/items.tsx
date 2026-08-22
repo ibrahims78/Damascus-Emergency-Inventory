@@ -71,6 +71,7 @@ import { cn } from '@/lib/utils';
 import { ItemForm } from './item-form';
 import { AdjustmentForm } from './adjustment-form';
 import { ItemDetailsPage } from './item-details';
+import { downloadFile } from '@/lib/file-download';
 
 /* ──────────────────────────── Page router ───────────────────────────────── */
 
@@ -195,7 +196,13 @@ function ExportButton() {
       ws['!cols'] = [10, 30, 16, 12, 10, 12, 12, 16, 14, 16, 20, 25].map((wch) => ({ wch }));
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'المواد والمستهلكات');
-      XLSX.writeFile(wb, `المواد-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      const workbookBytes = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      await downloadFile(
+        new Blob([workbookBytes], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        }),
+        `المواد-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      );
       toast.success(`تم تصدير ${data.length} صنف بنجاح`);
     } catch {
       toast.error('حدث خطأ أثناء التصدير');

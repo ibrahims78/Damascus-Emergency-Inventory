@@ -45,6 +45,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { downloadFile } from '@/lib/file-download';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -2244,7 +2245,13 @@ function ImportTab() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, dataWs, 'البيانات');
     XLSX.utils.book_append_sheet(wb, instrWs, 'التعليمات');
-    XLSX.writeFile(wb, 'نموذج_استيراد_المواد.xlsx');
+    const workbookBytes = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    await downloadFile(
+      new Blob([workbookBytes], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      }),
+      'نموذج_استيراد_المواد.xlsx',
+    );
     toast.success('تم تحميل النموذج بنجاح');
   };
 
@@ -2589,7 +2596,13 @@ function ImportEquipmentTab() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, dataWs, 'البيانات');
     XLSX.utils.book_append_sheet(wb, instrWs, 'التعليمات');
-    XLSX.writeFile(wb, 'نموذج_استيراد_التجهيزات.xlsx');
+    const workbookBytes = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    await downloadFile(
+      new Blob([workbookBytes], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      }),
+      'نموذج_استيراد_التجهيزات.xlsx',
+    );
     toast.success('تم تحميل النموذج بنجاح');
   };
 

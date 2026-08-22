@@ -39,6 +39,7 @@ import {
 import { formatDateTime } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { downloadFile } from '@/lib/file-download';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -204,16 +205,7 @@ export function AuditPage() {
       const blob = new Blob([workbookBytes], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       });
-      const objectUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = objectUrl;
-      a.download = `سجل-التدقيق-${new Date().toISOString().split('T')[0]}.xlsx`;
-      a.rel = 'noopener';
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      await downloadFile(blob, `سجل-التدقيق-${new Date().toISOString().split('T')[0]}.xlsx`);
       toast({ description: `تم تصدير ${allEntries.length.toLocaleString('ar')} سجل بنجاح` });
     } catch (error) {
       console.error('Audit export failed:', error);

@@ -367,7 +367,7 @@ async function passwordHash(password: string, salt: string) {
 }
 
 function itemWithCategory(state: OfflineState, item: Record<string, unknown>): Record<string, unknown> {
-  const category = state.categories.find((entry) => entry.id === item.categoryId);
+  const category = state.categories.find((entry) => numberValue(entry.id) === numberValue(item.categoryId));
   return { ...item, categoryName: category?.name ?? null };
 }
 
