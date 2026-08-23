@@ -292,7 +292,7 @@ export function Header() {
   });
 
   // Fetch alerts — no polling interval; SSE pushes updates instead
-  const { data: alerts } = useQuery({
+  const { data: alerts, isError: alertsError, isFetching: alertsFetching, refetch: refetchAlerts } = useQuery({
     ...getListAlertsQueryOptions(),
     // Fallback polling every 10 min in case SSE drops and doesn't reconnect
     refetchInterval: 10 * 60 * 1_000,
@@ -394,6 +394,7 @@ export function Header() {
               size="icon"
               className="relative"
               aria-label={unreadCount > 0 ? `التنبيهات — ${unreadCount} غير مقروء` : 'التنبيهات'}
+              onClick={() => { void refetchAlerts(); }}
             >
               <Bell className={cn(
                 'h-5 w-5',
@@ -438,11 +439,16 @@ export function Header() {
               )}
             </div>
 
-            {/* Empty state */}
+            {/* Empty/error state */}
+            {alertsError && (
+              <div className="px-4 py-8 text-center text-sm text-destructive">
+                تعذر تحميل التنبيهات. اضغط على الجرس للمحاولة مرة أخرى.
+              </div>
+            )}
             {(alerts?.length ?? 0) === 0 && (
               <div className="py-10 text-center text-sm text-muted-foreground">
                 <Bell className="h-8 w-8 mx-auto mb-2 opacity-20" />
-                لا توجد تنبيهات نشطة
+                {alertsFetching ? 'جاري تحميل التنبيهات...' : 'لا توجد تنبيهات نشطة'}
               </div>
             )}
 

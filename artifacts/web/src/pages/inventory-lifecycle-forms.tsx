@@ -271,6 +271,8 @@ function EntityPicker({
 export function CustodyOutForm() {
   const [, setLocation] = useLocation();
   const { data: recipients } = useListRecipients();
+  const { data: equipmentData } = useListEquipment({ limit: 5000 });
+  const { data: custodies } = useListCustodies();
   const mutation = useCreateCustodyOutTransaction();
   const [equipmentId, setEquipmentId] = useState<number | null>(null);
   const [recipientId, setRecipientId] = useState<number | null>(null);
@@ -281,11 +283,37 @@ export function CustodyOutForm() {
   const [location, setLocationValue] = useState('');
   const [notes, setNotes] = useState('');
   const [confirming, setConfirming] = useState(false);
+  const selectedEquipment = equipmentData?.equipment.find((equipment) => equipment.id === equipmentId);
+  const openCustodyQuantity = selectedEquipment
+    ? (custodies ?? [])
+        .filter((custody) => custody.equipmentId === selectedEquipment.id && custody.outstandingQuantity > 0)
+        .reduce((total, custody) => total + custody.outstandingQuantity, 0)
+    : 0;
+  const equipmentAvailable = selectedEquipment
+    ? Math.max(0, (selectedEquipment.quantity ?? 0) - openCustodyQuantity)
+    : null;
+  const serialEquipment = Boolean(selectedEquipment?.serialNumber?.trim());
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!equipmentId || !holderName.trim() || !noteNumber.trim() || !location.trim()) {
       toast.error('يرجى تعبئة التجهيز والمستلم ورقم المذكرة والمكان');
+      return;
+    }
+    if (!date) {
+      toast.error('يرجى اختيار تاريخ التسليم');
+      return;
+    }
+    if (!Number.isSafeInteger(quantity) || quantity < 1 || (equipmentAvailable !== null && quantity > equipmentAvailable)) {
+      toast.error(
+        equipmentAvailable === 0
+          ? 'لا توجد كمية متاحة لهذا التجهيز للعهدة'
+          : `كمية العهدة يجب أن تكون بين 1 و ${equipmentAvailable}`,
+      );
+      return;
+    }
+    if (serialEquipment && quantity !== 1) {
+      toast.error('التجهيز ذو الرقم التسلسلي يمثل وحدة واحدة فقط');
       return;
     }
     if (!confirming) {
@@ -321,7 +349,31 @@ export function CustodyOutForm() {
           </Field>
           <Field label="رقم مذكرة تسليم العهدة" required><Input value={noteNumber} onChange={(e) => { setNoteNumber(e.target.value); setConfirming(false); }} /></Field>
           <Field label="تاريخ التسليم" required><Input type="date" value={date} onChange={(e) => { setDate(e.target.value); setConfirming(false); }} /></Field>
-          <Field label="الكمية" required hint="للتجهيز ذي الرقم التسلسلي يجب أن تكون 1"><Input type="number" min={1} value={quantity} onChange={(e) => { setQuantity(e.target.valueAsNumber || 1); setConfirming(false); }} /></Field>
+           <Field
+             label="الكمية"
+             required
+             hint={
+               serialEquipment
+                 ? 'الرقم التسلسلي يعرّف وحدة واحدة — الكمية ثابتة عند 1'
+                 : equipmentAvailable !== null
+                   ? `المتاح للعهدة: ${equipmentAvailable}`
+                   : 'اختر التجهيز لمعرفة الكمية المتاحة'
+             }
+           >
+             <Input
+               type="number"
+               min={1}
+               max={serialEquipment ? 1 : equipmentAvailable ?? undefined}
+               value={quantity}
+               readOnly={serialEquipment}
+               disabled={equipmentAvailable === 0}
+               onChange={(e) => {
+                 setQuantity(e.target.valueAsNumber || 1);
+                 setConfirming(false);
+               }}
+               className={serialEquipment || equipmentAvailable === 0 ? 'cursor-not-allowed bg-muted' : ''}
+             />
+           </Field>
           <Field label="مكان العهدة" required><Input value={location} onChange={(e) => { setLocationValue(e.target.value); setConfirming(false); }} placeholder="مثال: سيارة الإسعاف 12" /></Field>
         </div>
         <Field label="ملاحظات"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="min-h-24" /></Field>
