@@ -5,3 +5,4 @@ releases/android/v2.0.4/Damascus-Emergency-Inventory-v2.0.4-offline.apk filter=l
 releases/windows/v3.0.1/Damascus-Emergency-Inventory-v3.0.1-Windows.zip filter=lfs diff=lfs merge=lfs -text
 releases/windows/v3.0.2/Damascus-Emergency-Inventory-v3.0.2-Windows.zip filter=lfs diff=lfs merge=lfs -text
 releases/windows/v3.0.3/Damascus-Emergency-Inventory-v3.0.3-Windows.zip filter=lfs diff=lfs merge=lfs -text
+releases/windows/v3.0.4/*.zip filter=lfs diff=lfs merge=lfs -text
