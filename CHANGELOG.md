@@ -2,6 +2,14 @@
 
 ## 2026-08-23
 
+### إصدار Windows Portable `3.0.5`
+
+- إعادة بناء حزمة Windows Portable من آخر commit في الفرع `main`.
+- تضمين آخر تحديثات الواجهة وAPI المحلي وقاعدة PGlite المحلية.
+- توحيد رقم الإصدار في Electron وملفات الحزمة إلى `3.0.5`.
+
+## 2026-08-23
+
 ### إصدار Windows Portable `3.0.3`
 
 - إعادة بناء حزمة Windows Portable من آخر commit في الفرع `main`.
