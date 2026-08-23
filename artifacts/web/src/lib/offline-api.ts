@@ -180,7 +180,13 @@ function openDatabase(): Promise<IDBDatabase> {
           request.result.createObjectStore(STORE_NAME);
         }
       };
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        const db = request.result;
+        // Close stale connections so a schema upgrade cannot remain blocked
+        // forever in Electron.
+        db.onversionchange = () => db.close();
+        resolve(db);
+      };
       request.onerror = () => reject(request.error ?? new Error('تعذر فتح قاعدة البيانات المحلية'));
       request.onblocked = () => reject(new Error('قاعدة البيانات المحلية مشغولة بعملية أخرى'));
     }),
@@ -279,13 +285,21 @@ async function saveState(state: OfflineState) {
 
 async function savePendingPreview(preview: NonNullable<typeof pendingDmePreview>) {
   const db = await openDatabase();
-  await new Promise<void>((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    transaction.objectStore(STORE_NAME).put(preview, PREVIEW_KEY);
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
-  });
-  db.close();
+  try {
+    await withTimeout(
+      new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction(STORE_NAME, 'readwrite');
+        const request = transaction.objectStore(STORE_NAME).put(preview, PREVIEW_KEY);
+        request.onerror = () => reject(request.error ?? new Error('تعذر حفظ نقطة الاستعادة المحلية'));
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error ?? new Error('تعذر حفظ نقطة الاستعادة المحلية'));
+        transaction.onabort = () => reject(transaction.error ?? new Error('تم إلغاء حفظ نقطة الاستعادة المحلية'));
+      }),
+      'انتهت مهلة حفظ نقطة الاستعادة المحلية',
+    );
+  } finally {
+    db.close();
+  }
 }
 
 async function loadPendingPreview() {
@@ -302,17 +316,32 @@ async function loadPendingPreview() {
 
 async function clearPendingPreview() {
   const db = await openDatabase();
-  await new Promise<void>((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    transaction.objectStore(STORE_NAME).delete(PREVIEW_KEY);
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
-  });
-  db.close();
+  try {
+    await withTimeout(
+      new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction(STORE_NAME, 'readwrite');
+        const request = transaction.objectStore(STORE_NAME).delete(PREVIEW_KEY);
+        request.onerror = () => reject(request.error ?? new Error('تعذر حذف نقطة الاستعادة المحلية'));
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error ?? new Error('تعذر حذف نقطة الاستعادة المحلية'));
+        transaction.onabort = () => reject(transaction.error ?? new Error('تم إلغاء حذف نقطة الاستعادة المحلية'));
+      }),
+      'انتهت مهلة حذف نقطة الاستعادة المحلية',
+    );
+  } finally {
+    db.close();
+  }
 }
 
 function getState() {
-  statePromise ??= loadState();
+  if (!statePromise) {
+    statePromise = loadState().catch((error) => {
+      // Do not cache a rejected IndexedDB promise: one transient failure
+      // must not leave every later mutation waiting forever.
+      statePromise = undefined;
+      throw error;
+    });
+  }
   return statePromise;
 }
 
