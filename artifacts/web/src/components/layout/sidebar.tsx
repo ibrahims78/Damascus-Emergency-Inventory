@@ -33,7 +33,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
-const APP_VERSION = 'v3.0.1';
+const APP_VERSION = 'v3.0.3';
 const DESIGNER_NAME = 'إبراهيم الصيداوي';
 const DESIGNER_PHONE = '0933706403';
 
