@@ -189,13 +189,46 @@ async function loadState(): Promise<OfflineState> {
 
 async function saveState(state: OfflineState) {
   const db = await openDatabase();
-  await new Promise<void>((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    transaction.objectStore(STORE_NAME).put(state, STATE_KEY);
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
-  });
-  db.close();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readwrite');
+      const request = transaction.objectStore(STORE_NAME).put(state, STATE_KEY);
+      let settled = false;
+      const finish = (error?: unknown) => {
+        if (settled) return;
+        settled = true;
+        if (error) reject(error);
+        else resolve();
+      };
+      const timeout = window.setTimeout(() => {
+        try {
+          transaction.abort();
+        } catch {
+          // The transaction may already have completed or aborted.
+        }
+        finish(new Error('انتهت مهلة حفظ البيانات المحلية'));
+      }, 15000);
+      const clear = () => window.clearTimeout(timeout);
+      request.onerror = () => {
+        clear();
+        finish(request.error ?? new Error('تعذر حفظ البيانات المحلية'));
+      };
+      transaction.oncomplete = () => {
+        clear();
+        finish();
+      };
+      transaction.onerror = () => {
+        clear();
+        finish(transaction.error ?? new Error('تعذر حفظ البيانات المحلية'));
+      };
+      transaction.onabort = () => {
+        clear();
+        finish(transaction.error ?? new Error('تم إلغاء حفظ البيانات المحلية'));
+      };
+    });
+  } finally {
+    db.close();
+  }
 }
 
 async function savePendingPreview(preview: NonNullable<typeof pendingDmePreview>) {
