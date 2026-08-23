@@ -59,6 +59,8 @@ const STORE_NAME = 'state';
 const STATE_KEY = 'current';
 const PREVIEW_KEY = 'pending-restore-preview';
 const OFFLINE_HEADER = 'X-Damascus-Offline';
+const INDEXED_DB_TIMEOUT_MS = 15_000;
+const OFFLINE_REQUEST_TIMEOUT_MS = 20_000;
 
 let statePromise: Promise<OfflineState> | undefined;
 let writeQueue = Promise.resolve();
@@ -91,7 +93,7 @@ function initialState(): OfflineState {
     nodeIdentity: {
       nodeId: crypto.randomUUID(),
       installationId: crypto.randomUUID(),
-      nodeType: 'android',
+      nodeType: /Android/i.test(navigator.userAgent) ? 'android' : 'windows',
       keyId: null,
       originSequence: 0,
       createdAt: timestamp,
@@ -138,28 +140,72 @@ function initialState(): OfflineState {
   };
 }
 
-function openDatabase(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = () => {
-      if (!request.result.objectStoreNames.contains(STORE_NAME)) {
-        request.result.createObjectStore(STORE_NAME);
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error('تعذر فتح قاعدة البيانات المحلية'));
+function withTimeout<T>(promise: Promise<T>, message: string, timeoutMs = INDEXED_DB_TIMEOUT_MS): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const timeout = window.setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error(message));
+    }, timeoutMs);
+    promise.then(
+      (value) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeout);
+        resolve(value);
+      },
+      (error) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeout);
+        reject(error);
+      },
+    );
   });
+}
+
+function openDatabase(): Promise<IDBDatabase> {
+  return withTimeout(
+    new Promise((resolve, reject) => {
+      let request: IDBOpenDBRequest;
+      try {
+        request = indexedDB.open(DB_NAME, DB_VERSION);
+      } catch (error) {
+        reject(error);
+        return;
+      }
+      request.onupgradeneeded = () => {
+        if (!request.result.objectStoreNames.contains(STORE_NAME)) {
+          request.result.createObjectStore(STORE_NAME);
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error ?? new Error('تعذر فتح قاعدة البيانات المحلية'));
+      request.onblocked = () => reject(new Error('قاعدة البيانات المحلية مشغولة بعملية أخرى'));
+    }),
+    'انتهت مهلة فتح قاعدة البيانات المحلية',
+  );
 }
 
 async function loadState(): Promise<OfflineState> {
   const db = await openDatabase();
-  const existing = await new Promise<OfflineState | undefined>((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readonly');
-    const request = transaction.objectStore(STORE_NAME).get(STATE_KEY);
-    request.onsuccess = () => resolve(request.result as OfflineState | undefined);
-    request.onerror = () => reject(request.error);
-  });
-  db.close();
+  let existing: OfflineState | undefined;
+  try {
+    existing = await withTimeout(
+      new Promise<OfflineState | undefined>((resolve, reject) => {
+        const transaction = db.transaction(STORE_NAME, 'readonly');
+        const request = transaction.objectStore(STORE_NAME).get(STATE_KEY);
+        request.onsuccess = () => resolve(request.result as OfflineState | undefined);
+        request.onerror = () => reject(request.error);
+        transaction.onerror = () => reject(transaction.error ?? new Error('تعذر قراءة البيانات المحلية'));
+        transaction.onabort = () => reject(transaction.error ?? new Error('تم إلغاء قراءة البيانات المحلية'));
+      }),
+      'انتهت مهلة قراءة البيانات المحلية',
+    );
+  } finally {
+    db.close();
+  }
   if (existing) {
     const fresh = initialState();
     return {
@@ -1725,7 +1771,13 @@ export function installOfflineApi() {
     const url = new URL(input instanceof Request ? input.url : String(input), window.location.origin);
     if (!url.pathname.startsWith('/api/')) return originalFetch(input, init);
     try {
-      return await route(url.pathname, url.searchParams, init?.method ?? (input instanceof Request ? input.method : 'GET'), init);
+      const method = init?.method ?? (input instanceof Request ? input.method : 'GET');
+      const response = await withTimeout(
+        route(url.pathname, url.searchParams, method, init),
+        'انتهت مهلة تنفيذ العملية المحلية',
+        OFFLINE_REQUEST_TIMEOUT_MS,
+      );
+      return response;
     } catch (error) {
       console.error('Offline API error:', error);
       return failure(500, error instanceof Error ? error.message : 'تعذر تنفيذ العملية المحلية');
