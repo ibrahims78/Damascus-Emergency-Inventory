@@ -75,7 +75,10 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: process.env.NODE_ENV === "production",
+      // The embedded Electron API is served over loopback HTTP. A Secure
+      // cookie would be rejected by Chromium there, which makes setup/login
+      // appear successful while every subsequent protected request is 401.
+      secure: process.env.NODE_ENV === "production" && !desktopMode,
       httpOnly: true,
       sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
