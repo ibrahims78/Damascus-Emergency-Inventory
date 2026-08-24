@@ -45,8 +45,11 @@ const DEFAULT_RETURN_CONDITION_BEHAVIORS = new Map([
   ["missing", "missing"],
 ]);
 
-async function resolveReturnCondition(value: string) {
-  const settings = await db.query.systemSettingsTable.findFirst({
+async function resolveReturnCondition(
+  tx: DbTransaction,
+  value: string,
+) {
+  const settings = await tx.query.systemSettingsTable.findFirst({
     columns: { returnConditions: true },
   });
   try {
@@ -780,7 +783,7 @@ async function createCustodyReturn(
   }
   const quantity = assertPositiveInteger(input.quantity, "الكمية");
   const condition = assertNonEmpty(input.returnCondition, "حالة الصنف عند الإعادة");
-  const resolvedCondition = await resolveReturnCondition(condition);
+  const resolvedCondition = await resolveReturnCondition(tx, condition);
   const returnDate = assertIsoDate(input.documentDate ?? today(), "تاريخ الإعادة", true)!;
   const returnedToLocation = assertNonEmpty(
     input.returnedToLocation ?? input.custodyLocation,
@@ -893,7 +896,7 @@ async function createCentralReturn(
   const quantity = assertPositiveInteger(input.quantity, "الكمية");
   const reason = assertNonEmpty(input.reason, "سبب المرتجع");
   const condition = assertNonEmpty(input.returnCondition, "حالة المرتجع");
-  const resolvedCondition = await resolveReturnCondition(condition);
+  const resolvedCondition = await resolveReturnCondition(tx, condition);
 
   if (entity.itemType === "item") await lockItem(tx, entity.itemId!);
   else {
