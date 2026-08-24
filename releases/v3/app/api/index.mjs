@@ -72007,8 +72007,8 @@ var DEFAULT_RETURN_CONDITION_BEHAVIORS = /* @__PURE__ */ new Map([
   ["needs_maintenance", "needs_maintenance"],
   ["missing", "missing"]
 ]);
-async function resolveReturnCondition(value) {
-  const settings = await db.query.systemSettingsTable.findFirst({
+async function resolveReturnCondition(tx, value) {
+  const settings = await tx.query.systemSettingsTable.findFirst({
     columns: { returnConditions: true }
   });
   try {
@@ -72520,7 +72520,7 @@ async function createCustodyReturn(tx, context, input, documentNumber) {
   }
   const quantity = assertPositiveInteger(input.quantity, "\u0627\u0644\u0643\u0645\u064A\u0629");
   const condition = assertNonEmpty(input.returnCondition, "\u062D\u0627\u0644\u0629 \u0627\u0644\u0635\u0646\u0641 \u0639\u0646\u062F \u0627\u0644\u0625\u0639\u0627\u062F\u0629");
-  const resolvedCondition = await resolveReturnCondition(condition);
+  const resolvedCondition = await resolveReturnCondition(tx, condition);
   const returnDate = assertIsoDate(input.documentDate ?? today(), "\u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0625\u0639\u0627\u062F\u0629", true);
   const returnedToLocation = assertNonEmpty(
     input.returnedToLocation ?? input.custodyLocation,
@@ -72601,7 +72601,7 @@ async function createCentralReturn(tx, context, input, entity, documentNumber) {
   const quantity = assertPositiveInteger(input.quantity, "\u0627\u0644\u0643\u0645\u064A\u0629");
   const reason = assertNonEmpty(input.reason, "\u0633\u0628\u0628 \u0627\u0644\u0645\u0631\u062A\u062C\u0639");
   const condition = assertNonEmpty(input.returnCondition, "\u062D\u0627\u0644\u0629 \u0627\u0644\u0645\u0631\u062A\u062C\u0639");
-  const resolvedCondition = await resolveReturnCondition(condition);
+  const resolvedCondition = await resolveReturnCondition(tx, condition);
   if (entity.itemType === "item") await lockItem(tx, entity.itemId);
   else {
     const equipment = await lockEquipment(tx, entity.equipmentId);
@@ -76154,7 +76154,10 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: process.env.NODE_ENV === "production",
+      // The embedded Electron API is served over loopback HTTP. A Secure
+      // cookie would be rejected by Chromium there, which makes setup/login
+      // appear successful while every subsequent protected request is 401.
+      secure: process.env.NODE_ENV === "production" && !desktopMode,
       httpOnly: true,
       sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60 * 1e3

@@ -8,3 +8,5 @@ releases/windows/v3.0.3/Damascus-Emergency-Inventory-v3.0.3-Windows.zip filter=l
 releases/windows/v3.0.4/*.zip filter=lfs diff=lfs merge=lfs -text
 releases/windows/v3.0.5/*.zip filter=lfs diff=lfs merge=lfs -text
 releases/windows/v3.0.5/**/*.exe filter=lfs diff=lfs merge=lfs -text
+releases/windows/v3.0.6/*.zip filter=lfs diff=lfs merge=lfs -text
+releases/windows/v3.0.6/**/*.exe filter=lfs diff=lfs merge=lfs -text
