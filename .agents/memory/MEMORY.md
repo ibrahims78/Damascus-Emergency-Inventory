@@ -22,3 +22,4 @@
 - [Android storage permission continuation](android-storage-permission.md) — legacy Android file requests must resume the retained native call after storage permission is granted.
 - [Protected release build boundaries](protected-release-phase1-boundaries.md) — standard and protected outputs must use separate directories and secret scanning must avoid weak keyword false positives.
 - [Electron IndexedDB lifecycle](electron-indexeddb-lifecycle.md) — close stale versioned connections and never cache rejected state-load promises, or offline mutations can remain blocked.
+- [Movement transaction reads](movement-transaction-reads.md) — all settings and reference reads inside a movement transaction must use its transaction handle.
